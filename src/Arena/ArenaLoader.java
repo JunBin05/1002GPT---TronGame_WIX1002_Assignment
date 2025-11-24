@@ -27,12 +27,10 @@ public class ArenaLoader {
         // ------------------------
 
         // --- 2. Define Base Path and Load/Scale Image Icons ---
-        // NOTE: Path needs to be correct for your environment.
-        String baseDir = "C:\\Users\\User\\Documents\\UM Sem 1 Coding\\1002GPT---TronGame_WIX1002_Assignment\\data\\";
 
         // Load original images
-        ImageIcon originalObstacleIcon = new ImageIcon(baseDir + "obstacle.png");
-        ImageIcon originalSpeedRampIcon = new ImageIcon(baseDir + "Speed.png");
+        ImageIcon originalObstacleIcon = new ImageIcon("data/obstacle.png");
+        ImageIcon originalSpeedRampIcon = new ImageIcon("data/Speed.png");
 
         ImageIcon obstacleIcon = null;
         ImageIcon speedRampIcon = null;
