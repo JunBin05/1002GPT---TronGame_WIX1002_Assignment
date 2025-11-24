@@ -29,8 +29,8 @@ public class ArenaLoader {
         // --- 2. Define Base Path and Load/Scale Image Icons ---
 
         // Load original images
-        ImageIcon originalObstacleIcon = new ImageIcon("/data/obstacle.png");
-        ImageIcon originalSpeedRampIcon = new ImageIcon("/data/Speed.png");
+        ImageIcon originalObstacleIcon = new ImageIcon("data/obstacle.png");
+        ImageIcon originalSpeedRampIcon = new ImageIcon("data/Speed.png");
 
         ImageIcon obstacleIcon = null;
         ImageIcon speedRampIcon = null;
