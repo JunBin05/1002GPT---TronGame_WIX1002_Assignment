@@ -4,118 +4,131 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.io.File; // Import for File
-import java.io.IOException; // Import for Errors
-
-// --- IMPORTS FOR AUDIO ---
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-import javax.sound.sampled.FloatControl;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 
 public class ImagePanel_Home extends JPanel {
 
     private Image backgroundImage;
-    private JButton soundButton;
-    private Image originalSoundImage; 
-    private boolean isMuted = false;
-
-    // --- NEW FIELD FOR MUSIC ---
-    private Clip musicClip; 
-
+    
+    // Define the buttons
+    private SoundButton soundButton;
+    private PlayButton playButton;  // <--- NEW
+    private LeaderBoardButton leaderboardButton; // <--- NEW
+    private AwardButton awardButton; // <--- NEW
+    private QuestionButton questionButton; // <--- NEW
+    private ShopButton shopButton; // <--- NEW
+    private ProfilePictureButton profileButton; // <--- NEW
+    
     public ImagePanel_Home(String imagePath) {
-        setLayout(null); 
+        setLayout(null); // Absolute positioning
 
         this.backgroundImage = new ImageIcon(imagePath).getImage();
-        this.originalSoundImage = new ImageIcon("images/sound_button.png").getImage();
 
-        soundButton = new JButton();
-        soundButton.setBorderPainted(false);
-        soundButton.setContentAreaFilled(false);
-        soundButton.setFocusPainted(false);
-        soundButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        soundButton.addActionListener(e -> toggleSound());
+        // 1. Create Sound Button
+        soundButton = new SoundButton("images/sound_button.png", "images/game_music.wav");
         add(soundButton);
 
+        // 2. Create Play Button
+        playButton = new PlayButton("images/play_button.png");
+        add(playButton);
+
+        // 3. Create Leaderboard Button
+        leaderboardButton = new LeaderBoardButton("images/leaderboard_button.png");
+        add(leaderboardButton);
+
+        // 4. Create Award Button
+        awardButton = new AwardButton("images/award_button.png");
+        add(awardButton);
+
+        // 5. Create Question Button
+        questionButton = new QuestionButton("images/qna_button.png");
+        add(questionButton);
+
+        //6. Create Shop Button
+        shopButton = new ShopButton("images/shop_button.png");
+        add(shopButton);
+
+        //7. Create Profile Picture Button
+        profileButton = new ProfilePictureButton("images/default_profile.png");
+        add(profileButton);
+
+
+
+        // Resize Listener (Adjusts positions when window stretches)
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                updateButtonPosition();
+                updateLayout();
             }
         });
-
-        // --- LOAD AND START MUSIC IMMEDIATELY ---
-        // Change "images/bg_music.wav" to your actual file path
-        playMusic("images/game_music.wav");
     }
 
-    /**
-     * --- NEW METHOD: LOAD & PLAY MUSIC ---
-     */
-    private void playMusic(String filepath) {
-        try {
-            File musicPath = new File(filepath);
+    private void updateLayout() {
+        int w = getWidth();
+        int h = getHeight();
+        if (w == 0 || h == 0) return;
 
-            if (musicPath.exists()) {
-                AudioInputStream audioInput = AudioSystem.getAudioInputStream(musicPath);
-                musicClip = AudioSystem.getClip();
-                musicClip.open(audioInput);
-                
-                // Start playing
-                musicClip.start();
-                
-                // Loop the music continuously
-                musicClip.loop(Clip.LOOP_CONTINUOUSLY);
-                
-            } else {
-                System.out.println("Can't find file");
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
+        // --- A. Setup Sound Button (Bottom Left) ---
+        int soundSize = (int) (h * 0.18); // 15% of screen height
+        int soundX = (int) (w * 0.02);    // 12% from left
+        int soundY = ((h / 2) - (soundSize / 2)) + 150; // Lower middle
 
-    private void updateButtonPosition() {
-        int panelW = getWidth();
-        int panelH = getHeight();
-        if (panelW == 0 || panelH == 0) return;
+        soundButton.setBounds(soundX, soundY, soundSize, soundSize);
+        soundButton.resizeIcon(soundSize);
 
-        // Button Size: 15% of screen height
-        int btnSize = (int) (panelH * 0.18); 
-
-        // Position: 12% Right, Center Vertical + 100px Down
-        int x = (int) (panelW * 0.30);
-        int y = ((panelH / 2) - (btnSize / 2)) + 150;
-
-        Image scaledImg = originalSoundImage.getScaledInstance(btnSize, btnSize, Image.SCALE_SMOOTH);
-        soundButton.setIcon(new ImageIcon(scaledImg));
-        soundButton.setBounds(x, y, btnSize, btnSize);
-    }
-
-    /**
-     * --- UPDATED TOGGLE LOGIC ---
-     */
-    private void toggleSound() {
-        isMuted = !isMuted;
+        // --- B. Setup Play Button (Above Sound Button) ---
+        // Width is roughly 2.5 times the height for a rectangular button
+        int playHeight = (int) (h * 0.19);  
+        int playWidth = (int) (playHeight * 2.5); 
         
-        if (isMuted) {
-            // STOP MUSIC
-            if (musicClip != null && musicClip.isRunning()) {
-                musicClip.stop();
-            }
-            JOptionPane.showMessageDialog(this, "Music Paused");
-        } else {
-            // RESUME MUSIC
-            if (musicClip != null) {
-                musicClip.start();
-                musicClip.loop(Clip.LOOP_CONTINUOUSLY);
-            }
-            JOptionPane.showMessageDialog(this, "Music Playing");
-        }
+       
+        int playX = (int) (w * 0.05);
+        int playY = ((h / 2) - (playHeight / 2)) - 40;
+
+        playButton.setBounds(playX, playY, playWidth, playHeight);
+        playButton.resizeIcon(playWidth, playHeight);
+
+        // --- C. Setup Leaderboard Button (Beside Sound Button) ---
+        int lbSize = (int) (h * 0.18); // 15% of screen height
+        int lbX = (int) (w * 0.02); // Right of sound button
+        int lbY = ((h / 2) - (lbSize / 2)) + 150; // Align with sound button
+
+        leaderboardButton.setBounds(lbX + soundSize + 5, lbY, lbSize, lbSize);
+        leaderboardButton.resizeIcon(lbSize); 
+
+        // --- D. Setup Award Button (Beside Leaderboard Button) ---
+        int awardSize = (int) (h * 0.18); // 15
+        int awardX = (int) (w * 0.02); // Right of leaderboard button
+        int awardY = ((h / 2) - (awardSize / 2)) + 150; // Align with sound button
+
+        awardButton.setBounds(awardX + soundSize + lbSize + 10, awardY, awardSize, awardSize);
+        awardButton.resizeIcon(awardSize);
+
+        // --- E. Setup Question Button (Right bottom of the window) ---
+        int qnaSize = (int) (h * 0.18); // 15% of screen height
+        int qnaX = w - qnaSize - (int) (w * 0.15); // 2% from right
+        int qnaY = h - qnaSize - 30;
+
+        questionButton.setBounds(qnaX, qnaY, qnaSize, qnaSize);
+        questionButton.resizeIcon(qnaSize);
+
+        // --- F. Setup Shop Button (Right besides the Question Button) ---
+        int shopSize = (int) (h * 0.18); // 15% of screen height
+        int shopX = w - shopSize - (int) (w * 0.02); // 2% from right
+        int shopY = h - shopSize - 30;
+
+        shopButton.setBounds(shopX, shopY, shopSize, shopSize);
+        shopButton.resizeIcon(shopSize);
+
+        // --- G. Setup Profile Picture Button (Top Right) ---
+        int profileSize = (int) (h * 0.20); // 12% of screen height
+        int profileX = w - profileSize - (int) (w * 0.29); // 2% from right
+        int profileY = 45; 
+
+        profileButton.setBounds(profileX, profileY, profileSize, profileSize);
+        profileButton.resizeIcon(profileSize);
+
     }
+
 
     @Override
     protected void paintComponent(Graphics g) {
