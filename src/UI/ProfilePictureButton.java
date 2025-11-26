@@ -6,79 +6,67 @@ import java.awt.*;
 public class ProfilePictureButton extends JButton {
 
     private Image originalImage;
-    private int currentSize = 0; // To remember the current size for refreshing
+    private int currentSize = 0;
+    
+    // --- NEW FIELDS ---
+    private String currentUsername;
+    private DatabaseManager dbManager;
 
-    public ProfilePictureButton(String imagePath) {
+    // --- UPDATED CONSTRUCTOR ---
+    public ProfilePictureButton(String initialImagePath, String username, DatabaseManager db) {
+        this.currentUsername = username;
+        this.dbManager = db;
+
         // 1. Load the image
-        this.originalImage = new ImageIcon(imagePath).getImage();
+        updateInternalImage(initialImagePath);
 
-        // 2. Make the button transparent (Ghost style)
+        // 2. Make the button transparent
         setBorderPainted(false);
         setContentAreaFilled(false);
         setFocusPainted(false);
         setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // 3. Add a simple click action
+        // 3. Click action
         addActionListener(e -> showGenderSelection());
     }
 
     private void showGenderSelection(){
-        // Options for the buttons
         Object[] options = {"Male", "Female"};
+        int choice = JOptionPane.showOptionDialog(this, "Choose your avatar:", "Select Gender",
+            JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);       
 
-        int choice = JOptionPane.showOptionDialog(
-            this,
-            "Choose your avatar:",
-            "Select Gender",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE,
-            null,     // No custom icon
-            options,  // The button text options
-            options[0] // Default button
-        );       
-
-        // Check what user clicked
-        if (choice == JOptionPane.YES_OPTION) { // User clicked "Male" (Index 0)
-            updateProfileImage("images/male_profile.png");
+        String newPath = null;
+        if (choice == JOptionPane.YES_OPTION) { 
+            newPath = "images/male_profile.png";
         } 
-        else if (choice == JOptionPane.NO_OPTION) { // User clicked "Female" (Index 1)
-            updateProfileImage("images/female_profile.png");
+        else if (choice == JOptionPane.NO_OPTION) { 
+            newPath = "images/female_profile.png";
+        }
+
+        // If user made a choice
+        if (newPath != null) {
+            // A. Update the screen visually
+            updateInternalImage(newPath);
+            
+            // B. SAVE TO DATABASE
+            dbManager.setProfileImage(currentUsername, newPath);
         }
     }
 
-    private void updateProfileImage(String newPath) {
-        // 1. Load the new image
-        ImageIcon newIcon = new ImageIcon(newPath);
-        
-        // Check if file exists to prevent errors
+    private void updateInternalImage(String path) {
+        ImageIcon newIcon = new ImageIcon(path);
         if (newIcon.getImageLoadStatus() == MediaTracker.ERRORED) {
-            System.err.println("Error: Could not find image at " + newPath);
-            return;
+            // Fallback if image missing
+            newIcon = new ImageIcon("images/default_profile.png"); 
         }
-
-        // 2. Update the 'originalImage' variable so future resizing works on the NEW image
         this.originalImage = newIcon.getImage();
-
-        // 3. Re-apply the current size immediately so it looks correct instantly
-        if (currentSize > 0) {
-            resizeIcon(currentSize);
-        }
-        
-        // 4. Refresh the button
+        if (currentSize > 0) resizeIcon(currentSize); // Refresh size
         repaint();
     }
 
-
-    /**
-     * Resizes the icon image to fit a specific size.
-     * Call this from the main panel when the window resizes.
-     */
     public void resizeIcon(int size) {
-
-        // Save the size so we can use it in updateProfileImage() later
         this.currentSize = size;
-
-        if (size > 0) {
+        if (size > 0 && originalImage != null) {
             Image scaled = originalImage.getScaledInstance(size, size, Image.SCALE_SMOOTH);
             setIcon(new ImageIcon(scaled));
         }

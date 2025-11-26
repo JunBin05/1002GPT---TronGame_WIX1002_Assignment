@@ -6,6 +6,8 @@ import java.awt.BorderLayout;
 
 public class MainFrame extends JFrame {
 
+    private String currentUsername;
+
     public MainFrame() {
         super("Tron Game");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -28,9 +30,11 @@ public class MainFrame extends JFrame {
      * This replaces the Login content with the Home content
      * instantly, without closing the window.
      */
-    public void changeToHome() {
+    public void changeToHome(String username) {
         // Create the Home Panel (Just the image, no buttons)
-        ImagePanel_Home homePanel = new ImagePanel_Home("images/tron_2.png");
+        this.currentUsername = username;
+
+        ImagePanel_Home homePanel = new ImagePanel_Home("images/tron_2.png", username, this);
 
         // Replace the current content (ImagePanel) with the new one (ImagePanel_Home)
         setContentPane(homePanel);
@@ -39,6 +43,19 @@ public class MainFrame extends JFrame {
         revalidate();
         repaint();
     }
+
+    // Inside MainFrame.java
+
+    public void changeToGameMode() {
+ 
+        ImagePanel_GameMode gameModePanel = new ImagePanel_GameMode("images/tron_3.png", this, currentUsername);
+    
+         setContentPane(gameModePanel);
+         revalidate();
+        repaint();
+    }
+
+    
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {

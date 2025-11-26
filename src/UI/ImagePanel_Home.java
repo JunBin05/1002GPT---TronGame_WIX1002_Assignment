@@ -16,9 +16,15 @@ public class ImagePanel_Home extends JPanel {
     private AwardButton awardButton; // <--- NEW
     private QuestionButton questionButton; // <--- NEW
     private ShopButton shopButton; // <--- NEW
+    private MainFrame mainFrameRef;
     private ProfilePictureButton profileButton; // <--- NEW
+    private ProfileName profileNameBox = new ProfileName("Player1"); // <--- NEW
+
     
-    public ImagePanel_Home(String imagePath) {
+    public ImagePanel_Home(String imagePath, String username, MainFrame mainFrame) {
+        this.mainFrameRef = mainFrame;
+
+        DatabaseManager dbManager = new DatabaseManager();
         setLayout(null); // Absolute positioning
 
         this.backgroundImage = new ImageIcon(imagePath).getImage();
@@ -30,6 +36,12 @@ public class ImagePanel_Home extends JPanel {
         // 2. Create Play Button
         playButton = new PlayButton("images/play_button.png");
         add(playButton);
+        playButton.addActionListener(e -> {
+            if (mainFrameRef != null) {
+                // This triggers the jump!
+                mainFrameRef.changeToGameMode(); 
+            }
+        });
 
         // 3. Create Leaderboard Button
         leaderboardButton = new LeaderBoardButton("images/leaderboard_button.png");
@@ -48,8 +60,13 @@ public class ImagePanel_Home extends JPanel {
         add(shopButton);
 
         //7. Create Profile Picture Button
-        profileButton = new ProfilePictureButton("images/default_profile.png");
+        String savedImagePath = dbManager.getProfileImage(username);
+        profileButton = new ProfilePictureButton(savedImagePath, username, dbManager);
         add(profileButton);
+
+        //8. Create Profile Name Box
+        profileNameBox = new ProfileName(username);
+        add(profileNameBox);
 
 
 
@@ -127,6 +144,14 @@ public class ImagePanel_Home extends JPanel {
         profileButton.setBounds(profileX, profileY, profileSize, profileSize);
         profileButton.resizeIcon(profileSize);
 
+        //--- H. Setup ID Box (Beside Profile Picture) ---
+        int boxWidth = 260;
+        // CHANGE HEIGHT: Reduced from 85 to 50 because we have less text
+        int boxHeight = 50; 
+        int boxX = (int) (w * 0.73);
+        int boxY = (int) (h * 0.10);
+        profileNameBox.setBounds(boxX, boxY, boxWidth, boxHeight);
+
     }
 
 
@@ -137,4 +162,4 @@ public class ImagePanel_Home extends JPanel {
             g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         }
     }
-}
+} 

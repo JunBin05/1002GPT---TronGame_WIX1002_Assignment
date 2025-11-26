@@ -81,7 +81,7 @@ public class SignUpFrame extends JFrame {
                     
                     // --- NEW LOGIC: SWITCH MAINFRAME TO HOME ---
                     if (mainFrameRef != null) {
-                        mainFrameRef.changeToHome();
+                        mainFrameRef.changeToHome(userId);
                     }
                     // -------------------------------------------
 

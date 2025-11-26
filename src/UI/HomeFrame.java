@@ -14,7 +14,7 @@ public class HomeFrame extends JFrame {
         setLocationRelativeTo(null); // Center on screen
         setLayout(new BorderLayout());
 
-        ImagePanel_Home background = new ImagePanel_Home("images/tron_2.png");
+        ImagePanel_Home background = new ImagePanel_Home("images/tron_2.png", " ",null);
     
         add(background, BorderLayout.CENTER);
     }
