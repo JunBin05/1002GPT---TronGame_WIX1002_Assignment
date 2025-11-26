@@ -44,7 +44,7 @@ public class MainFrame extends JFrame {
         repaint();
     }
 
-    // Inside MainFrame.java
+ 
 
     public void changeToGameMode() {
  
@@ -52,6 +52,19 @@ public class MainFrame extends JFrame {
     
          setContentPane(gameModePanel);
          revalidate();
+        repaint();
+    }
+
+
+    public void changeToStoryMode() {
+        // 1. Create the Story Mode Panel
+        // We pass 'this' (MainFrame) so the back button works
+        // We pass 'currentUsername' so we don't lose the user data
+        ImagePanel_StoryMode storyPanel = new ImagePanel_StoryMode("images/tron_4.png", this, currentUsername);
+        
+        // 2. Switch the view
+        setContentPane(storyPanel);
+        revalidate();
         repaint();
     }
 

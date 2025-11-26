@@ -42,6 +42,13 @@ public class ImagePanel_GameMode extends JPanel {
         storyButton = new StoryModeButton("images/storymode_button.png");
         add(storyButton);
 
+        storyButton.addActionListener(e -> {
+            if (mainFrameRef != null) {
+                mainFrameRef.changeToStoryMode(); // <--- SWITCH SCREENS HERE
+            }
+        });
+
+
 
 
         addComponentListener(new ComponentAdapter() {
