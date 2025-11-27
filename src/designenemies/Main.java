@@ -1,3 +1,4 @@
+//This is the main class
 package designenemies;
 
 import java.util.*;
