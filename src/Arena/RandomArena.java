@@ -1,3 +1,5 @@
+package arena;
+
 public class RandomArena extends Arena {
 
     @Override

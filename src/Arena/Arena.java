@@ -1,3 +1,5 @@
+package arena;
+
 import java.util.Random;
 
 public abstract class Arena {
