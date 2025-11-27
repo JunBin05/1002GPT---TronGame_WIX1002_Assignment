@@ -1,4 +1,3 @@
-//This is the main class
 package designenemies;
 
 import java.util.*;
@@ -7,7 +6,7 @@ public class Main {
 
     public static void main(String[] args) {
         // Load all enemies from enemies.txt
-        List<Enemy> allEnemies = EnemyLoader.loadEnemies("enemies.txt");
+        List<Enemy> allEnemies = EnemyLoader.loadEnemies("data/enemies.txt");
 
         // Check if any enemies were successfully loaded
         if (allEnemies.isEmpty()) {
