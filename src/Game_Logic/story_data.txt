@@ -1,0 +1,7 @@
+package Game_Logic;
+1;The Reboot;Ten years after the 1982 incident, Kevin Flynn has been improving the Grid. Unbeknownst to him, CLU 2.0 has rebooted. Corrupted programs are hunting you. Survive the ambush!
+3;The Destabilization;CLU has captured two ISOs: Quorra and Miche. They have been corrupted (Green). Miche was derezzed trying to escape. You must defeat the corrupted Quorra to purify her code!
+5;Sark's Ambush;Sark has ambushed Kevin and Tron! Kevin reveals he is secretly building a new CLU fragment. Defeat Sark's minions to buy them time.
+7;The Betrayal;Tron located CLU, but it was a trap. Sark threatens the team. You must defeat Sark once and for all before CLU arrives!
+9;The Rinzler;A mysterious jet draws a trail, causing Kevin to crash. A warrior named Rinzler steps out. He moves unlike any program you have seen. Survive the encounter!
+12;The Final Battle;Kevin has stabilized the Grid, weakening CLU. Enraged, CLU challenges you to a final battle. Defeat him to return to the real world!
