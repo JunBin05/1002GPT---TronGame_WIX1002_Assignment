@@ -1,0 +1,8 @@
+{
+    // This setting tells the VS Code Java Extension Pack where to find external libraries.
+    "java.project.referencedLibraries": [
+        // This glob pattern includes ALL .jar files found in the 'lib' folder 
+        // and any subfolders (**). This is the standard best practice.
+        "lib/**/*.jar" 
+    ]
+}
