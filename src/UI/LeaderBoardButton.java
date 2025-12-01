@@ -20,7 +20,6 @@ public class LeaderBoardButton extends JButton {
         // 3. Add a simple click action
         addActionListener(e -> {
             System.out.println("Leaderboard Button Clicked!");
-            JOptionPane.showMessageDialog(this, "Leaderboard Feature Coming Soon!");
         });
     }
 

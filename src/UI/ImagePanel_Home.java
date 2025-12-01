@@ -8,6 +8,7 @@ import java.awt.event.ComponentEvent;
 public class ImagePanel_Home extends JPanel {
 
     private Image backgroundImage;
+    private String username;
     
     // Define the buttons
     private SoundButton soundButton;
@@ -15,7 +16,6 @@ public class ImagePanel_Home extends JPanel {
     private LeaderBoardButton leaderboardButton; // <--- NEW
     private AwardButton awardButton; // <--- NEW
     private QuestionButton questionButton; // <--- NEW
-    private ShopButton shopButton; // <--- NEW
     private MainFrame mainFrameRef;
     private ProfilePictureButton profileButton; // <--- NEW
     private ProfileName profileNameBox = new ProfileName("Player1"); // <--- NEW
@@ -23,6 +23,7 @@ public class ImagePanel_Home extends JPanel {
     
     public ImagePanel_Home(String imagePath, String username, MainFrame mainFrame) {
         this.mainFrameRef = mainFrame;
+        this.username = username;
 
         DatabaseManager dbManager = new DatabaseManager();
         setLayout(null); // Absolute positioning
@@ -46,6 +47,19 @@ public class ImagePanel_Home extends JPanel {
         // 3. Create Leaderboard Button
         leaderboardButton = new LeaderBoardButton("images/leaderboard_button.png");
         add(leaderboardButton);
+    
+        leaderboardButton.addActionListener(e -> {
+            // Find the main window
+            Window parentWindow = SwingUtilities.getWindowAncestor(this);
+            
+            if (parentWindow instanceof JFrame) {
+
+                System.out.println("Opening Leaderboard for user: " + this.username); //debug
+                
+                LeaderBoardDialog dialog = new LeaderBoardDialog((JFrame) parentWindow, this.username);
+                dialog.setVisible(true);
+            }
+        });
 
         // 4. Create Award Button
         awardButton = new AwardButton("images/award_button.png");
@@ -55,16 +69,12 @@ public class ImagePanel_Home extends JPanel {
         questionButton = new QuestionButton("images/qna_button.png");
         add(questionButton);
 
-        //6. Create Shop Button
-        shopButton = new ShopButton("images/shop_button.png");
-        add(shopButton);
-
-        //7. Create Profile Picture Button
+        //6. Create Profile Picture Button
         String savedImagePath = dbManager.getProfileImage(username);
         profileButton = new ProfilePictureButton(savedImagePath, username, dbManager);
         add(profileButton);
 
-        //8. Create Profile Name Box
+        //7. Create Profile Name Box
         profileNameBox = new ProfileName(username);
         add(profileNameBox);
 
@@ -122,21 +132,13 @@ public class ImagePanel_Home extends JPanel {
 
         // --- E. Setup Question Button (Right bottom of the window) ---
         int qnaSize = (int) (h * 0.18); // 15% of screen height
-        int qnaX = w - qnaSize - (int) (w * 0.15); // 2% from right
+        int qnaX = w - qnaSize - (int) (w * 0.02); // 2% from right
         int qnaY = h - qnaSize - 30;
 
         questionButton.setBounds(qnaX, qnaY, qnaSize, qnaSize);
         questionButton.resizeIcon(qnaSize);
 
-        // --- F. Setup Shop Button (Right besides the Question Button) ---
-        int shopSize = (int) (h * 0.18); // 15% of screen height
-        int shopX = w - shopSize - (int) (w * 0.02); // 2% from right
-        int shopY = h - shopSize - 30;
-
-        shopButton.setBounds(shopX, shopY, shopSize, shopSize);
-        shopButton.resizeIcon(shopSize);
-
-        // --- G. Setup Profile Picture Button (Top Right) ---
+        // --- F. Setup Profile Picture Button (Top Right) ---
         int profileSize = (int) (h * 0.20); // 12% of screen height
         int profileX = w - profileSize - (int) (w * 0.29); // 2% from right
         int profileY = 45; 
@@ -144,7 +146,7 @@ public class ImagePanel_Home extends JPanel {
         profileButton.setBounds(profileX, profileY, profileSize, profileSize);
         profileButton.resizeIcon(profileSize);
 
-        //--- H. Setup ID Box (Beside Profile Picture) ---
+        //--- G. Setup ID Box (Beside Profile Picture) ---
         int boxWidth = 260;
         // CHANGE HEIGHT: Reduced from 85 to 50 because we have less text
         int boxHeight = 50; 
