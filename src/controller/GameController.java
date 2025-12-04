@@ -26,8 +26,8 @@ public class GameController implements KeyListener, Runnable {
     private final Tron playerCycle; 
     
     // --- JETWALL DECAY AND SPEED CONTROL FIELDS ---
-    private static final int GAME_SPEED_MS = 80; // Controls game speed (12.5 FPS)
-    private int globalStepCounter = 0; 
+    private int gameDelay = 80; // Controls game speed (12.5 FPS)
+    private int globalStepCounter = 1; 
     private static final int TRAIL_DURATION = 7; // Jetwall fades after 7 steps
     // ----------------------------------------------
 
@@ -83,11 +83,18 @@ public class GameController implements KeyListener, Runnable {
             // B. Check within bounds before reading grid element
             if (!collided && futureR >= 0 && futureC >= 0 && futureR < 40 && futureC < 40) {
                 element = grid[futureR][futureC]; 
+
+                // 1. SPEED RAMP CHECK (New Code)
+                if (element == 'S') {
+                    // Decrease delay by 15ms to speed up (don't go below 20ms)
+                    gameDelay = Math.max(20, gameDelay - 15); 
+                    System.out.println("SPEED BOOST! Delay is now: " + gameDelay);
+                }
                 
                 // Check for Wall, Obstacle, OR ANY JETWALL TRAIL (#, O, T, or K)
-                if (element == '#' || element == 'O' || element == 'T' || element == 'K') {
+                if (element != '.' && element != 'T' && element != 'S') {
                     collided = true;
-                } 
+                }
             }
             
             // --- 3. EXECUTE MOVE OR REBOUND ---
@@ -157,7 +164,7 @@ public class GameController implements KeyListener, Runnable {
             
             // 6. CONTROL SPEED
             try {
-                Thread.sleep(GAME_SPEED_MS); 
+                Thread.sleep(gameDelay); 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
