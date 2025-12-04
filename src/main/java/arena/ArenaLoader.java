@@ -69,11 +69,18 @@ public class ArenaLoader {
     }
 
     public static Arena loadArena(int choice) {
-        return new ArenaOne(); 
+        return switch (choice) {
+            case 1 ->new ArenaOne();
+            case 2 -> new ArenaTwo();
+            case 3 -> new ArenaThree();
+            case 4 -> new RandomArena();
+            default -> new ArenaOne();
+        };
     }
     
-    // --- UPDATED: MAXIMIZED ICONS ---
-    private static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
+    // --- Load Icons and Generate Rotations (Called once at start) ---
+    public static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
+        // ... (Icon loading and rotation logic remains the same)
         Map<String, ImageIcon> icons = new HashMap<>();
         
         // 1. GRID ICON SIZE: Use FULL screen height divided by 40 rows
