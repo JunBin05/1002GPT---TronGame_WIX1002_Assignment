@@ -4,5 +4,6 @@
         // This glob pattern includes ALL .jar files found in the 'lib' folder 
         // and any subfolders (**). This is the standard best practice.
         "lib/**/*.jar" 
-    ]
+    ],
+    "java.configuration.updateBuildConfiguration": "disabled"
 }
