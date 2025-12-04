@@ -227,6 +227,7 @@ public class ArenaLoader {
         // 1. Clear previous components from the Arena Panel
         arenaPanel.removeAll(); 
         
+        Character playerCycle = cycles.get(0);
         char[][] grid = arena.getGrid();
 <<<<<<< HEAD
         if (tron.r >= 0 && tron.r < 40 && tron.c >= 0 && tron.c < 40) {
@@ -275,14 +276,20 @@ public class ArenaLoader {
                             else cell.setBackground(new Color(0, 255, 255)); 
                             break;
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
                         case 'T':
                             cell.setBackground(new Color(0, 150, 255));
                             break;
                         case 'K':
                             cell.setBackground(Color.WHITE);
                             break;
+<<<<<<< HEAD
 =======
 >>>>>>> main
+=======
+>>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
                         default:
                             cell.setBackground(Color.BLACK);
                     }

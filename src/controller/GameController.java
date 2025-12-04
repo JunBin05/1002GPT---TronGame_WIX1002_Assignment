@@ -26,14 +26,20 @@ public class GameController implements KeyListener, Runnable {
     private final Tron playerCycle; 
     
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
     // --- JETWALL DECAY AND SPEED CONTROL FIELDS ---
     private static final int GAME_SPEED_MS = 80; // Controls game speed (12.5 FPS)
     private int globalStepCounter = 0; 
     private static final int TRAIL_DURATION = 7; // Jetwall fades after 7 steps
     // ----------------------------------------------
+<<<<<<< HEAD
 =======
     private static final int GAME_SPEED_MS = 80; // Controls game speed (80ms = 12.5 FPS)
 >>>>>>> main
+=======
+>>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
 
     // --- CORRECTED CONSTRUCTOR ---
     public GameController(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons,
@@ -58,6 +64,7 @@ public class GameController implements KeyListener, Runnable {
     // --- Game Loop Implementation (Heart of the Real-Time System) ---
     @Override
     public void run() {
+<<<<<<< HEAD
 <<<<<<< HEAD
         char[][] grid = arena.getGrid();
         int[][] trailTimer = arena.getTrailTimer();
@@ -130,48 +137,66 @@ public class GameController implements KeyListener, Runnable {
                 
                 // Redraw the safe move
 =======
+=======
+        char[][] grid = arena.getGrid();
+        int[][] trailTimer = arena.getTrailTimer();
+        
+>>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
         while (true) {
             
-            // 1. UPDATE STATE (Movement)
-            // advancePosition() handles the stun flag internally
-            this.playerCycle.advancePosition(); 
+            // 1. DETERMINE NEXT POSITION (Hypothetical move)
+            int futureR = this.playerCycle.r;
+            int futureC = this.playerCycle.c;
 
-            // --- COLLISION LOGIC ---
-            int nextR = this.playerCycle.r;
-            int nextC = this.playerCycle.c;
-            char element = ' '; 
-            
-            // Ensure we check within the bounds before accessing the grid
-            if (nextR >= 0 && nextC >= 0 && nextR < 40 && nextC < 40) {
-                element = arena.getGrid()[nextR][nextC];
+            switch (this.playerCycle.currentDirection) {
+                case NORTH -> futureR--; 
+                case SOUTH -> futureR++; 
+                case EAST -> futureC++; 
+                case WEST -> futureC--; 
             }
 
+            // --- 2. CHECK COLLISION at the hypothetical position ---
+            char element = ' '; 
             boolean collided = false;
             
-            // A. Check for Boundary/Wall/Obstacle Collision (# or O)
-            if (element == '#' || element == 'O') {
-                this.playerCycle.changeLives(-0.5); 
-                System.out.println(this.playerCycle.name + " hit obstacle. Lives: " + this.playerCycle.getLives());
+            // A. Check for Falling Off (Fatal Boundary Condition)
+            if (futureR < 0 || futureR >= 40 || futureC < 0 || futureC >= 40) {
+                this.playerCycle.changeLives(-this.playerCycle.getLives()); 
                 collided = true;
             } 
             
-            // B. Check for Falling Off (Fatal Boundary Condition)
-            if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
-                this.playerCycle.changeLives(-this.playerCycle.getLives()); 
-                System.out.println(this.playerCycle.name + " fell off the Grid! Lives: 0.0");
+            // B. Check within bounds before reading grid element
+            if (!collided && futureR >= 0 && futureC >= 0 && futureR < 40 && futureC < 40) {
+                element = grid[futureR][futureC]; 
+                
+                // Check for Wall, Obstacle, OR ANY JETWALL TRAIL (#, O, T, or K)
+                if (element == '#' || element == 'O' || element == 'T' || element == 'K') {
+                    collided = true;
+                } 
             }
             
-            // C. REBOUND MECHANIC (Fixes teleporting/stuck state)
-            if (collided && this.playerCycle.getLives() > 0.0) {
-                this.playerCycle.revertPosition(); // Rolls back position and sets stun flag
-                this.playerCycle.setOppositeDirection();
+            // --- 3. EXECUTE MOVE OR REBOUND ---
+            if (collided) {
+                // Apply Damage and trigger rebound logic if surviving
+                this.playerCycle.changeLives(-0.5); 
+                System.out.println(this.playerCycle.name + " hit barrier. Lives: " + this.playerCycle.getLives());
                 
+<<<<<<< HEAD
                 // Force an immediate redraw to show the cycle rebounded and stunned
 >>>>>>> main
+=======
+                if (this.playerCycle.getLives() > 0.0) {
+                    this.playerCycle.revertPosition(grid, trailTimer); // Rolls back and clears trail/sets stun
+                    this.playerCycle.setOppositeDirection();
+                }
+                
+                // Force immediate redraw to show damage/rebound
+>>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
                 SwingUtilities.invokeLater(() -> {
                     ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, 
                                             this.arenaPanel, this.hudPanel);
                 });
+<<<<<<< HEAD
             }
 <<<<<<< HEAD
 
@@ -206,27 +231,63 @@ public class GameController implements KeyListener, Runnable {
             // D. Game Over Check
             if (this.playerCycle.getLives() <= 0.0) {
                 System.out.println("GAME OVER!");
+=======
+>>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
                 
-                // --- NEW: Trigger the dialog in a thread-safe way ---
-                SwingUtilities.invokeLater(() -> {
-                    // Pass the main game frame to the static dialog method
-                    ArenaLoader.showGameOverDialog(this.gameFrame);
-                });
-                // ----------------------------------------------------
+            } else {
+                // C. EXECUTE SAFE MOVE (Only reached if NO COLLISION)
+
+                // 1. Mark the CURRENT position (r, c) as the jetwall trail
+                grid[this.playerCycle.r][this.playerCycle.c] = this.playerCycle.getSymbol(); 
                 
-                break; // Exit the game loop thread
-            }
-            
-            // 3. REDRAW FRAME (Only redraw if no collision or after the stun frame passes)
-            if (!this.playerCycle.isStunned || !collided) {
+                // 2. Mark the placement time for decay calculation
+                trailTimer[this.playerCycle.r][this.playerCycle.c] = globalStepCounter; 
+
+                // 3. Increment step counter
+                this.globalStepCounter++;
+                
+                // 4. Move the cycle's position to the safe, new location
+                // advancePosition now just moves r/c and handles the stun flag
+                this.playerCycle.advancePosition(grid); 
+                
+                // Redraw the safe move
                 SwingUtilities.invokeLater(() -> {
                     ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, 
                                             this.arenaPanel, this.hudPanel);
                 });
             }
 
+<<<<<<< HEAD
             // 4. CONTROL SPEED
 >>>>>>> main
+=======
+            // 4. GAME OVER CHECK
+            if (this.playerCycle.getLives() <= 0.0) {
+                SwingUtilities.invokeLater(() -> {
+                    ArenaLoader.showGameOverDialog(this.gameFrame);
+                });
+                break; 
+            }
+            
+            // --- 5. JETWALL DECAY LOGIC (ERASURE) ---
+            for (int r = 0; r < 40; r++) {
+                for (int c = 0; c < 40; c++) {
+                    char currentElement = grid[r][c];
+                    
+                    if (currentElement == 'T' || currentElement == 'K') {
+                        int placementStep = trailTimer[r][c];
+                        
+                        // Check if the trail has expired (age is 7 or more steps)
+                        if (placementStep > 0 && (globalStepCounter - placementStep) >= TRAIL_DURATION) {
+                            grid[r][c] = '.'; // Erase the trail
+                            trailTimer[r][c] = 0; // Reset the timer
+                        }
+                    }
+                }
+            }
+            
+            // 6. CONTROL SPEED
+>>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
             try {
                 Thread.sleep(GAME_SPEED_MS); 
             } catch (InterruptedException e) {
