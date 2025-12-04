@@ -228,6 +228,9 @@ public class ArenaLoader {
         arenaPanel.removeAll(); 
         
         char[][] grid = arena.getGrid();
+        if (tron.r >= 0 && tron.r < 40 && tron.c >= 0 && tron.c < 40) {
+            grid[tron.r][tron.c] = '.';
+        }
         
         for (int r = 0; r < 40; r++) {
             for (int c = 0; c < 40; c++) {
@@ -267,6 +270,12 @@ public class ArenaLoader {
                             cell.setBackground(Color.BLACK);
                             if (icons.get("speed") != null) cell.setIcon(icons.get("speed"));
                             else cell.setBackground(new Color(0, 255, 255)); 
+                            break;
+                        case 'T':
+                            cell.setBackground(new Color(0, 150, 255));
+                            break;
+                        case 'K':
+                            cell.setBackground(Color.WHITE);
                             break;
                         default:
                             cell.setBackground(Color.BLACK);

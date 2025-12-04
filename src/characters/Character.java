@@ -1,4 +1,6 @@
-package characters; 
+package characters;
+import java.awt.Point;
+import java.util.LinkedList;
 
 public abstract class Character {
     // --- Position and Identifier (MUST BE PUBLIC for ArenaLoader access) ---
@@ -6,7 +8,7 @@ public abstract class Character {
     public int c;            
     public String name;      
     
-    // --- NEW: Direction Tracking Field ---
+    private static final int MAX_TRAIL_LENGTH = 7;
     public Direction currentDirection; // Tracks the cycle's current heading
     // -------------------------------------
     
@@ -52,6 +54,10 @@ public abstract class Character {
         return this.maxLives; 
     }
 
+    public char getSymbol() {
+        return this.symbol;
+    }
+
     public void changeLives(double amount) {
         this.lives += amount;
     }
@@ -80,30 +86,44 @@ public abstract class Character {
         System.out.println(this.name + " reversed direction due to collision. New direction: " + this.currentDirection);
     }
 
-    public void revertPosition() {
+    public void revertPosition(char grid[][], int [][] trailTimer) {
     // Moves the cycle's position one unit backward based on its current direction.
     // NOTE: This does NOT change the currentDirection, which is needed for the turn.
-    switch (this.currentDirection) {
-        case NORTH -> r++; // Go South (since last move was North)
-        case SOUTH -> r--; // Go North (since last move was South)
-        case EAST -> c--;  // Go West (since last move was East)
-        case WEST -> c++;  // Go East (since last move was West)
-    };
+        switch (this.currentDirection) {
+            case NORTH:
+                r++; // Go South (since last move was North)
+                break;
+            case SOUTH:
+                r--; // Go North (since last move was South)
+                break;
+            case EAST:
+                c--;  // Go West (since last move was East)
+                break;
+            case WEST:
+                c++;  // Go East (since last move was West)
+                break;
+        };
+        
+        if (r >= 0 && r < 40 && c >= 0 && c < 40) {
+                grid[this.r][this.c] = '.'; 
+                trailTimer[this.r][this.c] = 0;
+        }
 
-    this.isStunned = true;
-}
+        this.isStunned = true;
+    }
     
     // --- NEW: Method to Advance Position (Moving Straight) ---
     /**
      * Moves the cycle one grid unit in the currentDirection.
      * This method handles the continuous movement required by Light Cycles.
      */
-    public void advancePosition() {
+    public void advancePosition(char[][] grid) {
         if (this.isStunned) {
             // Skip movement this frame, but clear the stun for the next frame
             this.isStunned = false;
             return;
         }
+
         switch (this.currentDirection) {
             case NORTH -> r--; 
             case SOUTH -> r++; 
