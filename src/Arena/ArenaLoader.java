@@ -227,10 +227,8 @@ public class ArenaLoader {
         // 1. Clear previous components from the Arena Panel
         arenaPanel.removeAll(); 
         
+        Character playerCycle = cycles.get(0);
         char[][] grid = arena.getGrid();
-        if (tron.r >= 0 && tron.r < 40 && tron.c >= 0 && tron.c < 40) {
-            grid[tron.r][tron.c] = '.';
-        }
         
         for (int r = 0; r < 40; r++) {
             for (int c = 0; c < 40; c++) {
