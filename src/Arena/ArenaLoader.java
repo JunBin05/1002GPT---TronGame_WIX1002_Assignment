@@ -275,6 +275,7 @@ public class ArenaLoader {
                         case 'K':
                             cell.setBackground(Color.WHITE);
                             break;
+
                         default:
                             cell.setBackground(Color.BLACK);
                     }

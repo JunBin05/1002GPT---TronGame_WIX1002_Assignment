@@ -73,6 +73,7 @@ public class SignUpFrame extends JFrame {
 
                 String userId = signInUserIdField.getText().trim();
                 String password = new String(signInPasswordField.getPassword());
+
                 
                 if (dbManager.checkLogin(userId, password)) {
                     JOptionPane.showMessageDialog(SignUpFrame.this,
@@ -129,6 +130,15 @@ public class SignUpFrame extends JFrame {
                 if (!dbManager.isReady()) return; 
                 String userId = registerUserIdField.getText().trim();
                 String password = new String(registerPasswordField.getPassword()); 
+
+                if (userId.trim().isEmpty() || password.trim().isEmpty()) {
+                JOptionPane.showMessageDialog(SignUpFrame.this, 
+                    "Username and Password cannot be empty!", 
+                    "Input Error", 
+                    JOptionPane.ERROR_MESSAGE);
+                
+                return; 
+                }
                 boolean success = dbManager.registerUser(userId, password);
                 if (success) {
                     JOptionPane.showMessageDialog(SignUpFrame.this, "Registration successful!", "Success", JOptionPane.INFORMATION_MESSAGE);
