@@ -27,7 +27,7 @@ public class GameController implements KeyListener, Runnable {
     // --- FIELDS ---
     private boolean onSpeedRamp = false; // Flag to remember if we are on a ramp
     private final int NORMAL_DELAY = 80; // Normal speed
-    private final int FAST_DELAY = 20;   // Turbo speed
+    private final int FAST_DELAY = 5;   // Turbo speed
     
     // FIX: Start at 1 so the first block decays correctly
     private int globalStepCounter = 1; 

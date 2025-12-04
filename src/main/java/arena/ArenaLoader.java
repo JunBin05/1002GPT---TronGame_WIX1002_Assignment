@@ -1,35 +1,31 @@
 package arena;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.io.File; 
-import java.net.URL; 
+import java.nio.file.Paths;
 import java.util.List; 
 import java.util.Map;
 import java.util.HashMap;
-import java.nio.file.Paths;
 import java.awt.image.BufferedImage;
 import java.awt.geom.AffineTransform;
 
-// --- Package Imports ---
+// --- Imports ---
 import characters.Character; 
 import characters.Tron;
 import characters.Kevin;
 import characters.CharacterLoader; 
 import characters.CharacterData; 
 import characters.Direction;
-
-// Root Package Imports (Files in src/):
 import controller.GameController; 
 import UI.StartGameMenu; 
 
 public class ArenaLoader {
 
-    // --- Helper: Conversion methods for Rotation ---
+    // --- Helper: Conversion methods ---
     private static BufferedImage toBufferedImage(Image img) {
-        if (img instanceof BufferedImage) {
-            return (BufferedImage) img;
-        }
+        if (img instanceof BufferedImage) return (BufferedImage) img;
         BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
         Graphics2D bGr = bimage.createGraphics();
         bGr.drawImage(img, 0, 0, null);
@@ -54,181 +50,176 @@ public class ArenaLoader {
         g2d.dispose();
         return rotatedImage;
     }
-    // ----------------------------------------------
 
-    // --- Helper: Load + Scale Image from File System ---
     private static ImageIcon loadAndScale(String relativePath, int size) {
         try {
             String fullPath = Paths.get(relativePath).toAbsolutePath().toString();
             File imageFile = new File(fullPath);
-            
             if (!imageFile.exists()) {
                 imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath);
-                if (!imageFile.exists()) {
-                    System.err.println("⚠ IMAGE NOT FOUND at path: " + relativePath);
-                    return null;
-                }
+                if (!imageFile.exists()) return null;
             }
-
             ImageIcon original = new ImageIcon(imageFile.getAbsolutePath());
-            
             if (original.getImageLoadStatus() == MediaTracker.COMPLETE) {
                 Image scaled = original.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
                 return new ImageIcon(scaled);
-            } else {
-                System.err.println("⚠ IMAGE LOADING FAILED: " + relativePath);
-                return null;
             }
-        } catch (Exception e) {
-            System.err.println("ERROR loading image: " + relativePath + ". Exception: " + e.getMessage());
-            return null;
-        }
+        } catch (Exception e) { e.printStackTrace(); }
+        return null;
     }
 
-    // --- Core Arena Load Logic ---
     public static Arena loadArena(int choice) {
-        return switch (choice) {
-            case 1 -> new ArenaOne();
-            case 2 -> new ArenaTwo();
-            case 3 -> new ArenaThree();
-            case 4 -> new RandomArena();
-            default -> new ArenaOne();
-        };
+        return new ArenaOne(); 
     }
     
-    // --- Load Icons and Generate Rotations (Called once at start) ---
+    // --- UPDATED: MAXIMIZED ICONS ---
     private static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
-        // ... (Icon loading and rotation logic remains the same)
         Map<String, ImageIcon> icons = new HashMap<>();
-
-
-        final int HUD_ICON_SIZE = 40;
-        final double SCALE_MULTIPLIER = 2;
-        final double SCALE_MULTIPLIER_C = 3;
-        final int TRUE_CELL_SIZE = frame.getWidth() / 40;
-        final int CELL_SIZE = (int) (TRUE_CELL_SIZE * SCALE_MULTIPLIER);
-        final int CELL_SIZE_C = (int) (TRUE_CELL_SIZE * SCALE_MULTIPLIER_C);
-
-        icons.put("obstacle", loadAndScale("images" + File.separator + "obstacle.png", CELL_SIZE));
-        icons.put("speed", loadAndScale("images" + File.separator + "Speed.png", CELL_SIZE));
-        icons.put("heart_full", loadAndScale("images" + File.separator + "heart_full.png", HUD_ICON_SIZE)); // <-- NEW
-        icons.put("heart_half", loadAndScale("images" + File.separator + "heart_half.png", HUD_ICON_SIZE)); // <-- NEW
-        icons.put("heart_empty", loadAndScale("images" + File.separator + "heart_empty.png", HUD_ICON_SIZE)); // <-- NEW
-        ImageIcon baseTronIcon = loadAndScale("images" + File.separator + "Tron.png", CELL_SIZE_C);
-        ImageIcon baseKevinIcon = loadAndScale("images" + File.separator + "kevin.png", CELL_SIZE_C);
         
-        if (baseTronIcon != null && baseTronIcon.getImageLoadStatus() == MediaTracker.COMPLETE) {
-            BufferedImage tronImg = toBufferedImage(baseTronIcon.getImage());
+        // 1. GRID ICON SIZE: Use FULL screen height divided by 40 rows
+        int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
+        int TRUE_CELL_SIZE = (int) ((screenHeight*2.5) / 40); 
+        int TRUE_CELL_SIZE_char = (int) ((screenHeight) / 40); 
+
+        // 2. HUD ICON SIZE
+        final int HUD_ICON_SIZE = 60; 
+        
+        icons.put("obstacle", loadAndScale("images" + File.separator + "obstacle.png", TRUE_CELL_SIZE));
+        icons.put("speed", loadAndScale("images" + File.separator + "Speed.png", TRUE_CELL_SIZE));
+        icons.put("heart_full", loadAndScale("images" + File.separator + "heart_full.png", HUD_ICON_SIZE)); 
+        icons.put("heart_half", loadAndScale("images" + File.separator + "heart_half.png", HUD_ICON_SIZE)); 
+        icons.put("heart_empty", loadAndScale("images" + File.separator + "heart_empty.png", HUD_ICON_SIZE)); 
+        
+        // 3. PROFILE SIZE
+        icons.put("tron_profile", loadAndScale("images" + File.separator + "Tron.png", 200)); 
+
+        ImageIcon baseTronIcon = loadAndScale("images" + File.separator + "Tron.png", TRUE_CELL_SIZE_char);
+        ImageIcon baseKevinIcon = loadAndScale("images" + File.separator + "kevin.png", TRUE_CELL_SIZE_char);
+        
+        if (baseTronIcon != null) {
+            BufferedImage img = toBufferedImage(baseTronIcon.getImage());
             icons.put("tron_NORTH", baseTronIcon);
-            icons.put("tron_EAST", new ImageIcon(rotateImage(tronImg, Math.toRadians(90))));
-            icons.put("tron_SOUTH", new ImageIcon(rotateImage(tronImg, Math.toRadians(180))));
-            icons.put("tron_WEST", new ImageIcon(rotateImage(tronImg, Math.toRadians(270))));
+            icons.put("tron_EAST", new ImageIcon(rotateImage(img, Math.toRadians(90))));
+            icons.put("tron_SOUTH", new ImageIcon(rotateImage(img, Math.toRadians(180))));
+            icons.put("tron_WEST", new ImageIcon(rotateImage(img, Math.toRadians(270))));
         }
-        
-        if (baseKevinIcon != null && baseKevinIcon.getImageLoadStatus() == MediaTracker.COMPLETE) {
-            BufferedImage kevinImg = toBufferedImage(baseKevinIcon.getImage());
+        if (baseKevinIcon != null) {
+            BufferedImage img = toBufferedImage(baseKevinIcon.getImage());
             icons.put("kevin_NORTH", baseKevinIcon);
-            icons.put("kevin_EAST", new ImageIcon(rotateImage(kevinImg, Math.toRadians(90))));
-            icons.put("kevin_SOUTH", new ImageIcon(rotateImage(kevinImg, Math.toRadians(180))));
-            icons.put("kevin_WEST", new ImageIcon(rotateImage(kevinImg, Math.toRadians(270))));
+            icons.put("kevin_EAST", new ImageIcon(rotateImage(img, Math.toRadians(90))));
+            icons.put("kevin_SOUTH", new ImageIcon(rotateImage(img, Math.toRadians(180))));
+            icons.put("kevin_WEST", new ImageIcon(rotateImage(img, Math.toRadians(270))));
         }
-
         return icons;
     }
     
-    // --- NEW: Method to Create the HP/Stat Display Panel ---
-    public static JPanel createHUDPanel(Character player) {
-        JPanel hudPanel = new JPanel();
-        // Use a static name to easily retrieve this component later for updates
-        hudPanel.setName("MainHUDPanel"); 
-        hudPanel.setBackground(Color.BLACK); // Dark background
-        hudPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 15, 5));
+    public static JPanel createSidebarPanel(Character player, Map<String, ImageIcon> icons) {
+        JPanel sidebar = new JPanel();
+        sidebar.setLayout(new GridLayout(3, 1)); 
+        sidebar.setBackground(new Color(5, 10, 20)); // Deep Navy Sidebar
+        sidebar.setPreferredSize(new Dimension(350, 0)); 
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(0, 255, 255))); 
 
-        JLabel title = new JLabel(player.name + " // LIFE POWER: ");
-        title.setForeground(new Color(0, 255, 255)); // Cyan glow
-        title.setFont(new Font("Monospaced", Font.BOLD, 18));
-        hudPanel.add(title);
+        // ROW 1: PROFILE
+        JPanel profilePanel = new JPanel(new GridBagLayout());
+        profilePanel.setOpaque(false);
+        JLabel profilePic = new JLabel();
+        profilePic.setIcon(icons.get("tron_profile")); 
+        profilePic.setBorder(BorderFactory.createLineBorder(Color.CYAN, 2));
+        JLabel nameLabel = new JLabel(player.name);
+        nameLabel.setForeground(Color.CYAN);
+        nameLabel.setFont(new Font("Monospaced", Font.BOLD, 24));
+        nameLabel.setBorder(new EmptyBorder(10, 0, 0, 0));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0; gbc.gridy = 0;
+        profilePanel.add(profilePic, gbc);
+        gbc.gridy = 1;
+        profilePanel.add(nameLabel, gbc);
+        sidebar.add(profilePanel);
 
-        JPanel hpContainer = new JPanel();
-        hpContainer.setName("HPContainer"); // Give container a unique name
-        hpContainer.setBackground(Color.BLACK);
-        hpContainer.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 0)); // Flow layout for icons
-        hudPanel.add(hpContainer); // Add the empty container to the HUD panel
-            
-        return hudPanel;
+        // ROW 2: STATS
+        JPanel statsPanel = new JPanel();
+        statsPanel.setOpaque(false);
+        statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
+        statsPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        JLabel lvlLabel = new JLabel("LEVEL: 01");
+        lvlLabel.setForeground(Color.WHITE);
+        lvlLabel.setFont(new Font("Monospaced", Font.PLAIN, 18));
+        JLabel stageLabel = new JLabel("STAGE: 01");
+        stageLabel.setForeground(Color.GRAY);
+        stageLabel.setFont(new Font("Monospaced", Font.PLAIN, 18));
+        statsPanel.add(lvlLabel);
+        statsPanel.add(Box.createVerticalStrut(10));
+        statsPanel.add(stageLabel);
+        sidebar.add(statsPanel);
+
+        // ROW 3: HP / INVENTORY
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.setOpaque(false);
+        bottomPanel.setBorder(new EmptyBorder(20, 10, 20, 10));
+        JLabel hpTitle = new JLabel("LIFE POWER", SwingConstants.CENTER);
+        hpTitle.setForeground(new Color(255, 100, 100));
+        hpTitle.setFont(new Font("Monospaced", Font.BOLD, 20));
+        JPanel hpContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        hpContainer.setName("HPContainer"); 
+        hpContainer.setOpaque(false);
+        bottomPanel.add(hpTitle, BorderLayout.NORTH);
+        bottomPanel.add(hpContainer, BorderLayout.CENTER);
+        
+        JPanel invPanel = new JPanel(new FlowLayout());
+        invPanel.setOpaque(false);
+        for(int i=0; i<4; i++) {
+            JLabel slot = new JLabel("[ ]");
+            slot.setForeground(Color.DARK_GRAY);
+            slot.setFont(new Font("Monospaced", Font.PLAIN, 24));
+            invPanel.add(slot);
+        }
+        bottomPanel.add(invPanel, BorderLayout.SOUTH);
+        sidebar.add(bottomPanel);
+
+        return sidebar;
     }
 
-    // --- NEW: Method to Update the HP Display ---
-    public static void updateHUD(JPanel hudPanel, Character player, Map<String, ImageIcon> icons) { 
-        // 1. Find the specific HP container panel
+    public static void updateHUD(JPanel sidebar, Character player, Map<String, ImageIcon> icons) { 
         JPanel hpContainer = null;
-        for (Component comp : hudPanel.getComponents()) {
-            if ("HPContainer".equals(comp.getName()) && comp instanceof JPanel) {
-                hpContainer = (JPanel) comp;
-                break;
+        for (Component row : sidebar.getComponents()) { 
+            if (row instanceof JPanel) {
+                for (Component sub : ((JPanel)row).getComponents()) {
+                     if ("HPContainer".equals(sub.getName())) {
+                         hpContainer = (JPanel) sub;
+                         break;
+                     }
+                }
             }
+            if (hpContainer != null) break;
         }
         if (hpContainer == null) return;
 
-        // 2. Clear all previous heart icons
         hpContainer.removeAll();
-
-        // --- Logic for drawing hearts ---
         double currentLives = player.getLives();
+        int totalHalfUnits = (currentLives <= 0.001) ? 0 : (int) Math.round(currentLives * 2);
         
-        // CRITICAL FIX: If lives are effectively zero (or less), force the count to zero.
-        int totalHalfUnits;
-        if (currentLives <= 0.001) { 
-            totalHalfUnits = 0; // The player is dead. Display 0 half-units.
-        } else {
-            // Otherwise, use rounding to accurately convert 2.5 to 5, 2.0 to 4, etc.
-            totalHalfUnits = (int) Math.round(currentLives * 2);
-        }
-        
-        int maxHearts = 3; 
-
-        // Iterate over the number of *full heart slots* (3 times total)
-        for (int heartIndex = 0; heartIndex < maxHearts; heartIndex++) { 
+        for (int i = 0; i < 3; i++) { 
             ImageIcon icon = null;
-            
-            // Calculate the current half-unit count remaining for this specific heart slot
-            int currentSlotHalfUnits = totalHalfUnits - (heartIndex * 2);
-            
-            if (currentSlotHalfUnits >= 2) {
-                // Full Heart (2 half-units or more remaining for this slot)
-                icon = icons.get("heart_full");
-            } else if (currentSlotHalfUnits == 1) {
-                // Half Heart (Exactly 1 half-unit remaining)
-                icon = icons.get("heart_half");
-            } else {
-                // Empty Heart (0 half-units remaining for this slot)
-                icon = icons.get("heart_empty");
-            }
-            
-            // Add the heart icon if found
-            if (icon != null) {
-                JLabel heartLabel = new JLabel(icon);
-                hpContainer.add(heartLabel);
-            }
+            int currentSlotHalfUnits = totalHalfUnits - (i * 2);
+            if (currentSlotHalfUnits >= 2) icon = icons.get("heart_full");
+            else if (currentSlotHalfUnits == 1) icon = icons.get("heart_half");
+            else icon = icons.get("heart_empty");
+            if (icon != null) hpContainer.add(new JLabel(icon));
         }
-
-        // 3. Redraw the container
-        hudPanel.revalidate();
-        hudPanel.repaint();
     }
 
-
-    /**
-     * Updates the existing JFrame with the current state of the arena and cycles.
-     * This method is called repeatedly by the GameController thread.
-     */
-    public static void redrawArena(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons, JPanel arenaPanel, JPanel hudPanel) {
+    // --- MAIN REDRAW METHOD (VISUAL UPGRADE) ---
+    public static void redrawArena(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons, JPanel arenaPanel, JPanel sidebar) {
         
-        // 1. Clear previous components from the Arena Panel
         arenaPanel.removeAll(); 
-        
-        Character playerCycle = cycles.get(0);
         char[][] grid = arena.getGrid();
+        
+        // Define Colors
+        Color NEON_BG = new Color(10, 10, 20);      
+        Color GRID_LINE = new Color(30, 40, 60);    
+        Color WALL_COLOR = new Color(0, 50, 80);    
+        Color WALL_BORDER = new Color(0, 200, 255); 
         
         for (int r = 0; r < 40; r++) {
             for (int c = 0; c < 40; c++) {
@@ -237,102 +228,152 @@ public class ArenaLoader {
                 cell.setOpaque(true);
                 cell.setHorizontalAlignment(JLabel.CENTER);
                 cell.setVerticalAlignment(JLabel.CENTER);
-                cell.setIcon(null); 
+                
+                // Default Grid Style
+                cell.setBackground(NEON_BG);
+                cell.setBorder(BorderFactory.createLineBorder(GRID_LINE, 1));
                 
                 ImageIcon cycleIconToDraw = null;
                 
-                // A. Check if a Character is at this (r, c) location
+                // Find Player Logic
                 for (Character cycle : cycles) {
                     if (cycle.getRow() == r && cycle.getCol() == c) {
                         String iconKey = cycle.name.toLowerCase() + "_" + cycle.currentDirection.toString();
                         cycleIconToDraw = icons.get(iconKey);
+                        
+                        // DEBUG: If icon is missing, print why
+                        if (cycleIconToDraw == null && cycle.name.equals("Tron")) {
+                            System.out.println("⚠ WARNING: Icon missing for key: " + iconKey);
+                        }
                         break;
                     }
                 }
 
                 if (cycleIconToDraw != null) {
-                    cell.setBackground(Color.BLACK);
+                    // --- PLAYER IS HERE ---
                     cell.setIcon(cycleIconToDraw);
+
+                    // 1. Backlight (Lighter Blue to make it pop)
+                    cell.setBackground(new Color(0, 100, 180)); 
+
+                    // 2. Thinner Double Border (Prevent Icon Squeezing)
+                    // Previous code was too thick (6px total). New code is 2px/3px total.
+                    if (grid[r][c] == 'S') {
+                        // Turbo Mode: Magenta (2px) + White (1px)
+                        javax.swing.border.Border outer = BorderFactory.createLineBorder(Color.MAGENTA, 2);
+                        javax.swing.border.Border inner = BorderFactory.createLineBorder(Color.WHITE, 1);
+                        cell.setBorder(BorderFactory.createCompoundBorder(outer, inner));
+                    } else {
+                        // Normal Mode: Cyan (2px) + White (1px)
+                        javax.swing.border.Border outer = BorderFactory.createLineBorder(Color.CYAN, 2);
+                        javax.swing.border.Border inner = BorderFactory.createLineBorder(Color.WHITE, 1);
+                        cell.setBorder(BorderFactory.createCompoundBorder(outer, inner));
+                    }
+
                 } else {
-                    // B. Draw the static Arena elements
+                    // --- STATIC ELEMENTS ---
                     switch (grid[r][c]) {
                         case '#': // WALL
-                            cell.setBackground(new Color(0, 120, 255));
+                            cell.setBackground(WALL_COLOR);
+                            cell.setBorder(BorderFactory.createLineBorder(WALL_BORDER, 1));
                             break;
                         case 'O': // OBSTACLE
-                            cell.setBackground(Color.BLACK);
+                            cell.setBackground(NEON_BG); 
                             if (icons.get("obstacle") != null) cell.setIcon(icons.get("obstacle"));
                             else cell.setBackground(new Color(255, 140, 0)); 
                             break;
                         case 'S': // SPEED RAMP
-                            cell.setBackground(Color.BLACK);
+                            cell.setBackground(NEON_BG);
                             if (icons.get("speed") != null) cell.setIcon(icons.get("speed"));
-                            else cell.setBackground(new Color(0, 255, 255)); 
+                            else cell.setBackground(Color.CYAN); 
                             break;
-                        case 'T':
-                            cell.setBackground(new Color(0, 150, 255));
+                        case 'T': // TRON TRAIL
+                            cell.setBackground(new Color(0, 180, 255)); 
+                            cell.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1));
                             break;
-                        case 'K':
-                            cell.setBackground(Color.WHITE);
+                        case 'K': // KEVIN TRAIL
+                            cell.setBackground(new Color(255, 100, 0));
+                            cell.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1));
                             break;
-
-                        default:
-                            cell.setBackground(Color.BLACK);
                     }
                 }
                 arenaPanel.add(cell);
             }
         }
 
-        // 2. Refresh the HUD 
-        updateHUD(hudPanel, cycles.get(0), icons);
+        // Sidebar Flash Logic
+        if (cycles.get(0).isStunned) {
+            sidebar.setBackground(new Color(150, 0, 0)); 
+        } else {
+            sidebar.setBackground(new Color(5, 10, 20)); 
+        }
+
+        updateHUD(sidebar, cycles.get(0), icons);
         
-        // 3. Finalize and display changes
         arenaPanel.revalidate(); 
         arenaPanel.repaint();
-        frame.revalidate(); // Revalidate the whole frame to show HUD changes
     }
 
-    // Inside ArenaLoader.java (Add this method)
-
     public static void showGameOverDialog(JFrame parentFrame) {
-        // Define the dark neon background color used in the MainMenu
-        Color NEON_PURPLE_BG = new Color(15, 0, 40); 
-        
         JDialog gameOverDialog = new JDialog(parentFrame, "Game Over", true);
-        gameOverDialog.setSize(400, 200);
+        gameOverDialog.setSize(500, 250); // Made it slightly wider
         gameOverDialog.setLayout(new BorderLayout());
         gameOverDialog.setLocationRelativeTo(parentFrame);
-        gameOverDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         
-        // --- FIX: Set the Content Pane background to the neon color ---
-        gameOverDialog.getContentPane().setBackground(NEON_PURPLE_BG); 
-
-        // --- Title ---
+        // Dark Purple/Black Background
+        Color DIALOG_BG = new Color(15, 0, 40);
+        gameOverDialog.getContentPane().setBackground(DIALOG_BG); 
+        
+        // --- TITLE ---
         JLabel title = new JLabel("::: DEREZZED :::", SwingConstants.CENTER);
-        title.setFont(new Font("Monospaced", Font.BOLD, 36));
+        title.setFont(new Font("Monospaced", Font.BOLD, 42)); // Bigger font
         title.setForeground(Color.RED); 
-        title.setBorder(BorderFactory.createEmptyBorder(20, 0, 0, 0));
+        title.setBorder(new EmptyBorder(30, 0, 0, 0)); // Add spacing on top
         gameOverDialog.add(title, BorderLayout.NORTH);
 
-        // --- Message ---
-        JLabel message = new JLabel("Your Light Cycle has been terminated.", SwingConstants.CENTER);
-        message.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        message.setForeground(Color.LIGHT_GRAY);
-        gameOverDialog.add(message, BorderLayout.CENTER);
+        // --- SUBTITLE (Optional) ---
+        JLabel subtitle = new JLabel("END OF LINE.", SwingConstants.CENTER);
+        subtitle.setFont(new Font("Monospaced", Font.PLAIN, 16));
+        subtitle.setForeground(Color.GRAY);
+        gameOverDialog.add(subtitle, BorderLayout.CENTER);
 
-        // --- Button to close ---
+        // --- STYLED BUTTON ---
         JButton closeButton = new JButton("EXIT GRID");
-        closeButton.setFont(new Font("Monospaced", Font.BOLD, 14));
-        closeButton.setBackground(new Color(50, 50, 50)); 
-        closeButton.setForeground(Color.WHITE);
+        
+        // 1. FONT: Match the game style
+        closeButton.setFont(new Font("Monospaced", Font.BOLD, 20));
+        
+        // 2. COLORS: Black background, Neon Cyan text
+        closeButton.setBackground(Color.BLACK);
+        closeButton.setForeground(Color.CYAN);
+        
+        // 3. BORDER: Neon Line Border + Internal Padding
+        closeButton.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.CYAN, 2), // Outer Neon Line
+            BorderFactory.createEmptyBorder(10, 30, 10, 30) // Inner Padding (Top, Left, Bot, Right)
+        ));
+        
+        // 4. REMOVE JUNK: Get rid of the default "clicked" focus box
+        closeButton.setFocusPainted(false);
+        
+        // 5. INTERACTION: Simple Hover Effect
+        closeButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                closeButton.setBackground(Color.CYAN);
+                closeButton.setForeground(Color.BLACK);
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                closeButton.setBackground(Color.BLACK);
+                closeButton.setForeground(Color.CYAN);
+            }
+        });
+        
         closeButton.addActionListener(e -> System.exit(0)); 
         
+        // Put button in a panel so it doesn't stretch to fill the whole bottom
         JPanel buttonPanel = new JPanel();
-        
-        // --- FIX: Set the Button Panel background to the neon color ---
-        buttonPanel.setBackground(NEON_PURPLE_BG); 
-        
+        buttonPanel.setBackground(DIALOG_BG); // Match dialog background
+        buttonPanel.setBorder(new EmptyBorder(0, 0, 30, 0)); // Spacing at bottom
         buttonPanel.add(closeButton);
         
         gameOverDialog.add(buttonPanel, BorderLayout.SOUTH);
@@ -340,62 +381,38 @@ public class ArenaLoader {
         gameOverDialog.setVisible(true);
     }
 
-    public static void showArenaWindow(Arena arena) {
-        // This static viewer method is now obsolete for the game loop
-    }
-
     public static void main(String[] args) {
-        System.out.println("Working Directory = " + System.getProperty("user.dir"));
-
-        Color NEON_PURPLE_BG = new Color(15, 0, 40);
-        // 1. SETUP: Load Arena and Create Frame
         Arena arena = loadArena(1); 
-        JFrame frame = new JFrame("Tron Arena Viewer - Dynamic");
-        frame.getContentPane().setBackground(NEON_PURPLE_BG);
+        JFrame frame = new JFrame("Tron Legacy: Grid Arena");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(850, 850);
-        // --- KEY CHANGE: Use BorderLayout ---
+        frame.setExtendedState(JFrame.MAXIMIZED_BOTH); 
         frame.setLayout(new BorderLayout()); 
-
-        // 2. SETUP: Load Icons and Characters (File I/O)
+        
         Map<String, ImageIcon> icons = loadAllIcons(frame);
         
         CharacterData tronData = CharacterLoader.loadCharacterData("Tron");
         CharacterData kevinData = CharacterLoader.loadCharacterData("Kevin");
-        
         Tron tron = new Tron();
         Kevin kevin = new Kevin();
-        
         if (tronData != null) tron.loadInitialAttributes(tronData);
         if (kevinData != null) kevin.loadInitialAttributes(kevinData);
-        
-        // Set initial state
-        tron.r = 20; tron.c = 15;
-        tron.currentDirection = Direction.EAST;
+        tron.r = 20; tron.c = 15; tron.currentDirection = Direction.EAST;
         List<Character> cycles = List.of(tron, kevin);
 
-        // 3. SETUP: Create Panels
         JPanel arenaPanel = new JPanel(new GridLayout(40, 40));
-        JPanel hudPanel = createHUDPanel(tron); // Create HUD for Tron
+        arenaPanel.setBackground(new Color(10, 10, 20)); 
         
-        frame.add(hudPanel, BorderLayout.NORTH);
+        JPanel sidebarPanel = createSidebarPanel(tron, icons);
+        
         frame.add(arenaPanel, BorderLayout.CENTER);
+        frame.add(sidebarPanel, BorderLayout.EAST);
         
-        // Display the frozen map
-        redrawArena(frame, arena, cycles, icons, arenaPanel, hudPanel);
+        redrawArena(frame, arena, cycles, icons, arenaPanel, sidebarPanel);
         frame.setVisible(true);
 
-        // 4. SHOW MAIN MENU (Execution pauses here until 'START' is clicked)
         StartGameMenu.showMenu(frame);
-
-        // 5. START GAME LOOP (Runs ONLY after menu closes)
-        System.out.println("Starting Game Simulation...");
         
-        GameController controller = new GameController(frame, arena, cycles, icons, arenaPanel, hudPanel); // Pass new panels
-        
+        GameController controller = new GameController(frame, arena, cycles, icons, arenaPanel, sidebarPanel);
         new Thread(controller).start();
-        
-        // Re-draw once more to finalize loop start
-        redrawArena(frame, arena, cycles, icons, arenaPanel, hudPanel);
     }
 }

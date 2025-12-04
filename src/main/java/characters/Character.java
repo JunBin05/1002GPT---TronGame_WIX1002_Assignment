@@ -1,39 +1,36 @@
 package characters;
 
-import java.awt.Point;
-import java.util.LinkedList;
-
 public abstract class Character {
-    // --- Position and Identifier (MUST BE PUBLIC for ArenaLoader access) ---
+    // --- Position and Identifier ---
     public int r;            
     public int c;            
-    public String name;      
+    public String name;  
     
-    private static final int MAX_TRAIL_LENGTH = 7;
-    public Direction currentDirection; // Tracks the cycle's current heading
-    // -------------------------------------
+    // --- DISC SYSTEM: AMMO TRACKING ---
+    public int currentDiscCount = 0;    
     
-    // Core Stats (Protected)
+    public Direction currentDirection; 
+    
+    // Core Stats
     protected double lives;
     protected double maxLives;     
     protected double speed;      
     protected double handling;   
     protected int discsOwned;    
-    protected int experiencePoints; 
+    protected int experiencePoints; // Kept to prevent load errors, but ignored
     protected int level = 1;     
 
     protected String color;      
     protected char symbol = 'P'; 
+    public boolean isStunned = false;
 
     public Character(String name, String color) {
         this.name = name;
         this.color = color;
-        // Initialize the direction to a default state (e.g., North/Up)
         this.currentDirection = Direction.NORTH; 
     }
 
-    public boolean isStunned = false;
-
+    // --- INITIALIZATION ---
     public void loadInitialAttributes(CharacterData data) {
         this.speed = data.speed;
         this.handling = data.handling;
@@ -41,33 +38,42 @@ public abstract class Character {
         this.maxLives = data.lives;
         this.discsOwned = data.discsOwned;
         this.experiencePoints = data.experiencePoints;
+        
+        // DISC CHANGE 1: Fill ammo to max when game starts
+        this.currentDiscCount = this.discsOwned;
+    }
+    
+    // --- DISC SYSTEM METHODS ---
+    public boolean hasDisc() {
+        return currentDiscCount > 0;
     }
 
-    // FIX: Getters needed by ArenaLoader
+    public void throwDisc() {
+        if (currentDiscCount > 0) {
+            currentDiscCount--;
+            System.out.println("Disc Thrown! Remaining: " + currentDiscCount);
+        }
+    }
+
+    public void pickupDisc() {
+        if (currentDiscCount < discsOwned) {
+            currentDiscCount++;
+            System.out.println("Disc Retrieved! Ammo: " + currentDiscCount);
+        }
+    }
+
+    // --- STANDARD GETTERS/SETTERS ---
     public int getRow() { return r; }
     public int getCol() { return c; }
-
-    public double getLives() {
-        return this.lives;
-    }
-
-    public double getMaxLives() { 
-        return this.maxLives; 
-    }
-
-    public char getSymbol() {
-        return this.symbol;
-    }
+    public double getLives() { return this.lives; }
+    public double getMaxLives() { return this.maxLives; }
+    public char getSymbol() { return this.symbol; }
+    public int getLevel() { return this.level; } // Kept for display only
 
     public void changeLives(double amount) {
         this.lives += amount;
     }
     
-    // --- UPDATED: Method to Handle Direction Input (Turning) ---
-    /**
-     * Updates the cycle's currentDirection based on WASD input.
-     * This method handles turning only.
-     */
     public void setDirection(char directionInput) {
         switch (directionInput) {
             case 'W' -> this.currentDirection = Direction.NORTH; 
@@ -84,48 +90,27 @@ public abstract class Character {
             case EAST -> Direction.WEST;
             case WEST -> Direction.EAST;
         };
-        System.out.println(this.name + " reversed direction due to collision. New direction: " + this.currentDirection);
     }
 
     public void revertPosition(char grid[][], int [][] trailTimer) {
-        // Moves the cycle's position one unit backward based on its current direction.
-        // NOTE: This does NOT change the currentDirection, which is needed for the turn.
         switch (this.currentDirection) {
-            case NORTH:
-                r++; // Go South (since last move was North)
-                break;
-            case SOUTH:
-                r--; // Go North (since last move was South)
-                break;
-            case EAST:
-                c--;  // Go West (since last move was East)
-                break;
-            case WEST:
-                c++;  // Go East (since last move was West)
-                break;
+            case NORTH -> r++; 
+            case SOUTH -> r--; 
+            case EAST -> c--; 
+            case WEST -> c++; 
         }
-        
-        // Clear the invalid position from the grid if we were actually on the board
         if (r >= 0 && r < 40 && c >= 0 && c < 40) {
             grid[this.r][this.c] = '.'; 
             trailTimer[this.r][this.c] = 0;
         }
-
         this.isStunned = true;
     }
     
-    // --- NEW: Method to Advance Position (Moving Straight) ---
-    /**
-     * Moves the cycle one grid unit in the currentDirection.
-     * This method handles the continuous movement required by Light Cycles.
-     */
     public void advancePosition(char[][] grid) {
         if (this.isStunned) {
-            // Skip movement this frame, but clear the stun for the next frame
             this.isStunned = false;
             return;
         }
-
         switch (this.currentDirection) {
             case NORTH -> r--; 
             case SOUTH -> r++; 
@@ -134,6 +119,5 @@ public abstract class Character {
         }
     }
     
-    // The previous 'move(char direction)' method is now replaced by setDirection() and advancePosition().
     public abstract void levelUp(); 
 }
