@@ -1,4 +1,5 @@
 package characters;
+
 import java.awt.Point;
 import java.util.LinkedList;
 
@@ -37,7 +38,7 @@ public abstract class Character {
         this.speed = data.speed;
         this.handling = data.handling;
         this.lives = data.lives;
-        this.maxLives=data.lives;
+        this.maxLives = data.lives;
         this.discsOwned = data.discsOwned;
         this.experiencePoints = data.experiencePoints;
     }
@@ -87,8 +88,8 @@ public abstract class Character {
     }
 
     public void revertPosition(char grid[][], int [][] trailTimer) {
-    // Moves the cycle's position one unit backward based on its current direction.
-    // NOTE: This does NOT change the currentDirection, which is needed for the turn.
+        // Moves the cycle's position one unit backward based on its current direction.
+        // NOTE: This does NOT change the currentDirection, which is needed for the turn.
         switch (this.currentDirection) {
             case NORTH:
                 r++; // Go South (since last move was North)
@@ -102,11 +103,12 @@ public abstract class Character {
             case WEST:
                 c++;  // Go East (since last move was West)
                 break;
-        };
+        }
         
+        // Clear the invalid position from the grid if we were actually on the board
         if (r >= 0 && r < 40 && c >= 0 && c < 40) {
-                grid[this.r][this.c] = '.'; 
-                trailTimer[this.r][this.c] = 0;
+            grid[this.r][this.c] = '.'; 
+            trailTimer[this.r][this.c] = 0;
         }
 
         this.isStunned = true;
