@@ -1,6 +1,10 @@
+<<<<<<< HEAD
 package characters;
 import java.awt.Point;
 import java.util.LinkedList;
+=======
+package characters; 
+>>>>>>> main
 
 public abstract class Character {
     // --- Position and Identifier (MUST BE PUBLIC for ArenaLoader access) ---
@@ -8,7 +12,11 @@ public abstract class Character {
     public int c;            
     public String name;      
     
+<<<<<<< HEAD
     private static final int MAX_TRAIL_LENGTH = 7;
+=======
+    // --- NEW: Direction Tracking Field ---
+>>>>>>> main
     public Direction currentDirection; // Tracks the cycle's current heading
     // -------------------------------------
     
@@ -54,10 +62,13 @@ public abstract class Character {
         return this.maxLives; 
     }
 
+<<<<<<< HEAD
     public char getSymbol() {
         return this.symbol;
     }
 
+=======
+>>>>>>> main
     public void changeLives(double amount) {
         this.lives += amount;
     }
@@ -86,6 +97,7 @@ public abstract class Character {
         System.out.println(this.name + " reversed direction due to collision. New direction: " + this.currentDirection);
     }
 
+<<<<<<< HEAD
     public void revertPosition(char grid[][], int [][] trailTimer) {
     // Moves the cycle's position one unit backward based on its current direction.
     // NOTE: This does NOT change the currentDirection, which is needed for the turn.
@@ -111,19 +123,40 @@ public abstract class Character {
 
         this.isStunned = true;
     }
+=======
+    public void revertPosition() {
+    // Moves the cycle's position one unit backward based on its current direction.
+    // NOTE: This does NOT change the currentDirection, which is needed for the turn.
+    switch (this.currentDirection) {
+        case NORTH -> r++; // Go South (since last move was North)
+        case SOUTH -> r--; // Go North (since last move was South)
+        case EAST -> c--;  // Go West (since last move was East)
+        case WEST -> c++;  // Go East (since last move was West)
+    };
+
+    this.isStunned = true;
+}
+>>>>>>> main
     
     // --- NEW: Method to Advance Position (Moving Straight) ---
     /**
      * Moves the cycle one grid unit in the currentDirection.
      * This method handles the continuous movement required by Light Cycles.
      */
+<<<<<<< HEAD
     public void advancePosition(char[][] grid) {
+=======
+    public void advancePosition() {
+>>>>>>> main
         if (this.isStunned) {
             // Skip movement this frame, but clear the stun for the next frame
             this.isStunned = false;
             return;
         }
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
         switch (this.currentDirection) {
             case NORTH -> r--; 
             case SOUTH -> r++; 

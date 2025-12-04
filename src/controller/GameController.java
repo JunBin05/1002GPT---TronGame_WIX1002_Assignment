@@ -25,11 +25,15 @@ public class GameController implements KeyListener, Runnable {
     private final JPanel hudPanel;   // Field for the HUD panel
     private final Tron playerCycle; 
     
+<<<<<<< HEAD
     // --- JETWALL DECAY AND SPEED CONTROL FIELDS ---
     private static final int GAME_SPEED_MS = 80; // Controls game speed (12.5 FPS)
     private int globalStepCounter = 0; 
     private static final int TRAIL_DURATION = 7; // Jetwall fades after 7 steps
     // ----------------------------------------------
+=======
+    private static final int GAME_SPEED_MS = 80; // Controls game speed (80ms = 12.5 FPS)
+>>>>>>> main
 
     // --- CORRECTED CONSTRUCTOR ---
     public GameController(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons,
@@ -54,6 +58,7 @@ public class GameController implements KeyListener, Runnable {
     // --- Game Loop Implementation (Heart of the Real-Time System) ---
     @Override
     public void run() {
+<<<<<<< HEAD
         char[][] grid = arena.getGrid();
         int[][] trailTimer = arena.getTrailTimer();
         
@@ -124,11 +129,51 @@ public class GameController implements KeyListener, Runnable {
                 this.playerCycle.advancePosition(grid); 
                 
                 // Redraw the safe move
+=======
+        while (true) {
+            
+            // 1. UPDATE STATE (Movement)
+            // advancePosition() handles the stun flag internally
+            this.playerCycle.advancePosition(); 
+
+            // --- COLLISION LOGIC ---
+            int nextR = this.playerCycle.r;
+            int nextC = this.playerCycle.c;
+            char element = ' '; 
+            
+            // Ensure we check within the bounds before accessing the grid
+            if (nextR >= 0 && nextC >= 0 && nextR < 40 && nextC < 40) {
+                element = arena.getGrid()[nextR][nextC];
+            }
+
+            boolean collided = false;
+            
+            // A. Check for Boundary/Wall/Obstacle Collision (# or O)
+            if (element == '#' || element == 'O') {
+                this.playerCycle.changeLives(-0.5); 
+                System.out.println(this.playerCycle.name + " hit obstacle. Lives: " + this.playerCycle.getLives());
+                collided = true;
+            } 
+            
+            // B. Check for Falling Off (Fatal Boundary Condition)
+            if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
+                this.playerCycle.changeLives(-this.playerCycle.getLives()); 
+                System.out.println(this.playerCycle.name + " fell off the Grid! Lives: 0.0");
+            }
+            
+            // C. REBOUND MECHANIC (Fixes teleporting/stuck state)
+            if (collided && this.playerCycle.getLives() > 0.0) {
+                this.playerCycle.revertPosition(); // Rolls back position and sets stun flag
+                this.playerCycle.setOppositeDirection();
+                
+                // Force an immediate redraw to show the cycle rebounded and stunned
+>>>>>>> main
                 SwingUtilities.invokeLater(() -> {
                     ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, 
                                             this.arenaPanel, this.hudPanel);
                 });
             }
+<<<<<<< HEAD
 
             // 4. GAME OVER CHECK
             if (this.playerCycle.getLives() <= 0.0) {
@@ -156,6 +201,32 @@ public class GameController implements KeyListener, Runnable {
             }
             
             // 6. CONTROL SPEED
+=======
+            
+            // D. Game Over Check
+            if (this.playerCycle.getLives() <= 0.0) {
+                System.out.println("GAME OVER!");
+                
+                // --- NEW: Trigger the dialog in a thread-safe way ---
+                SwingUtilities.invokeLater(() -> {
+                    // Pass the main game frame to the static dialog method
+                    ArenaLoader.showGameOverDialog(this.gameFrame);
+                });
+                // ----------------------------------------------------
+                
+                break; // Exit the game loop thread
+            }
+            
+            // 3. REDRAW FRAME (Only redraw if no collision or after the stun frame passes)
+            if (!this.playerCycle.isStunned || !collided) {
+                SwingUtilities.invokeLater(() -> {
+                    ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, 
+                                            this.arenaPanel, this.hudPanel);
+                });
+            }
+
+            // 4. CONTROL SPEED
+>>>>>>> main
             try {
                 Thread.sleep(GAME_SPEED_MS); 
             } catch (InterruptedException e) {
