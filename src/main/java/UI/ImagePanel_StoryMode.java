@@ -45,6 +45,8 @@ public class ImagePanel_StoryMode extends JPanel {
         chapterImages.add(new ImageIcon("images/chapter1.png").getImage()); // Index 0
         chapterImages.add(new ImageIcon("images/chapter2.png").getImage()); // Index 1
         chapterImages.add(new ImageIcon("images/chapter3.png").getImage()); // Index 2
+        chapterImages.add(new ImageIcon("images/chapter4.png").getImage()); // Index 3
+        chapterImages.add(new ImageIcon("images/chapter5.png").getImage()); // Index 4
 
         // Setup Label
         chapterImageLabel = new JLabel();
