@@ -97,7 +97,7 @@ public class ArenaLoader {
     }
     
     // --- Load Icons and Generate Rotations (Called once at start) ---
-    private static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
+    public static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
         // ... (Icon loading and rotation logic remains the same)
         Map<String, ImageIcon> icons = new HashMap<>();
 

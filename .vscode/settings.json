@@ -5,5 +5,9 @@
         // and any subfolders (**). This is the standard best practice.
         "lib/**/*.jar" 
     ],
+<<<<<<< HEAD
     "java.configuration.updateBuildConfiguration": "interactive"
+=======
+    "java.configuration.updateBuildConfiguration": "disabled"
+>>>>>>> 3c8a008610a8535489a882728453dd5f2abf2ac6
 }
