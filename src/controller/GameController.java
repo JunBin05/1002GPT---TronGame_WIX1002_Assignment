@@ -30,6 +30,8 @@ public class GameController implements KeyListener, Runnable {
 =======
 >>>>>>> 3bba3f20c0e789dc0b50cfccdb6f291f5c6ff90c
     // --- JETWALL DECAY AND SPEED CONTROL FIELDS ---
+    // Track if we are currently on a speed ramp
+    private boolean onSpeedRamp = false;
     private int gameDelay = 80; // Controls game speed (12.5 FPS)
     private int globalStepCounter = 1; 
     private static final int TRAIL_DURATION = 7; // Jetwall fades after 7 steps
