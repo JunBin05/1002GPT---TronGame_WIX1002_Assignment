@@ -1,3 +1,5 @@
+package arena;
+
 public class ArenaOne extends Arena {
 
     @Override
