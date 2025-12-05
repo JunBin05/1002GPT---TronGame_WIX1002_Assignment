@@ -1,105 +1,181 @@
 package designenemies;
 
-import characters.Character; // ADDED: Import for the superclass
-import characters.Direction; // USED: To match Direction enum usage in Character
+import characters.Character; 
+import characters.Direction; 
+import java.util.Random;
+import java.util.List;
+import java.util.ArrayList;
 
-/**
- * Abstract superclass for all AI-controlled enemies in the Tron game.
- * Defines common attributes and behaviors shared by all enemy types.
- */
-public abstract class Enemy extends characters.Character {
+public class Enemy extends Character {
 
-    //Enemy attributes
-    protected String name; // Enemy identifier
-    protected String color;  // Jetwall color
-    protected String difficulty; // Difficulty level
-    protected int xp; // Experience points given to player
-    protected String speed; // Movement speed (textual)
-    protected String handling; // Turning efficiency
-    protected String intelligence; // AI intelligence
-    protected String description; // Enemy description
+    protected boolean isEnemyBoss; 
+    protected char[][] arenaGrid; 
+    protected Random rand = new Random();
 
-    protected int x, y; // Current position in the arena (x is column, y is row)
-    // NOTE: r and c are inherited from Character, but Enemy uses x and y internally.
-    protected Direction currentDirection = Direction.NORTH; 
-    
-    protected char[][] arenaGrid; // Reference to the arena map
+    protected String difficulty; 
+    protected String intelligence; 
 
-    // Constructor
-    public Enemy(
-            String name, String color, String difficulty, int xp,
-            String speed, String handling, String intelligence, String description
-    ) {
-        // FIX: Explicitly call the only available Character constructor
+    public Enemy(String name, String color, String difficulty, int xp, 
+                 String speed, String handling, String intelligence, String description,
+                 boolean isBoss) {
         super(name, color); 
-
-        // Inherited fields from Character are set here:
-        this.r = 0; // Initialize inherited fields
-        this.c = 0;
-        this.currentDirection = Direction.NORTH;
-        
-        // Enemy specific fields:
-        this.name = name;
-        this.color = color;
         this.difficulty = difficulty;
-        this.xp = xp;
-        this.speed = speed;
-        this.handling = handling;
         this.intelligence = intelligence;
-        this.description = description;
+        this.isEnemyBoss = isBoss; 
+        
+        if (isBoss) {
+            this.lives = 3;
+            this.maxLives = 3;
+        } else {
+            this.lives = 1;
+            this.maxLives = 1;
+        }
     }
 
-    // NEW: Setter for the arena grid
     public void setArenaGrid(char[][] grid) {
         this.arenaGrid = grid;
     }
 
-    // NEW: Applies the chosen move, updating the position (x, y)
-    public void applyMove(Direction dir) {
-        // Must update inherited position fields (r, c)
-        this.currentDirection = dir; 
-        
-        switch (dir) {
-            case NORTH -> { this.y--; this.r--; }
-            case SOUTH -> { this.y++; this.r++; }
-            case WEST -> { this.x--; this.c--; }
-            case EAST -> { this.x++; this.c++; }
+    public void spawnRandom(int rows, int cols) {
+        this.r = (int) (Math.random() * rows);
+        this.c = (int) (Math.random() * cols);
+        if (arenaGrid != null) {
+            while (arenaGrid[r][c] != '.') {
+                this.r = (int) (Math.random() * rows);
+                this.c = (int) (Math.random() * cols);
+            }
         }
     }
 
-    // Spawn at a random position in the arena
-    public void spawnRandom(int width, int height) {
-        this.x = (int) (Math.random() * width);
-        this.y = (int) (Math.random() * height);
-        this.r = this.y; // Ensure inherited fields match
-        this.c = this.x; // Ensure inherited fields match
+    // --- DECISION LOGIC ---
+    public Direction decideMove() {
+        if (this.isEnemyBoss) {
+            return decideMoveSmart();
+        } else {
+            return decideMoveStupid();
+        }
     }
 
-    // Abstract method for AI movement
-    public abstract Direction decideMove();
+    // --- STRATEGY 1: SMART (Boss) ---
+    // Sees EVERYTHING.
+    private Direction decideMoveSmart() {
+        // 1. Straight
+        int[] straight = getNextCoords(currentDirection);
+        if (isBossSafe(straight[0], straight[1])) return currentDirection;
+        
+        // 2. Right
+        Direction right = getTurn(currentDirection, true);
+        int[] rCoords = getNextCoords(right);
+        if (isBossSafe(rCoords[0], rCoords[1])) return right;
 
-    // --- IMPLEMENTATIONS OF ABSTRACT METHODS FROM characters.Character ---
+        // 3. Left
+        Direction left = getTurn(currentDirection, false);
+        int[] lCoords = getNextCoords(left);
+        if (isBossSafe(lCoords[0], lCoords[1])) return left;
 
-    /**
-     * Implements the abstract method from Character. Enemies do not level up.
-     */
-    @Override
-    public void levelUp() {
-        // No-op (no operation)
+        return currentDirection; // Trapped
     }
 
-    /**
-     * Implements the setDirection method from Character. 
-     * Enemies use decideMove() for AI, so this is a no-op.
-     */
-    @Override
-    public void setDirection(char directionInput) {
-        // No-op (AI controls direction)
+    // --- STRATEGY 2: STUPID (Minion) ---
+    // Sees Walls/Obstacles/Teammates, but is BLIND to Player Tail.
+    private Direction decideMoveStupid() {
+        int[] straight = getNextCoords(currentDirection);
+        
+        // Momentum: If straight looks "Minion Safe", take it mostly
+        if (isMinionSafe(straight[0], straight[1]) && rand.nextDouble() > 0.1) {
+            return currentDirection;
+        }
+
+        // Random Turn: Pick any direction that looks "Minion Safe"
+        List<Direction> validMoves = new ArrayList<>();
+        
+        for (Direction d : Direction.values()) {
+            if (d == getOpposite(currentDirection)) continue; 
+            
+            int[] next = getNextCoords(d);
+            
+            // Uses Minion Vision (Thinks 'T' is safe)
+            if (isMinionSafe(next[0], next[1])) {
+                validMoves.add(d);
+            }
+        }
+        
+        if (!validMoves.isEmpty()) {
+            return validMoves.get(rand.nextInt(validMoves.size()));
+        }
+        
+        return currentDirection;
     }
 
-    //Override toString() for readable output
-    @Override
-    public String toString() {
-        return name + " (" + color + ", " + difficulty + ") at (" + x + "," + y + ")";
+    // --- HELPERS ---
+    private int[] getNextCoords(Direction dir) {
+        int nextR = this.r; int nextC = this.c; 
+        switch (dir) { case NORTH -> nextR--; case SOUTH -> nextR++; case WEST -> nextC--; case EAST -> nextC++; }
+        return new int[]{nextR, nextC};
+    }
+
+    // --- VISION 1: BOSS (PERFECT VISION) ---
+    // Avoids everything dangerous.
+    private boolean isBossSafe(int r, int c) {
+        if (arenaGrid == null) return false; 
+        if (r < 0 || r >= arenaGrid.length || c < 0 || c >= arenaGrid[0].length) return false; 
+        char cell = arenaGrid[r][c];
+        
+        // Safe ONLY if Empty (.) or Speed (S)
+        // Avoids: Walls (#), Obstacles (O), Discs (D), Enemy Tails (K), Player Tails (T)
+        return cell == '.' || cell == 'S';
+    }
+
+    // --- VISION 2: MINION (SELECTIVE VISION) ---
+    // Avoids Walls and Teammates. Walks into Player Tails.
+    private boolean isMinionSafe(int r, int c) {
+        if (arenaGrid == null) return false; 
+        if (r < 0 || r >= arenaGrid.length || c < 0 || c >= arenaGrid[0].length) return false; 
+        char cell = arenaGrid[r][c];
+        
+        // 1. DANGEROUS THINGS (Minion Avoids)
+        // Wall (#), Obstacle (O), Disc (D), Other Enemy Tails (K)
+        if (cell == '#' || cell == 'O' || cell == 'D' || cell == 'K') {
+            return false;
+        }
+        
+        // 2. "SAFE" THINGS (Minion Walks Here)
+        // Empty (.), Speed (S)... AND PLAYER TAIL ('T')!
+        // Because we return TRUE for 'T', the Minion will try to walk there and die.
+        return true; 
+    }
+    
+    private Direction getTurn(Direction d, boolean right) {
+        if (right) return switch(d) { case NORTH->Direction.EAST; case EAST->Direction.SOUTH; case SOUTH->Direction.WEST; case WEST->Direction.NORTH; };
+        return switch(d) { case NORTH->Direction.WEST; case WEST->Direction.SOUTH; case SOUTH->Direction.EAST; case EAST->Direction.NORTH; };
+    }
+    
+    private Direction getOpposite(Direction d) {
+        return switch(d) { case NORTH->Direction.SOUTH; case SOUTH->Direction.NORTH; case EAST->Direction.WEST; case WEST->Direction.EAST; };
+    }
+
+    @Override public void levelUp() {}
+    @Override public void setDirection(char directionInput) {}
+    
+    // --- GETTERS ---
+    public String getName() {
+        return this.name;
+    }
+    
+    // --- BOSS MODIFIERS ---
+    public boolean isBoss() {
+        return this.isEnemyBoss;
+    }
+    
+    public int getTrailDuration() {
+        return this.isEnemyBoss ? 14 : 7; // Boss trails last 2x longer
+    }
+    
+    public double getSpeedModifier() {
+        return this.isEnemyBoss ? 1.5 : 1.0; // Boss moves 1.5x faster
+    }
+    
+    public String getBossIndicator() {
+        return this.isEnemyBoss ? " [BOSS]" : "";
     }
 }

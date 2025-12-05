@@ -3,423 +3,596 @@ package arena;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.io.File; 
-import java.nio.file.Paths;
-import java.util.List; 
+import java.io.File;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 import java.awt.image.BufferedImage;
 import java.awt.geom.AffineTransform;
 
-// --- Imports ---
-import characters.Character; 
+// Imports
+import characters.Character;
 import characters.Tron;
 import characters.Kevin;
-import characters.CharacterLoader; 
-import characters.CharacterData; 
+import characters.CharacterLoader;
+import characters.CharacterData;
 import characters.Direction;
-import controller.GameController; 
-import UI.StartGameMenu; 
+import controller.GameController;
+import UI.StartGameMenu;
+import designenemies.*;
+import XPSystem.TronRules; // Math for XP
 
 public class ArenaLoader {
 
-    // --- Helper: Conversion methods ---
-    private static BufferedImage toBufferedImage(Image img) {
-        if (img instanceof BufferedImage) return (BufferedImage) img;
-        BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
-        Graphics2D bGr = bimage.createGraphics();
-        bGr.drawImage(img, 0, 0, null);
-        bGr.dispose();
-        return bimage;
-    }
+    public static int currentChapter = 2;
+    public static int currentStage = 5;
+    public static JFrame mainFrame;
 
-    private static BufferedImage rotateImage(BufferedImage image, double angleRadians) {
-        double sin = Math.abs(Math.sin(angleRadians));
-        double cos = Math.abs(Math.cos(angleRadians));
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int newWidth = (int) Math.floor(width * cos + height * sin);
-        int newHeight = (int) Math.floor(height * cos + width * sin);
-        BufferedImage rotatedImage = new BufferedImage(newWidth, newHeight, image.getType());
-        Graphics2D g2d = rotatedImage.createGraphics();
-        AffineTransform at = new AffineTransform();
-        at.translate(newWidth / 2, newHeight / 2);
-        at.rotate(angleRadians);
-        at.translate(-width / 2, -height / 2);
-        g2d.drawImage(image, at, null);
-        g2d.dispose();
-        return rotatedImage;
-    }
+    private static GameController activeController;
+    private static Thread gameThread;
 
-    private static ImageIcon loadAndScale(String relativePath, int size) {
-        try {
-            String fullPath = Paths.get(relativePath).toAbsolutePath().toString();
-            File imageFile = new File(fullPath);
-            if (!imageFile.exists()) {
-                imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath);
-                if (!imageFile.exists()) return null;
-            }
-            ImageIcon original = new ImageIcon(imageFile.getAbsolutePath());
-            if (original.getImageLoadStatus() == MediaTracker.COMPLETE) {
-                Image scaled = original.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
-                return new ImageIcon(scaled);
-            }
-        } catch (Exception e) { e.printStackTrace(); }
-        return null;
-    }
+    // --- PERSISTENT CHARACTERS (So Level doesn't reset!) ---
+    private static Tron persistentTron;
+    private static Kevin persistentKevin;
 
-    public static Arena loadArena(int choice) {
-        return switch (choice) {
-            case 1 ->new ArenaOne();
-            case 2 -> new ArenaTwo();
-            case 3 -> new ArenaThree();
-            case 4 -> new RandomArena();
-            default -> new ArenaOne();
-        };
-    }
-    
-    // --- Load Icons and Generate Rotations (Called once at start) ---
-    public static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
-        // ... (Icon loading and rotation logic remains the same)
+    // --- HELPER METHODS (Images) ---
+    private static BufferedImage toBufferedImage(Image img) { if (img instanceof BufferedImage) return (BufferedImage) img; BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB); Graphics2D bGr = bimage.createGraphics(); bGr.drawImage(img, 0, 0, null); bGr.dispose(); return bimage; }
+    private static BufferedImage rotateImage(BufferedImage image, double angleRadians) { double sin = Math.abs(Math.sin(angleRadians)); double cos = Math.abs(Math.cos(angleRadians)); int width = image.getWidth(); int height = image.getHeight(); int newWidth = (int) Math.floor(width * cos + height * sin); int newHeight = (int) Math.floor(height * cos + width * sin); BufferedImage rotatedImage = new BufferedImage(newWidth, newHeight, image.getType()); Graphics2D g2d = rotatedImage.createGraphics(); AffineTransform at = new AffineTransform(); at.translate(newWidth / 2, newHeight / 2); at.rotate(angleRadians); at.translate(-width / 2, -height / 2); g2d.drawImage(image, at, null); g2d.dispose(); return rotatedImage; }
+    private static ImageIcon loadAndScale(String relativePath, int size) { try { File imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath); ImageIcon original = new ImageIcon(imageFile.getAbsolutePath()); if (original.getImageLoadStatus() == MediaTracker.COMPLETE) { Image scaled = original.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH); return new ImageIcon(scaled); } } catch (Exception e) {} return null; }
+    public static Arena loadArena(int choice) { return new ArenaOne(); }
+
+    private static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
         Map<String, ImageIcon> icons = new HashMap<>();
-        
-        // 1. GRID ICON SIZE: Use FULL screen height divided by 40 rows
         int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
-        int TRUE_CELL_SIZE = (int) ((screenHeight*2.5) / 40); 
-        int TRUE_CELL_SIZE_char = (int) ((screenHeight) / 40); 
+        int TRUE_CELL_SIZE = (int) ((screenHeight*2) / 40);
+        final int HUD_ICON_SIZE = 60;
+        final int DISC_INVENTORY_SIZE = 50;
 
-        // 2. HUD ICON SIZE
-        final int HUD_ICON_SIZE = 60; 
-        
         icons.put("obstacle", loadAndScale("images" + File.separator + "obstacle.png", TRUE_CELL_SIZE));
         icons.put("speed", loadAndScale("images" + File.separator + "Speed.png", TRUE_CELL_SIZE));
-        icons.put("heart_full", loadAndScale("images" + File.separator + "heart_full.png", HUD_ICON_SIZE)); 
-        icons.put("heart_half", loadAndScale("images" + File.separator + "heart_half.png", HUD_ICON_SIZE)); 
-        icons.put("heart_empty", loadAndScale("images" + File.separator + "heart_empty.png", HUD_ICON_SIZE)); 
-        
-        // 3. PROFILE SIZE
-        icons.put("tron_profile", loadAndScale("images" + File.separator + "Tron.png", 200)); 
+        icons.put("disc", loadAndScale("images" + File.separator + "disc.png", 25));
+        icons.put("disc_inventory", loadAndScale("images" + File.separator + "disc.png", DISC_INVENTORY_SIZE));
+        icons.put("heart_full", loadAndScale("images" + File.separator + "heart_full.png", HUD_ICON_SIZE));
+        icons.put("heart_half", loadAndScale("images" + File.separator + "heart_half.png", HUD_ICON_SIZE));
+        icons.put("heart_empty", loadAndScale("images" + File.separator + "heart_empty.png", HUD_ICON_SIZE));
+        icons.put("tron_profile", loadAndScale("images" + File.separator + "Tron.png", 200));
 
-        ImageIcon baseTronIcon = loadAndScale("images" + File.separator + "Tron.png", TRUE_CELL_SIZE_char);
-        ImageIcon baseKevinIcon = loadAndScale("images" + File.separator + "kevin.png", TRUE_CELL_SIZE_char);
-        
-        if (baseTronIcon != null) {
-            BufferedImage img = toBufferedImage(baseTronIcon.getImage());
-            icons.put("tron_NORTH", baseTronIcon);
-            icons.put("tron_EAST", new ImageIcon(rotateImage(img, Math.toRadians(90))));
-            icons.put("tron_SOUTH", new ImageIcon(rotateImage(img, Math.toRadians(180))));
-            icons.put("tron_WEST", new ImageIcon(rotateImage(img, Math.toRadians(270))));
-        }
-        if (baseKevinIcon != null) {
-            BufferedImage img = toBufferedImage(baseKevinIcon.getImage());
-            icons.put("kevin_NORTH", baseKevinIcon);
-            icons.put("kevin_EAST", new ImageIcon(rotateImage(img, Math.toRadians(90))));
-            icons.put("kevin_SOUTH", new ImageIcon(rotateImage(img, Math.toRadians(180))));
-            icons.put("kevin_WEST", new ImageIcon(rotateImage(img, Math.toRadians(270))));
-        }
+        loadCharSet(icons, "tron", "Tron.png", TRUE_CELL_SIZE);
+        loadCharSet(icons, "kevin", "kevin.png", TRUE_CELL_SIZE);
+        loadCharSet(icons, "sark", "Sark.png", TRUE_CELL_SIZE);
+        loadCharSet(icons, "clu", "Clu.png", TRUE_CELL_SIZE);
+        loadCharSet(icons, "rinzler", "Rinzler.png", TRUE_CELL_SIZE);
+        loadCharSet(icons, "koura", "Koura.png", TRUE_CELL_SIZE);
         return icons;
     }
-    
+
+    private static void loadCharSet(Map<String, ImageIcon> icons, String prefix, String filename, int size) {
+        ImageIcon base = loadAndScale("images" + File.separator + filename, size);
+        if (base != null) {
+            BufferedImage img = toBufferedImage(base.getImage());
+            icons.put(prefix + "_NORTH", base);
+            icons.put(prefix + "_EAST", new ImageIcon(rotateImage(img, Math.toRadians(90))));
+            icons.put(prefix + "_SOUTH", new ImageIcon(rotateImage(img, Math.toRadians(180))));
+            icons.put(prefix + "_WEST", new ImageIcon(rotateImage(img, Math.toRadians(270))));
+        }
+    }
+
+    // --- UPDATED SIDEBAR (4 Sections: Profile, Chapter/Stage, Hearts, Discs) ---
     public static JPanel createSidebarPanel(Character player, Map<String, ImageIcon> icons) {
         JPanel sidebar = new JPanel();
-        sidebar.setLayout(new GridLayout(3, 1)); 
-        sidebar.setBackground(new Color(5, 10, 20)); // Deep Navy Sidebar
-        sidebar.setPreferredSize(new Dimension(350, 0)); 
-        sidebar.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(0, 255, 255))); 
+        sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
+        sidebar.setBackground(new Color(5, 10, 20));
+        sidebar.setPreferredSize(new Dimension(350, 0));
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(0, 255, 255)));
 
-        // ROW 1: PROFILE
+        // ========== SECTION 1: PROFILE ==========
         JPanel profilePanel = new JPanel(new GridBagLayout());
         profilePanel.setOpaque(false);
+        profilePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        profilePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+        profilePanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0; gbc.gridy = 0;
+
+        // Icon
         JLabel profilePic = new JLabel();
-        profilePic.setIcon(icons.get("tron_profile")); 
+        profilePic.setIcon(icons.get("tron_profile"));
         profilePic.setBorder(BorderFactory.createLineBorder(Color.CYAN, 2));
-        JLabel nameLabel = new JLabel(player.name);
+        profilePanel.add(profilePic, gbc);
+
+        // Name
+        gbc.gridy = 1;
+        JLabel nameLabel = new JLabel(player.name.toUpperCase());
         nameLabel.setForeground(Color.CYAN);
         nameLabel.setFont(new Font("Monospaced", Font.BOLD, 24));
         nameLabel.setBorder(new EmptyBorder(10, 0, 0, 0));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0; gbc.gridy = 0;
-        profilePanel.add(profilePic, gbc);
-        gbc.gridy = 1;
         profilePanel.add(nameLabel, gbc);
-        sidebar.add(profilePanel);
 
-        // ROW 2: STATS
+        // Level
+        gbc.gridy = 2;
+        JLabel levelLabel = new JLabel("LEVEL " + player.getLevel());
+        levelLabel.setName("LevelLabel");
+        levelLabel.setForeground(Color.WHITE);
+        levelLabel.setFont(new Font("Monospaced", Font.BOLD, 18));
+        profilePanel.add(levelLabel, gbc);
+
+        // XP
+        gbc.gridy = 3;
+        JLabel xpLabel = new JLabel("XP: 0 / 100");
+        xpLabel.setName("XPLabel");
+        xpLabel.setForeground(Color.LIGHT_GRAY);
+        xpLabel.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        profilePanel.add(xpLabel, gbc);
+        
+        // Speed
+        gbc.gridy = 4;
+        JLabel speedLabel = new JLabel("SPD: " + String.format("%.2f", player.getSpeed()));
+        speedLabel.setName("SpeedLabel");
+        speedLabel.setForeground(new Color(0, 255, 100));
+        speedLabel.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        profilePanel.add(speedLabel, gbc);
+        
+        // Handling (Precision)
+        gbc.gridy = 5;
+        JLabel handlingLabel = new JLabel("PRE: " + String.format("%.2f", player.getHandling()));
+        handlingLabel.setName("HandlingLabel");
+        handlingLabel.setForeground(new Color(100, 200, 255));
+        handlingLabel.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        profilePanel.add(handlingLabel, gbc);
+        
+        sidebar.add(profilePanel);
+        sidebar.add(Box.createVerticalStrut(10));
+
+        // ========== SECTION 2: CHAPTER & STAGE ==========
         JPanel statsPanel = new JPanel();
         statsPanel.setOpaque(false);
         statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
-        statsPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        JLabel lvlLabel = new JLabel("LEVEL: 01");
-        lvlLabel.setForeground(Color.WHITE);
-        lvlLabel.setFont(new Font("Monospaced", Font.PLAIN, 18));
-        JLabel stageLabel = new JLabel("STAGE: 01");
-        stageLabel.setForeground(Color.GRAY);
-        stageLabel.setFont(new Font("Monospaced", Font.PLAIN, 18));
-        statsPanel.add(lvlLabel);
-        statsPanel.add(Box.createVerticalStrut(10));
-        statsPanel.add(stageLabel);
-        sidebar.add(statsPanel);
+        statsPanel.setBorder(new EmptyBorder(10, 15, 10, 15));
+        statsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        statsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
 
-        // ROW 3: HP / INVENTORY
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.setOpaque(false);
-        bottomPanel.setBorder(new EmptyBorder(20, 10, 20, 10));
-        JLabel hpTitle = new JLabel("LIFE POWER", SwingConstants.CENTER);
-        hpTitle.setForeground(new Color(255, 100, 100));
-        hpTitle.setFont(new Font("Monospaced", Font.BOLD, 20));
-        JPanel hpContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        hpContainer.setName("HPContainer"); 
-        hpContainer.setOpaque(false);
-        bottomPanel.add(hpTitle, BorderLayout.NORTH);
-        bottomPanel.add(hpContainer, BorderLayout.CENTER);
+        JLabel chLabel = new JLabel("CHAPTER: " + currentChapter);
+        chLabel.setForeground(Color.YELLOW);
+        chLabel.setFont(new Font("Monospaced", Font.BOLD, 20));
+        chLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel stgLabel = new JLabel("STAGE: " + currentStage);
+        stgLabel.setForeground(Color.YELLOW);
+        stgLabel.setFont(new Font("Monospaced", Font.PLAIN, 18));
+        stgLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        statsPanel.add(chLabel);
+        statsPanel.add(Box.createVerticalStrut(5));
+        statsPanel.add(stgLabel);
         
-        JPanel invPanel = new JPanel(new FlowLayout());
-        invPanel.setOpaque(false);
-        for(int i=0; i<4; i++) {
-            JLabel slot = new JLabel("[ ]");
-            slot.setForeground(Color.DARK_GRAY);
-            slot.setFont(new Font("Monospaced", Font.PLAIN, 24));
-            invPanel.add(slot);
-        }
-        bottomPanel.add(invPanel, BorderLayout.SOUTH);
-        sidebar.add(bottomPanel);
+        sidebar.add(statsPanel);
+        sidebar.add(Box.createVerticalStrut(10));
+
+        // ========== SECTION 3: LIFE POWER (HEARTS) ==========
+        JPanel heartsSection = new JPanel();
+        heartsSection.setOpaque(false);
+        heartsSection.setLayout(new BoxLayout(heartsSection, BoxLayout.Y_AXIS));
+        heartsSection.setBorder(new EmptyBorder(10, 15, 10, 15));
+        heartsSection.setAlignmentX(Component.LEFT_ALIGNMENT);
+        heartsSection.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        
+        JLabel hpTitle = new JLabel("LIFE POWER");
+        hpTitle.setForeground(new Color(255, 100, 100));
+        hpTitle.setFont(new Font("Monospaced", Font.BOLD, 16));
+        hpTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        JPanel hpContainer = new JPanel(new GridLayout(0, 6, 5, 5));
+        hpContainer.setName("HPContainer");
+        hpContainer.setOpaque(false);
+        hpContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        heartsSection.add(hpTitle);
+        heartsSection.add(Box.createVerticalStrut(8));
+        heartsSection.add(hpContainer);
+        
+        sidebar.add(heartsSection);
+        sidebar.add(Box.createVerticalStrut(10));
+
+        // ========== SECTION 4: DISC INVENTORY ==========
+        JPanel discsSection = new JPanel();
+        discsSection.setOpaque(false);
+        discsSection.setLayout(new BoxLayout(discsSection, BoxLayout.Y_AXIS));
+        discsSection.setBorder(new EmptyBorder(10, 15, 10, 15));
+        discsSection.setAlignmentX(Component.LEFT_ALIGNMENT);
+        discsSection.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        
+        JLabel discTitle = new JLabel("DISC INVENTORY");
+        discTitle.setForeground(new Color(0, 200, 255));
+        discTitle.setFont(new Font("Monospaced", Font.BOLD, 16));
+        discTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        JPanel discSlotsContainer = new JPanel(new GridLayout(0, 4, 8, 8));
+        discSlotsContainer.setName("DiscSlotsContainer");
+        discSlotsContainer.setOpaque(false);
+        discSlotsContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        discsSection.add(discTitle);
+        discsSection.add(Box.createVerticalStrut(8));
+        discsSection.add(discSlotsContainer);
+        
+        sidebar.add(discsSection);
+        sidebar.add(Box.createVerticalGlue()); // Push everything to top
 
         return sidebar;
     }
 
-    public static void updateHUD(JPanel sidebar, Character player, Map<String, ImageIcon> icons) { 
+    // --- UPDATED HUD LOGIC ---
+    public static void updateHUD(JPanel sidebar, Character player, Map<String, ImageIcon> icons) {
         JPanel hpContainer = null;
-        for (Component row : sidebar.getComponents()) { 
+        JPanel discSlotsContainer = null;
+        JLabel levelLabel = null;
+        JLabel xpLabel = null;
+        JLabel discLabel = null;
+        JLabel speedLabel = null;
+        JLabel handlingLabel = null;
+
+        // Deep recursive search for components through all nested panels (3 levels deep)
+        for (Component row : sidebar.getComponents()) {
             if (row instanceof JPanel) {
-                for (Component sub : ((JPanel)row).getComponents()) {
-                     if ("HPContainer".equals(sub.getName())) {
-                         hpContainer = (JPanel) sub;
-                         break;
-                     }
-                }
-            }
-            if (hpContainer != null) break;
-        }
-        if (hpContainer == null) return;
-
-        hpContainer.removeAll();
-        double currentLives = player.getLives();
-        int totalHalfUnits = (currentLives <= 0.001) ? 0 : (int) Math.round(currentLives * 2);
-        
-        for (int i = 0; i < 3; i++) { 
-            ImageIcon icon = null;
-            int currentSlotHalfUnits = totalHalfUnits - (i * 2);
-            if (currentSlotHalfUnits >= 2) icon = icons.get("heart_full");
-            else if (currentSlotHalfUnits == 1) icon = icons.get("heart_half");
-            else icon = icons.get("heart_empty");
-            if (icon != null) hpContainer.add(new JLabel(icon));
-        }
-    }
-
-    // --- MAIN REDRAW METHOD (VISUAL UPGRADE) ---
-    public static void redrawArena(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons, JPanel arenaPanel, JPanel sidebar) {
-        
-        arenaPanel.removeAll(); 
-        char[][] grid = arena.getGrid();
-        
-        // Define Colors
-        Color NEON_BG = new Color(10, 10, 20);      
-        Color GRID_LINE = new Color(30, 40, 60);    
-        Color WALL_COLOR = new Color(0, 50, 80);    
-        Color WALL_BORDER = new Color(0, 200, 255); 
-        
-        for (int r = 0; r < 40; r++) {
-            for (int c = 0; c < 40; c++) {
-
-                JLabel cell = new JLabel();
-                cell.setOpaque(true);
-                cell.setHorizontalAlignment(JLabel.CENTER);
-                cell.setVerticalAlignment(JLabel.CENTER);
+                JPanel p = (JPanel) row;
+                // Level 1: Check direct children
+                if ("HPContainer".equals(p.getName())) hpContainer = p;
+                if ("DiscSlotsContainer".equals(p.getName())) discSlotsContainer = p;
                 
-                // Default Grid Style
-                cell.setBackground(NEON_BG);
-                cell.setBorder(BorderFactory.createLineBorder(GRID_LINE, 1));
-                
-                ImageIcon cycleIconToDraw = null;
-                
-                // Find Player Logic
-                for (Character cycle : cycles) {
-                    if (cycle.getRow() == r && cycle.getCol() == c) {
-                        String iconKey = cycle.name.toLowerCase() + "_" + cycle.currentDirection.toString();
-                        cycleIconToDraw = icons.get(iconKey);
+                // Level 2: Check nested children
+                for (Component sub : p.getComponents()) {
+                    if (sub instanceof JPanel) {
+                        JPanel subPanel = (JPanel) sub;
+                        if ("HPContainer".equals(subPanel.getName())) hpContainer = subPanel;
+                        if ("DiscSlotsContainer".equals(subPanel.getName())) discSlotsContainer = subPanel;
                         
-                        // DEBUG: If icon is missing, print why
-                        if (cycleIconToDraw == null && cycle.name.equals("Tron")) {
-                            System.out.println("⚠ WARNING: Icon missing for key: " + iconKey);
+                        // Level 3: Check deeper nested children
+                        for (Component subsub : subPanel.getComponents()) {
+                            if (subsub instanceof JPanel) {
+                                JPanel subsubPanel = (JPanel) subsub;
+                                if ("HPContainer".equals(subsubPanel.getName())) hpContainer = subsubPanel;
+                                if ("DiscSlotsContainer".equals(subsubPanel.getName())) discSlotsContainer = subsubPanel;
+                            }
                         }
-                        break;
+                    }
+                    if (sub instanceof JLabel) {
+                        JLabel subLabel = (JLabel) sub;
+                        if ("LevelLabel".equals(subLabel.getName())) levelLabel = subLabel;
+                        if ("XPLabel".equals(subLabel.getName())) xpLabel = subLabel;
+                        if ("DiscLabel".equals(subLabel.getName())) discLabel = subLabel;
+                        if ("SpeedLabel".equals(subLabel.getName())) speedLabel = subLabel;
+                        if ("HandlingLabel".equals(subLabel.getName())) handlingLabel = subLabel;
                     }
                 }
-
-                if (cycleIconToDraw != null) {
-                    // --- PLAYER IS HERE ---
-                    cell.setIcon(cycleIconToDraw);
-
-                    // 1. Backlight (Lighter Blue to make it pop)
-                    cell.setBackground(new Color(0, 100, 180)); 
-
-                    // 2. Thinner Double Border (Prevent Icon Squeezing)
-                    // Previous code was too thick (6px total). New code is 2px/3px total.
-                    if (grid[r][c] == 'S') {
-                        // Turbo Mode: Magenta (2px) + White (1px)
-                        javax.swing.border.Border outer = BorderFactory.createLineBorder(Color.MAGENTA, 2);
-                        javax.swing.border.Border inner = BorderFactory.createLineBorder(Color.WHITE, 1);
-                        cell.setBorder(BorderFactory.createCompoundBorder(outer, inner));
-                    } else {
-                        // Normal Mode: Cyan (2px) + White (1px)
-                        javax.swing.border.Border outer = BorderFactory.createLineBorder(Color.CYAN, 2);
-                        javax.swing.border.Border inner = BorderFactory.createLineBorder(Color.WHITE, 1);
-                        cell.setBorder(BorderFactory.createCompoundBorder(outer, inner));
-                    }
-
-                } else {
-                    // --- STATIC ELEMENTS ---
-                    switch (grid[r][c]) {
-                        case '#': // WALL
-                            cell.setBackground(WALL_COLOR);
-                            cell.setBorder(BorderFactory.createLineBorder(WALL_BORDER, 1));
-                            break;
-                        case 'O': // OBSTACLE
-                            cell.setBackground(NEON_BG); 
-                            if (icons.get("obstacle") != null) cell.setIcon(icons.get("obstacle"));
-                            else cell.setBackground(new Color(255, 140, 0)); 
-                            break;
-                        case 'S': // SPEED RAMP
-                            cell.setBackground(NEON_BG);
-                            if (icons.get("speed") != null) cell.setIcon(icons.get("speed"));
-                            else cell.setBackground(Color.CYAN); 
-                            break;
-                        case 'T': // TRON TRAIL
-                            cell.setBackground(new Color(0, 180, 255)); 
-                            cell.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1));
-                            break;
-                        case 'K': // KEVIN TRAIL
-                            cell.setBackground(new Color(255, 100, 0));
-                            cell.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1));
-                            break;
-                    }
-                }
-                arenaPanel.add(cell);
             }
         }
 
-        // Sidebar Flash Logic
-        if (cycles.get(0).isStunned) {
-            sidebar.setBackground(new Color(150, 0, 0)); 
-        } else {
-            sidebar.setBackground(new Color(5, 10, 20)); 
+        // 1. UPDATE DISC SLOTS - Minecraft style inventory with disc icons
+        if (discSlotsContainer != null) {
+            discSlotsContainer.removeAll();
+            int maxDiscs = Math.max(player.getDiscCapacity(), 1); // Show at least 1 slot, based on actual disc capacity
+            int currentDiscs = player.currentDiscCount; // Current discs available
+            
+            for (int i = 0; i < maxDiscs; i++) {
+                JLabel slot = new JLabel();
+                slot.setHorizontalAlignment(JLabel.CENTER);
+                slot.setVerticalAlignment(JLabel.CENTER);
+                slot.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 120), 2));
+                slot.setPreferredSize(new Dimension(60, 60));
+                slot.setOpaque(true);
+                slot.setBackground(new Color(30, 30, 50));
+                
+                if (i < currentDiscs) {
+                    // Filled slot - show disc icon
+                    ImageIcon discIcon = icons.get("disc_inventory");
+                    if (discIcon != null) {
+                        slot.setIcon(discIcon);
+                    } else {
+                        // Fallback if no disc icon
+                        slot.setText("●"); 
+                        slot.setFont(new Font("Arial", Font.BOLD, 24));
+                        slot.setForeground(new Color(0, 200, 255));
+                    }
+                } else {
+                    // Empty slot - dark background only
+                    slot.setText("");
+                }
+                discSlotsContainer.add(slot);
+            }
+            discSlotsContainer.revalidate();
+            discSlotsContainer.repaint();
         }
 
-        updateHUD(sidebar, cycles.get(0), icons);
+        // 2. UPDATE HEARTS - Dynamic based on maxLives
+        if (hpContainer != null) {
+            hpContainer.removeAll();
+            double currentLives = player.getLives();
+            double maxLives = player.getMaxLives();
+            int totalHalfUnits = (currentLives <= 0.001) ? 0 : (int) Math.round(currentLives * 2);
+            int maxHalfUnits = (int) Math.round(maxLives * 2);
+            int maxHearts = (maxHalfUnits + 1) / 2; // Round up: 2 half-units = 1 heart
+            
+            for (int i = 0; i < maxHearts; i++) {
+                ImageIcon icon = null;
+                int currentSlotHalfUnits = totalHalfUnits - (i * 2);
+                if (currentSlotHalfUnits >= 2) icon = icons.get("heart_full");
+                else if (currentSlotHalfUnits == 1) icon = icons.get("heart_half");
+                else icon = icons.get("heart_empty");
+                if (icon != null) hpContainer.add(new JLabel(icon));
+            }
+            hpContainer.revalidate();
+            hpContainer.repaint();
+        }
+
+        // 3. UPDATE LEVEL & XP
+        if (levelLabel != null) {
+            levelLabel.setText("LEVEL " + player.getLevel());
+        }
+        if (xpLabel != null) {
+            long currentXP = player.getXp();
+            long nextXP = TronRules.getTotalXpForLevel(player.getLevel() + 1);
+            xpLabel.setText("XP: " + currentXP + " / " + nextXP);
+        }
         
-        arenaPanel.revalidate(); 
-        arenaPanel.repaint();
+        // 4. UPDATE SPEED & HANDLING
+        if (speedLabel != null) {
+            speedLabel.setText("SPD: " + String.format("%.2f", player.getSpeed()));
+        }
+        if (handlingLabel != null) {
+            handlingLabel.setText("PRE: " + String.format("%.2f", player.getHandling()));
+        }
+        
+        // 5. UPDATE DISC LABEL
+        if (discLabel != null) {
+            discLabel.setText("DISCS: " + player.discsOwned);
+        }
     }
 
-    public static void showGameOverDialog(JFrame parentFrame) {
-        JDialog gameOverDialog = new JDialog(parentFrame, "Game Over", true);
-        gameOverDialog.setSize(500, 250); // Made it slightly wider
-        gameOverDialog.setLayout(new BorderLayout());
-        gameOverDialog.setLocationRelativeTo(parentFrame);
+    public static void redrawArena(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons, JPanel arenaPanel, JPanel sidebar) {
+        arenaPanel.removeAll();
+        char[][] grid = arena.getGrid();
+        Color NEON_BG = new Color(10, 10, 20); Color GRID_LINE = new Color(30, 40, 60);
+        Color WALL_COLOR = new Color(0, 50, 80); Color WALL_BORDER = new Color(0, 200, 255);
         
-        // Dark Purple/Black Background
-        Color DIALOG_BG = new Color(15, 0, 40);
-        gameOverDialog.getContentPane().setBackground(DIALOG_BG); 
-        
-        // --- TITLE ---
-        JLabel title = new JLabel("::: DEREZZED :::", SwingConstants.CENTER);
-        title.setFont(new Font("Monospaced", Font.BOLD, 42)); // Bigger font
-        title.setForeground(Color.RED); 
-        title.setBorder(new EmptyBorder(30, 0, 0, 0)); // Add spacing on top
-        gameOverDialog.add(title, BorderLayout.NORTH);
+        // Check if player is on speed ramp for booster effect
+        int playerR = cycles.get(0).getRow();
+        int playerC = cycles.get(0).getCol();
+        boolean playerBoosting = playerR >= 0 && playerR < 40 && playerC >= 0 && playerC < 40 && grid[playerR][playerC] == 'S';
 
-        // --- SUBTITLE (Optional) ---
-        JLabel subtitle = new JLabel("END OF LINE.", SwingConstants.CENTER);
-        subtitle.setFont(new Font("Monospaced", Font.PLAIN, 16));
-        subtitle.setForeground(Color.GRAY);
-        gameOverDialog.add(subtitle, BorderLayout.CENTER);
+        for (int r = 0; r < 40; r++) { for (int c = 0; c < 40; c++) {
+                JPanel cellPanel = new JPanel(new BorderLayout());
+                cellPanel.setOpaque(true); cellPanel.setBackground(NEON_BG);
+                cellPanel.setBorder(BorderFactory.createLineBorder(GRID_LINE, 1));
+                JLabel iconLabel = new JLabel();
+                iconLabel.setHorizontalAlignment(JLabel.CENTER); iconLabel.setVerticalAlignment(JLabel.CENTER);
+                cellPanel.add(iconLabel, BorderLayout.CENTER);
 
-        // --- STYLED BUTTON ---
-        JButton closeButton = new JButton("EXIT GRID");
-        
-        // 1. FONT: Match the game style
-        closeButton.setFont(new Font("Monospaced", Font.BOLD, 20));
-        
-        // 2. COLORS: Black background, Neon Cyan text
-        closeButton.setBackground(Color.BLACK);
-        closeButton.setForeground(Color.CYAN);
-        
-        // 3. BORDER: Neon Line Border + Internal Padding
-        closeButton.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Color.CYAN, 2), // Outer Neon Line
-            BorderFactory.createEmptyBorder(10, 30, 10, 30) // Inner Padding (Top, Left, Bot, Right)
-        ));
-        
-        // 4. REMOVE JUNK: Get rid of the default "clicked" focus box
-        closeButton.setFocusPainted(false);
-        
-        // 5. INTERACTION: Simple Hover Effect
-        closeButton.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                closeButton.setBackground(Color.CYAN);
-                closeButton.setForeground(Color.BLACK);
+                Character characterHere = null;
+                for (Character cycle : cycles) { if (cycle.getRow() == r && cycle.getCol() == c) { characterHere = cycle; break; } }
+
+                if (characterHere != null) {
+                    String iconKey = characterHere.imageBaseName + "_" + characterHere.currentDirection.toString();
+                    if (icons.containsKey(iconKey)) iconLabel.setIcon(icons.get(iconKey));
+                    else iconLabel.setText("?");
+
+                    if (characterHere.name.equals("Tron")) { 
+                        cellPanel.setBackground(new Color(0, 100, 180)); 
+                        cellPanel.setBorder(BorderFactory.createLineBorder(Color.CYAN, 2)); 
+                    }
+                    else { 
+                        cellPanel.setBackground(new Color(100, 40, 0)); 
+                        // Boss enemies get special visual indicator (bright red border + purple background)
+                        if (characterHere instanceof designenemies.Enemy) {
+                            designenemies.Enemy enemy = (designenemies.Enemy) characterHere;
+                            if (enemy.isBoss()) {
+                                cellPanel.setBackground(new Color(150, 0, 50)); // Dark purple/red
+                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3)); // Thick magenta border
+                                iconLabel.setText(enemy.getName() + "\n[BOSS]");
+                                iconLabel.setFont(new Font("Monospaced", Font.BOLD, 8));
+                                iconLabel.setForeground(Color.MAGENTA);
+                            } else {
+                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
+                            }
+                        } else {
+                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
+                        }
+                    }
+
+                    if (!characterHere.name.equals("Tron")) {
+                        double hpPercent = characterHere.getLives() / characterHere.getMaxLives();
+                        hpPercent = Math.max(0, Math.min(1, hpPercent));
+                        JProgressBar hpBar = new JProgressBar(0, 100);
+                        hpBar.setValue((int)(hpPercent * 100)); hpBar.setPreferredSize(new Dimension(0, 5));
+                        hpBar.setForeground(hpPercent > 0.5 ? Color.GREEN : Color.RED); hpBar.setBackground(Color.BLACK); hpBar.setBorderPainted(false);
+                        cellPanel.add(hpBar, BorderLayout.SOUTH);
+                    }
+                } else {
+                    switch (grid[r][c]) {
+                        case '#': cellPanel.setBackground(WALL_COLOR); cellPanel.setBorder(BorderFactory.createLineBorder(WALL_BORDER, 1)); break;
+                        case 'O': cellPanel.setBackground(NEON_BG); if (icons.get("obstacle") != null) iconLabel.setIcon(icons.get("obstacle")); else cellPanel.setBackground(new Color(255, 140, 0)); break;
+                        case 'S': cellPanel.setBackground(NEON_BG); if (icons.get("speed") != null) iconLabel.setIcon(icons.get("speed")); else cellPanel.setBackground(Color.CYAN); break;
+                        case 'D': cellPanel.setBackground(new Color(0, 30, 50)); if (icons.get("disc") != null) iconLabel.setIcon(icons.get("disc")); else { iconLabel.setText("O"); iconLabel.setForeground(Color.CYAN); } cellPanel.setBorder(BorderFactory.createLineBorder(Color.CYAN, 1)); break;
+                        case 'T': 
+                            // BOOSTER EFFECT: Player tail glows bright when boosting
+                            if (playerBoosting) {
+                                cellPanel.setBackground(new Color(0, 255, 200)); // Bright neon cyan
+                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 2)); // Yellow glow border
+                            } else {
+                                cellPanel.setBackground(new Color(0, 180, 255)); 
+                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1)); 
+                            }
+                            break;
+                        case 'K': cellPanel.setBackground(new Color(255, 50, 0)); cellPanel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 1)); break;
+                    }
+                }
+                arenaPanel.add(cellPanel);
+        }}
+        if (cycles.get(0).isStunned) sidebar.setBackground(new Color(150, 0, 0)); else sidebar.setBackground(new Color(5, 10, 20));
+        updateHUD(sidebar, cycles.get(0), icons);
+        arenaPanel.revalidate(); arenaPanel.repaint();
+    }
+
+    public static void showGameOverDialog(JFrame parentFrame) { JDialog gameOverDialog = new JDialog(parentFrame, "Game Over", true); gameOverDialog.setSize(500, 250); gameOverDialog.setLayout(new BorderLayout()); gameOverDialog.setLocationRelativeTo(parentFrame); Color DIALOG_BG = new Color(15, 0, 40); gameOverDialog.getContentPane().setBackground(DIALOG_BG); JLabel title = new JLabel("::: DEREZZED :::", SwingConstants.CENTER); title.setFont(new Font("Monospaced", Font.BOLD, 42)); title.setForeground(Color.RED); title.setBorder(new EmptyBorder(30, 0, 0, 0)); gameOverDialog.add(title, BorderLayout.NORTH); JButton closeButton = new JButton("EXIT GRID"); closeButton.setFont(new Font("Monospaced", Font.BOLD, 20)); closeButton.setBackground(Color.BLACK); closeButton.setForeground(Color.CYAN); closeButton.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.CYAN, 2), BorderFactory.createEmptyBorder(10, 30, 10, 30))); closeButton.setFocusPainted(false); closeButton.addActionListener(e -> System.exit(0)); JPanel buttonPanel = new JPanel(); buttonPanel.setBackground(DIALOG_BG); buttonPanel.setBorder(new EmptyBorder(0, 0, 30, 0)); buttonPanel.add(closeButton); gameOverDialog.add(buttonPanel, BorderLayout.SOUTH); gameOverDialog.setVisible(true); }
+
+    public static void startLevel() {
+        // ALWAYS clean up old listeners first, regardless of thread state
+        if (mainFrame != null) {
+            java.awt.event.KeyListener[] listeners = mainFrame.getKeyListeners();
+            for (java.awt.event.KeyListener kl : listeners) {
+                mainFrame.removeKeyListener(kl);
             }
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                closeButton.setBackground(Color.BLACK);
-                closeButton.setForeground(Color.CYAN);
+        }
+        
+        // Stop old thread if still running
+        if (gameThread != null && gameThread.isAlive()) {
+            activeController.stopGame();
+            try {
+                gameThread.join(5000);
+            } catch (InterruptedException ex) {
+                // ignore
             }
-        });
+        }
+        activeController = null;
+        mainFrame.getContentPane().removeAll();
+
+        Arena arena = loadArena(1);
+        Map<String, ImageIcon> icons = loadAllIcons(mainFrame);
+
+        // --- PERSISTENCE LOGIC ---
+        // Initialize them once. Re-use them forever.
+        if (persistentTron == null) {
+            persistentTron = new Tron();
+            CharacterData data = CharacterLoader.loadCharacterData("Tron");
+            if (data != null) persistentTron.loadInitialAttributes(data);
+        }
+
+        // Reset Position for new level
+        persistentTron.r = 20;
+        persistentTron.c = 15;
+        persistentTron.currentDirection = Direction.EAST;
+        persistentTron.setStunned(false); // Make sure he isn't stunned from last level
+            // Refill discs and reset health for new stage
+            persistentTron.prepareForNextStage();
+
+        // Add to active cycle list
+        List<Character> cycles = new ArrayList<>();
+        cycles.add(persistentTron);
+
+        // Load Enemies
+        List<Character> enemies = LevelManager.loadStage(currentChapter, currentStage, arena.getGrid());
+        cycles.addAll(enemies);
+
+        // Check if any boss enemies spawned and show notification
+        StringBuilder bossWarning = new StringBuilder();
+        for (Character c : enemies) {
+            if (c instanceof designenemies.Enemy) {
+                designenemies.Enemy enemy = (designenemies.Enemy) c;
+                if (enemy.isBoss()) {
+                    bossWarning.append("⚠ BOSS ALERT: ").append(enemy.getName()).append(" [BOSS]\n");
+                }
+            }
+        }
+        if (bossWarning.length() > 0) {
+            // Show boss warning and FREEZE the game (blocking dialog)
+            JLabel msgLabel = new JLabel("<html><b style='color:red;font-size:16px;'>⚠ BOSS ENCOUNTER ⚠</b><br>" +
+                    bossWarning.toString().replace("\n", "<br>") + 
+                    "<br>Watch out for faster movement and longer trails!</html>");
+            JOptionPane.showMessageDialog(mainFrame, msgLabel, "BOSS WARNING", JOptionPane.WARNING_MESSAGE);
+        }
+
+        System.out.println("Starting C" + currentChapter + ":S" + currentStage + " | Player Level: " + persistentTron.getLevel());
+
+        JPanel arenaPanel = new JPanel(new GridLayout(40, 40));
+        arenaPanel.setBackground(new Color(10, 10, 20));
+
+        // Pass persistentTron to sidebar
+        JPanel sidebarPanel = createSidebarPanel(persistentTron, icons);
+
+        mainFrame.add(arenaPanel, BorderLayout.CENTER);
+        mainFrame.add(sidebarPanel, BorderLayout.EAST);
+
+        // --- SANITIZE GRID: remove stray 'D' markers so discs are visible on new stage ---
+        sanitizeGrid(arena);
+
+        redrawArena(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
+        mainFrame.revalidate(); mainFrame.repaint();
+
+        activeController = new GameController(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
+        gameThread = new Thread(activeController);
+        gameThread.start();
+    }
+
+    /**
+     * Minimal, non-invasive fix:
+     * Clear any leftover 'D' characters from the grid so new discs spawned in the new stage
+     * are not immediately considered "occupi.
+     *
+     * We intentionally only touch 'D' here to avoid changing any trail/wall logic.
+     */
+    private static void sanitizeGrid(Arena arena) {
+        try {
+            char[][] grid = arena.getGrid();
+            if (grid == null) return;
+            for (int r = 0; r < grid.length; r++) {
+                for (int c = 0; c < grid[r].length; c++) {
+                    if (grid[r][c] == 'D') grid[r][c] = '.';
+                }
+            }
+        } catch (Exception ex) {
+            // If Arena.getGrid() has special behavior, don't crash the loader.
+            System.out.println("WARN: sanitizeGrid failed: " + ex.getMessage());
+        }
+    }
+
+    public static void showLevelCompleteDialog() {
+        TronRules.StageType type = TronRules.StageType.NORMAL;
+        if (currentStage == 1 && currentChapter == 1) type = TronRules.StageType.TUTORIAL;
+
+        long xpReward = 0;
+        double currentLives = 0;
+        double maxLives = 0;
         
-        closeButton.addActionListener(e -> System.exit(0)); 
-        
-        // Put button in a panel so it doesn't stretch to fill the whole bottom
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(DIALOG_BG); // Match dialog background
-        buttonPanel.setBorder(new EmptyBorder(0, 0, 30, 0)); // Spacing at bottom
-        buttonPanel.add(closeButton);
-        
-        gameOverDialog.add(buttonPanel, BorderLayout.SOUTH);
-        
-        gameOverDialog.setVisible(true);
+        if (activeController != null) {
+            Character player = activeController.getPlayer();
+            xpReward = TronRules.calculateStageReward(player.getLevel(), type);
+            player.addXP(xpReward);
+            currentLives = player.getLives();
+            maxLives = player.getMaxLives();
+        }
+
+        String message = String.format(
+            "STAGE CLEARED!\n\nXP Earned: %d\nCurrent Lives: %.1f / %.1f\n\nProceed to next sector?",
+            xpReward, currentLives, maxLives
+        );
+        int choice = JOptionPane.showOptionDialog(mainFrame, message, "SECTOR SECURE",
+            JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
+            new Object[]{"NEXT STAGE", "EXIT"}, "NEXT STAGE");
+
+        if (choice == JOptionPane.YES_OPTION) {
+            currentStage++;
+            // Basic Progression
+            if (currentStage > 3 && currentChapter == 1) { currentChapter++; currentStage = 1; showChapterClearDialog(); return;}
+            if (currentStage > 6 && currentChapter == 2) { currentChapter++; currentStage = 1; showChapterClearDialog(); return;}
+            // ... add other chapter checks here
+            startLevel();
+        } else {
+            System.exit(0);
+        }
+    }
+
+    private static void showChapterClearDialog() {
+        JOptionPane.showMessageDialog(mainFrame, "CHAPTER COMPLETE!\nLoading next chapter...");
+        startLevel();
     }
 
     public static void main(String[] args) {
-        Arena arena = loadArena(1); 
-        JFrame frame = new JFrame("Tron Legacy: Grid Arena");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH); 
-        frame.setLayout(new BorderLayout()); 
-        
-        Map<String, ImageIcon> icons = loadAllIcons(frame);
-        
-        CharacterData tronData = CharacterLoader.loadCharacterData("Tron");
-        CharacterData kevinData = CharacterLoader.loadCharacterData("Kevin");
-        Tron tron = new Tron();
-        Kevin kevin = new Kevin();
-        if (tronData != null) tron.loadInitialAttributes(tronData);
-        if (kevinData != null) kevin.loadInitialAttributes(kevinData);
-        tron.r = 20; tron.c = 15; tron.currentDirection = Direction.EAST;
-        List<Character> cycles = List.of(tron, kevin);
-
-        JPanel arenaPanel = new JPanel(new GridLayout(40, 40));
-        arenaPanel.setBackground(new Color(10, 10, 20)); 
-        
-        JPanel sidebarPanel = createSidebarPanel(tron, icons);
-        
-        frame.add(arenaPanel, BorderLayout.CENTER);
-        frame.add(sidebarPanel, BorderLayout.EAST);
-        
-        redrawArena(frame, arena, cycles, icons, arenaPanel, sidebarPanel);
-        frame.setVisible(true);
-
-        StartGameMenu.showMenu(frame);
-        
-        GameController controller = new GameController(frame, arena, cycles, icons, arenaPanel, sidebarPanel);
-        new Thread(controller).start();
+        mainFrame = new JFrame("Tron Legacy: Grid Arena");
+        mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        mainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+        mainFrame.setLayout(new BorderLayout());
+        StartGameMenu.showMenu(mainFrame);
+        mainFrame.setVisible(true);
+        startLevel();
     }
 }
