@@ -68,6 +68,14 @@ public class MainFrame extends JFrame {
         repaint();
     }
 
+
+    public void changeToLeaderboard(String username) {
+        LeaderBoardPanel leaderboard = new LeaderBoardPanel(this, username);
+        setContentPane(leaderboard);
+        revalidate();
+        repaint();
+    }
+
     
 
     public static void main(String[] args) {

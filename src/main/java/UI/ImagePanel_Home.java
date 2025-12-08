@@ -50,15 +50,9 @@ public class ImagePanel_Home extends JPanel {
         add(leaderboardButton);
     
         leaderboardButton.addActionListener(e -> {
-            // Find the main window
-            Window parentWindow = SwingUtilities.getWindowAncestor(this);
-            
-            if (parentWindow instanceof JFrame) {
-
-                System.out.println("Opening Leaderboard for user: " + this.username); //debug
-                
-                LeaderBoardDialog dialog = new LeaderBoardDialog((JFrame) parentWindow, this.username);
-                dialog.setVisible(true);
+            if (mainFrameRef != null) {
+                // Switch the panel instead of opening a popup
+                mainFrameRef.changeToLeaderboard(this.username);
             }
         });
 
