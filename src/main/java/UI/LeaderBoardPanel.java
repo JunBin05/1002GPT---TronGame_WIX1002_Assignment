@@ -7,52 +7,52 @@ import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-// CHANGE: Extends JPanel instead of JDialog
 public class LeaderBoardPanel extends JPanel {
 
-    private MainFrame mainFrame; // Reference to switch back
+    private MainFrame mainFrame; 
     private String currentUsername;
     private JPanel headerPanel;
-    private JLabel titleLabel;
     private JPanel listPanel;
     private JScrollPane scrollPane;
     private List<JPanel> rows = new ArrayList<>(); 
     private List<JLabel> allLabels = new ArrayList<>(); 
     private LeftButton backBtn;
+    
+    // --- NEW: Background Image Variable ---
+    private Image backgroundImage; 
 
     public LeaderBoardPanel(MainFrame mainFrame, String currentUsername) {
         this.mainFrame = mainFrame;
         this.currentUsername = currentUsername;
 
+        // --- 1. LOAD THE IMAGE ---
+        // Make sure you renamed the file to 'leaderboard_bg.jpg'
+        this.backgroundImage = new ImageIcon("images/leaderboard_bg.png").getImage();
+
         setLayout(new BorderLayout());
         
-        // --- 1. HEADER PANEL ---
+        // --- 2. HEADER PANEL ---
         headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
         
         backBtn = new LeftButton("images/back_button.png"); 
-        // CHANGE: Action goes back to Home Panel instead of dispose()
         backBtn.addActionListener(e -> mainFrame.changeToHome(currentUsername));
         headerPanel.add(backBtn, BorderLayout.WEST);
 
-        titleLabel = new JLabel("LEADERBOARD", SwingConstants.CENTER);
-        titleLabel.setForeground(Color.CYAN);
-        headerPanel.add(titleLabel, BorderLayout.CENTER);
 
-        // Dummy spacer to keep title centered
         headerPanel.add(Box.createRigidArea(new Dimension(50, 50)), BorderLayout.EAST);
 
         add(headerPanel, BorderLayout.NORTH);
 
-        // --- 2. LIST PANEL ---
+        // --- 3. LIST PANEL ---
         listPanel = new JPanel();
         listPanel.setOpaque(false);
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
 
-        // Header Row
+        // Header Row 
         addRow(listPanel, "RANK", "PLAYER", "LEVEL", new Color(0, 150, 255)); 
         
-        // User Row
+        // User Row 
         addRow(listPanel, "#1", currentUsername, "0", new Color(255, 215, 0));
 
         // Placeholders
@@ -105,18 +105,18 @@ public class LeaderBoardPanel extends JPanel {
         int h = getHeight();
         if (w == 0 || h == 0) return;
 
-        int headerHeight = (int) (h * 0.15); 
-        int listHeight   = (int) (h * 0.80); 
+        // --- DYNAMIC SIZING ---
+        // Increase header height slightly so the list starts BELOW your image's banner
+        int headerHeight = (int) (h * 0.22); // Increased to 22% to clear the banner
+        int listHeight   = (int) (h * 0.75); 
         
-        int titleSize = (int) (h * 0.06);     
-        int btnSize   = (int) (h * 0.05);      
+        int btnSize   = (int) (h * 0.16);      
         int paddingX  = (int) (w * 0.05);      
         int fontSize  = (int) (h * 0.030);     
 
         headerPanel.setPreferredSize(new Dimension(w, headerHeight));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, paddingX, 0, paddingX));
         
-        titleLabel.setFont(new Font("Arial", Font.BOLD, titleSize));
         backBtn.setPreferredSize(new Dimension(btnSize, btnSize));
         backBtn.resizeIcon(btnSize);
 
@@ -142,11 +142,17 @@ public class LeaderBoardPanel extends JPanel {
         repaint();
     }
 
+    // --- DRAW BACKGROUND IMAGE ---
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        // Draw the background color directly
-        g.setColor(new Color(10, 10, 20)); // Solid dark blue/black
-        g.fillRect(0, 0, getWidth(), getHeight());
+        if (backgroundImage != null) {
+            // Draws your new image to fill the entire panel
+            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+        } else {
+            // Fallback color if image fails
+            g.setColor(new Color(10, 10, 20)); 
+            g.fillRect(0, 0, getWidth(), getHeight());
+        }
     }
 }
