@@ -57,21 +57,16 @@ public class ImagePanel_StoryMode extends JPanel {
         chapterImageLabel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (currentIndex == 0) { 
-                    // Index 0 means "Chapter 1"
-                    System.out.println("Entering Character Selection...");
-                    
-                    // --- SWITCH TO CHARACTER SCREEN ---
-                    mainFrameRef.changeToCharacterSelect(username);
-                    // ----------------------------------
-                    
-                } else {
-                    // For Chapter 2, 3, etc. show "Coming Soon"
-                    int realChapterNumber = currentIndex + 1;
-                    JOptionPane.showMessageDialog(ImagePanel_StoryMode.this, 
-                        "Chapter " + realChapterNumber + " is locked or coming soon!", 
-                        "Locked", 
-                        JOptionPane.WARNING_MESSAGE);
+                
+                // Calculate the Chapter Number (Index 0 = Chapter 1, Index 1 = Chapter 2, etc.)
+                int selectedChapter = currentIndex + 1;
+                
+                System.out.println("User selected Chapter " + selectedChapter);
+
+                // Check if MainFrame exists and call the new method
+                if (mainFrameRef != null) {
+                    // Pass the username AND the chapter number
+                    mainFrameRef.changeToCharacterSelect(username, selectedChapter);
                 }
             }
          });

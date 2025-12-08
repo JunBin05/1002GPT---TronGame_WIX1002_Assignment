@@ -16,10 +16,12 @@ public class ImagePanel_Character extends JPanel {
     private KevinButton kevinButton;
     private TronButton tronButton;
     private PlayArenaButton playArenaButton;
+    private int currentChapter;
 
-    public ImagePanel_Character(MainFrame mainFrame, String username) {
+    public ImagePanel_Character(MainFrame mainFrame, String username, int chapterNumber) {
         this.mainFrame = mainFrame;
         this.backgroundImage = new ImageIcon("images/character_bg.png").getImage();
+        this.currentChapter = chapterNumber;
         setLayout(null); 
 
         // 1. Back Button
@@ -27,8 +29,17 @@ public class ImagePanel_Character extends JPanel {
         backButton.addActionListener(e -> mainFrame.changeToStoryMode());
         add(backButton);
 
-        // 2. Chapter Title
-        ImageIcon chapterIcon = new ImageIcon("images/c1_image.png"); 
+        // 2. Dynamic Chapter Title
+        String titlePath = "images/c" + chapterNumber + "_image.png";
+        
+        ImageIcon chapterIcon = new ImageIcon(titlePath); 
+        
+        // Safety Check: If image doesn't exist, default back to Chapter 1
+        if (chapterIcon.getIconWidth() == -1) {
+            System.out.println("Warning: Image " + titlePath + " not found. Defaulting to c1_image.png");
+            chapterIcon = new ImageIcon("images/c1_image.png");
+        }
+        
         chapterTitleLabel = new JLabel(chapterIcon);
         add(chapterTitleLabel);
 
@@ -105,7 +116,11 @@ public class ImagePanel_Character extends JPanel {
         int imgY = -15; 
         chapterTitleLabel.setBounds(imgX, imgY, imgW, imgH);
         
-        ImageIcon originalIcon = new ImageIcon("images/c1_image.png");
+        String titlePath = "images/c" + currentChapter + "_image.png";
+        ImageIcon originalIcon = new ImageIcon(titlePath);
+        if (originalIcon.getIconWidth() == -1) {
+            originalIcon = new ImageIcon("images/c1_image.png");
+        }
         if (originalIcon.getImage() != null) {
             Image scaledImg = originalIcon.getImage().getScaledInstance(imgW, imgH, Image.SCALE_SMOOTH);
             chapterTitleLabel.setIcon(new ImageIcon(scaledImg));
