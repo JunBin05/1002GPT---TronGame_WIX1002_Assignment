@@ -76,6 +76,13 @@ public class MainFrame extends JFrame {
         repaint();
     }
 
+    public void changeToCharacterSelect(String username) {
+        ImagePanel_Character charPanel = new ImagePanel_Character(this, username);
+        setContentPane(charPanel);
+        revalidate();
+        repaint();
+    }
+
     
 
     public static void main(String[] args) {
