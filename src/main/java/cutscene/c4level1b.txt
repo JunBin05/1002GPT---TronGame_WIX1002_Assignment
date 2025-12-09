@@ -1,0 +1,6 @@
+c4kevinlose.jpg    | SYSTEM | *Rinzler stares*
+SAME     | KEVIN  | Who are you?
+SAME    | SYSTEM | *Rinzler gets back in his jet and flies away*
+c4kevinrush.jpg  | SYSTEM | *Kevin runs to his damaged jet*
+c4jetdown.jpg      | SYSTEM | Engines... down…
+SAME | KEVIN  | Dang it… It needs power.

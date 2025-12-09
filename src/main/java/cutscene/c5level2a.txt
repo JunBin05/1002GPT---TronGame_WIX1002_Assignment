@@ -1,0 +1,8 @@
+c5jets.jpg   | SYSTEM | *Kevin locks onto CLU's ship*
+c5CLUfound.jpg      | KEVIN  | Gotcha.
+c5crash.gif | SYSTEM | *Kevin crashes CLU's spaceship into the ground*
+c5fight.jpg | KEVIN  | It’s over, CLU. Give me the Shard.
+SAME      | CLU | You just won’t give in, huh, Creator!
+SAME                 | CLU | You are too late. My plan is almost done and there’s nothing you can do about it, Creator.
+SAME      | KEVIN  | You didn't achieve order. You built a prison!
+SAME      | CLU | I BUILT A WORLD!
