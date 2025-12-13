@@ -1,6 +1,0 @@
-c1lightning.gif    | SYSTEM| CHAPTER 2: THE CORRUPTED
-c2CLUleaves.jpg     | SYSTEM | *CLU and Sark hook onto a spaceship*
-SAME                | KEVIN  | The code is breaking down faster than I thought. The whole system is destabilizing.
-SAME                | TRON   | We have to catch him before there’s no Grid left to save.
-c2CLUprogram.png   | ELITE PROGRAM | Target identified. By order of CLU, you are to be derezzed.
-SAME      | KEVIN  | He really doesn't want us crashing his party.

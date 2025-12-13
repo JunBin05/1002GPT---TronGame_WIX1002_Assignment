@@ -1,3 +1,0 @@
-c3sarkattack.jpg | SYSTEM | *A giant stomps the ground*
-c3giantsark.jpg     | SYSTEM | *Sark shrinks back down to normal size*
-c3sarkvtron.jpg | GIANT SARK | End of line, program.

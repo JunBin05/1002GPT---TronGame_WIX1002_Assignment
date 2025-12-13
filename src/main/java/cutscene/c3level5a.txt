@@ -1,5 +1,0 @@
-c3CLUappears.jpg | SYSTEM | *CLU appears in the arena*
-c3tronready.jpg       | TRON | Head to the Arena. CLU is here.
-SAME       | TRON | Food's on me after we clean this mess up. What do you say, GUYS?
-SAME       | RESISTANCE | YEAH!
-SAME       | TRON | IN FORMATION.
