@@ -4,3 +4,4 @@ SAME               | TRON  | He’s heading for the Portal access. If he reaches
 SAME               | Kevin | I know. He can rewrite the basic laws of the Grid. We can’t let him get there.
 firstencounter.jpg | TRON  | Looks like he doesn’t want company.
 SAME               | Kevin | Let’s clear the way, old friend.
+NEXT_FILE | c1level2b.txt | dummy

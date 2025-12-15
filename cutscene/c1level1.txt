@@ -1,8 +1,9 @@
 c1opening.gif       | SYSTEM | CHAPTER 1: THE RESURRECTION
 SAME       | SYSTEM | The Control Room of Grid 2.0
 c1kevinopening.gif  | Kevin  | Stable. Finally.
-c1tronandkevin.png  | TRON   | The system monitor is spiking, Flynn. I’ve never seen energy readings like this.
-c1tronpointshard.png| Kevin  | That’s because we’ve never built anything like this before, Tron.
+c1tronenter.gif  | Kevin  | *Tron enters the Control Room*
+c1tronandkevin.gif  | TRON   | The system monitor is spiking, Flynn. I’ve never seen energy readings like this.
+c1tronpointshard.gif| Kevin  | That’s because we’ve never built anything like this before, Tron.
 SAME                | Kevin  | The Shard of Control.
 SAME                | TRON   | It looks... volatile.
 SAME                | Kevin  | It’s powerful. It’s the anchor for Grid 2.0.
@@ -16,3 +17,4 @@ c1firstfight.jpg    | SYSTEM | *CLU fights and takes the Crystal*
 kevintronhurt.jpg   | Kevin  | CLU! That code isn't finished! It will destabilize everything!
 CLUwins.png         | CLU    | It will perfect everything.
 CLUleaves.jpg       | CLU | Keep them busy.
+NEXT_FILE | c1level2a.txt | dummy

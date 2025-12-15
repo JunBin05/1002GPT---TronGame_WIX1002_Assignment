@@ -3,3 +3,4 @@ SAME             | Kevin | Hold on. The Shard leaves a mark on the code. Like a 
 c1kevinpoint.png | Kevin | There... He’s bleeding corruption. He went left, toward the old Portal chamber.
 c1ambush.jpg     | TRON  | Flynn! Above us!
 SAME             | Kevin | We don't have time for this!
+NEXT_FILE | c1level3b.txt | dummy

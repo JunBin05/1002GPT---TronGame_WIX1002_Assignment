@@ -9,5 +9,5 @@ c5portal.jpg     | SYSTEM | *Kevin enters the portal*
 c5home.jpg| KEVIN | *sigh*
 c5sam.jpg       | SAM    | Dad?
 SAME                 | SAM    | You were gone just now...
-SAME | KEVIN  | Yeah... yeah, I was, kiddo. But I'm back. Like I said...
+SAME | KEVIN  | Yeah... yeah, I was, kiddo. But I'm back. Come, Let's go get some ice cream.
 c5end.png | SYSTEM  | CHAPTER 5: THE CREATOR END

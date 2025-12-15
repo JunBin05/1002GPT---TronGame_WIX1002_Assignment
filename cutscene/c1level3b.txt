@@ -1,1 +1,2 @@
 addbike.gif 
+NEXT_FILE | c1level4a.txt | dummy

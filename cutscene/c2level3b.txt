@@ -1,10 +1,10 @@
-c2kuoradefeat.jpg     | SYSTEM | *Quorra falls*
+c2kuoradefeat.jpg     | SYSTEM | *Kuora falls*
 c2kevintroncheck.jpg    | KEVIN  | The system of the suit is linked to the helmet… I think CLU has corrupted her helmet.
 SAME                | KEVIN  | Take it off before CLU takes control.
-c2kuorapure.jpg     | SYSTEM | *Quorra is unmasked*
+c2kuorapure.jpg     | SYSTEM | *Kuora is unmasked*
 c2kuorasacrifice.jpg     | SYSTEM | *Massive army of green ISOs approaches*
 SAME     | TRON   | We have to move, Flynn. CLU is getting further away.
-SAME    | Kuora | Go. I will hold them back.
-SAME                | KEVIN  | Quorra, there's too many of them.
-SAME                | Kuora | You need to save the Grid. I’ll buy you time. Go!
+SAME    | KUORA | Go. I will hold them back.
+SAME                | KEVIN  | Kuora, there's too many of them.
+SAME                | KUORA | You need to save the Grid. I’ll buy you time. Go!
 c2kevintronleaves.jpg | KEVIN  | We will save the grid...
