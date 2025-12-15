@@ -1,4 +1,9 @@
-Clu,Gold,Impossible,1000,Very High,Aggressive,Brilliant,Corrupted intelligence — fast, strategic, and unpredictable; capable of logical yet non-deterministic decisions.
-Rinzler,Red,Hard,500,Very High,Sharp,Clever,Silent hunter — tactical, highly adaptive, and capable of limited collaboration with other enemies.
-Sark,Yellow,Medium,100,Medium,Predictable,Moderate,Enforcer AI — standard opponent with basic path prediction and avoidance behavior.
-Koura,Green,Easy,10,Low,Erratic,Low,Weak,random movement patterns with minimal avoidance or predictive behavior.
+Name,Rank,Color,Difficulty,XP,Speed,Handling,Intelligence,Description
+Clu,Boss,Gold,Impossible,1000,Very High,Aggressive,Brilliant,Corrupted intelligence — fast strategic and unpredictable capable of logical yet non-deterministic decisions
+Clu,Minion,Gold,Normal,50,Normal,Standard,Basic,Standard grid sentry unit
+Rinzler,Boss,Red,Hard,500,Very High,Sharp,Clever,Silent hunter — tactical highly adaptive and capable of limited collaboration with other enemies.
+Rinzler,Minion,Red,Normal,50,Normal,Standard,Basic,Standard grid sentry unit
+Sark,Boss,Yellow,Medium,100,Medium,Predictable,Moderate,Enforcer AI — standard opponent with basic path prediction and avoidance behavior
+Sark,Minion,Yellow,Normal,50,Normal,Standard,Basic,Standard grid sentry unit
+Koura,Boss,Green,Easy,50,Low,Erratic,Low,Weak random movement patterns with minimal avoidance or predictive behavior
+Koura,Minion,Green,Normal,50,Normal,Standard,Basic,Standard grid sentry unit

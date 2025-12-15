@@ -133,8 +133,16 @@ public class GameController implements KeyListener, Runnable {
                             int eCol = enemy.getCol();
                             if (eRow >= 0 && eRow < 40 && eCol >= 0 && eCol < 40) {
                                 if (grid[eRow][eCol] == '.') {
-                                    grid[eRow][eCol] = 'K';
-                                    trailTimer[eRow][eCol] = globalStepCounter;
+                                    char trailChar = 'K'; // Default
+                                    String name = enemy.getName();
+
+                                if (name.contains("Clu"))        trailChar = 'C'; // Gold
+                                else if (name.contains("Sark"))  trailChar = 'Y'; // Yellow
+                                else if (name.contains("Koura")) trailChar = 'G'; // Green
+                                else if (name.contains("Rinzler")) trailChar = 'R'; // Red
+                                
+                                grid[eRow][eCol] = trailChar;
+                                trailTimer[eRow][eCol] = globalStepCounter;
                                 }
                             }
                         }
@@ -299,7 +307,9 @@ public class GameController implements KeyListener, Runnable {
             if (currentElement == 'T') {
                 int placementStep = trailTimer[r][c];
                 if (placementStep > 0 && (globalStepCounter - placementStep) >= TRAIL_DURATION) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
-            } else if (currentElement == 'K') {
+            } else if (currentElement == 'K' || currentElement == 'C' || 
+                     currentElement == 'Y' || currentElement == 'G' || 
+                     currentElement == 'R') {
                 // Enemy trails - check if it's a boss (longer duration)
                 // For now use BOSS_TRAIL_DURATION for all enemies - bosses will be explicitly marked
                 int placementStep = trailTimer[r][c];

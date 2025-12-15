@@ -12,17 +12,46 @@ public class Enemy extends Character {
     protected char[][] arenaGrid; 
     protected Random rand = new Random();
 
+    // Stats loaded from enemies.txt
     protected String difficulty; 
     protected String intelligence; 
+    protected String speedDesc;
+    protected String handlingDesc;
+    protected String description;
+    
+    // Note: This field is loaded from the file, but your GameController 
+    // now ignores it and uses TronRules instead. That is perfectly fine.
+    protected long xpReward; 
 
-    public Enemy(String name, String color, String difficulty, int xp, 
-                 String speed, String handling, String intelligence, String description,
-                 boolean isBoss) {
-        super(name, color); 
-        this.difficulty = difficulty;
-        this.intelligence = intelligence;
-        this.isEnemyBoss = isBoss; 
+    // --- CONSTRUCTOR ---
+    public Enemy(String name, boolean isBoss) {
+        super(name, "Gray");
+
+        // 1. Look up stats from the Database/Text File
+        EnemyLoader.EnemyStats stats = EnemyLoader.getStats(name, isBoss);
+
+        // 2. Safety Check: If file read fails, prevent crash
+        if (stats == null) {
+            System.err.println("Warning: Stats missing for " + name + ". Using defaults.");
+            // Manual fallback
+            stats = new EnemyLoader.EnemyStats(new String[]{
+                name, isBoss?"Boss":"Minion", "Gray", "Normal", "50", "Normal", "Normal", "Basic", "Fallback"
+            });
+        }
+
+        // 3. Overwrite the placeholder color with the real one from the file
+        this.color = stats.color;
+
+        // 4. Set Local Fields from the Text File
+        this.difficulty = stats.difficulty;
+        this.intelligence = stats.intelligence;
+        this.speedDesc = stats.speed;
+        this.handlingDesc = stats.handling;
+        this.description = stats.description;
+        this.xpReward = stats.xp; // Stored, even if unused by controller
         
+        // 5. Boss Logic (Lives & Behavior flag)
+        this.isEnemyBoss = isBoss; 
         if (isBoss) {
             this.lives = 3;
             this.maxLives = 3;
@@ -57,44 +86,35 @@ public class Enemy extends Character {
     }
 
     // --- STRATEGY 1: SMART (Boss) ---
-    // Sees EVERYTHING.
     private Direction decideMoveSmart() {
-        // 1. Straight
         int[] straight = getNextCoords(currentDirection);
         if (isBossSafe(straight[0], straight[1])) return currentDirection;
         
-        // 2. Right
         Direction right = getTurn(currentDirection, true);
         int[] rCoords = getNextCoords(right);
         if (isBossSafe(rCoords[0], rCoords[1])) return right;
 
-        // 3. Left
         Direction left = getTurn(currentDirection, false);
         int[] lCoords = getNextCoords(left);
         if (isBossSafe(lCoords[0], lCoords[1])) return left;
 
-        return currentDirection; // Trapped
+        return currentDirection; 
     }
 
     // --- STRATEGY 2: STUPID (Minion) ---
-    // Sees Walls/Obstacles/Teammates, but is BLIND to Player Tail.
     private Direction decideMoveStupid() {
         int[] straight = getNextCoords(currentDirection);
         
-        // Momentum: If straight looks "Minion Safe", take it mostly
+        // Momentum
         if (isMinionSafe(straight[0], straight[1]) && rand.nextDouble() > 0.1) {
             return currentDirection;
         }
 
-        // Random Turn: Pick any direction that looks "Minion Safe"
+        // Random Turn
         List<Direction> validMoves = new ArrayList<>();
-        
         for (Direction d : Direction.values()) {
             if (d == getOpposite(currentDirection)) continue; 
-            
             int[] next = getNextCoords(d);
-            
-            // Uses Minion Vision (Thinks 'T' is safe)
             if (isMinionSafe(next[0], next[1])) {
                 validMoves.add(d);
             }
@@ -114,34 +134,22 @@ public class Enemy extends Character {
         return new int[]{nextR, nextC};
     }
 
-    // --- VISION 1: BOSS (PERFECT VISION) ---
-    // Avoids everything dangerous.
     private boolean isBossSafe(int r, int c) {
         if (arenaGrid == null) return false; 
         if (r < 0 || r >= arenaGrid.length || c < 0 || c >= arenaGrid[0].length) return false; 
         char cell = arenaGrid[r][c];
-        
-        // Safe ONLY if Empty (.) or Speed (S)
-        // Avoids: Walls (#), Obstacles (O), Discs (D), Enemy Tails (K), Player Tails (T)
+        // Boss avoids everything dangerous
         return cell == '.' || cell == 'S';
     }
 
-    // --- VISION 2: MINION (SELECTIVE VISION) ---
-    // Avoids Walls and Teammates. Walks into Player Tails.
     private boolean isMinionSafe(int r, int c) {
         if (arenaGrid == null) return false; 
         if (r < 0 || r >= arenaGrid.length || c < 0 || c >= arenaGrid[0].length) return false; 
         char cell = arenaGrid[r][c];
-        
-        // 1. DANGEROUS THINGS (Minion Avoids)
-        // Wall (#), Obstacle (O), Disc (D), Other Enemy Tails (K)
+        // Minion walks into Player Tails ('T') but avoids walls
         if (cell == '#' || cell == 'O' || cell == 'D' || cell == 'K') {
             return false;
         }
-        
-        // 2. "SAFE" THINGS (Minion Walks Here)
-        // Empty (.), Speed (S)... AND PLAYER TAIL ('T')!
-        // Because we return TRUE for 'T', the Minion will try to walk there and die.
         return true; 
     }
     
@@ -158,24 +166,16 @@ public class Enemy extends Character {
     @Override public void setDirection(char directionInput) {}
     
     // --- GETTERS ---
-    public String getName() {
-        return this.name;
-    }
+    public String getName() { return this.name; }
+    public boolean isBoss() { return this.isEnemyBoss; }
     
-    // --- BOSS MODIFIERS ---
-    public boolean isBoss() {
-        return this.isEnemyBoss;
-    }
-    
-    public int getTrailDuration() {
-        return this.isEnemyBoss ? 14 : 7; // Boss trails last 2x longer
-    }
-    
-    public double getSpeedModifier() {
-        return this.isEnemyBoss ? 1.5 : 1.0; // Boss moves 1.5x faster
-    }
-    
-    public String getBossIndicator() {
-        return this.isEnemyBoss ? " [BOSS]" : "";
-    }
+    // Kept for compatibility, even if Controller uses Rules instead
+    public long getXp() { return this.xpReward; }
+
+    public int getTrailDuration() { return this.isEnemyBoss ? 14 : 7; }
+    public double getSpeedModifier() { return this.isEnemyBoss ? 1.5 : 1.0; }
+    public String getBossIndicator() { return this.isEnemyBoss ? " [BOSS]" : ""; }
+
+    // NEW: Helper to get the color string for ArenaLoader
+    public String getColorString() { return this.color; }
 }

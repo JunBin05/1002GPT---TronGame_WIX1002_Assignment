@@ -423,6 +423,23 @@ public class ArenaLoader {
                                 cellPanel.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1)); 
                             }
                             break;
+                        // --- NEW COLORED TRAILS ---
+                        case 'C': // Clu (Gold)
+                            cellPanel.setBackground(new Color(255, 215, 0)); 
+                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.ORANGE, 1)); 
+                            break;
+                        case 'Y': // Sark (Yellow)
+                            cellPanel.setBackground(Color.YELLOW); 
+                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1)); 
+                            break;
+                        case 'G': // Koura (Green)
+                            cellPanel.setBackground(new Color(50, 205, 50)); 
+                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(0, 100, 0), 1)); 
+                            break;
+                        case 'R': // Rinzler (Red)
+                            cellPanel.setBackground(new Color(220, 20, 60)); 
+                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(100, 0, 0), 1)); 
+                            break;
                         case 'K': cellPanel.setBackground(new Color(255, 50, 0)); cellPanel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 1)); break;
                     }
                 }
