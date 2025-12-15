@@ -1,0 +1,6 @@
+c4jetfix.gif    | SYSTEM | *Kevin restarts the jet systems*
+c4jetfixed.jpg       | SYSTEM | Engines... online. Hydraulics... restored.
+SAME | KEVIN  | Okay. No more talking.
+SAME       | SYSTEM | *Kevin hops into the seat*
+SAME     | KEVIN  | I'm sorry, CLU. But that's enough work for today.
+c4end.png | SYSTEM  | CHAPTER 4: THE ENFORCER END
