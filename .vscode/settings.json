@@ -1,13 +1,7 @@
 {
     // This setting tells the VS Code Java Extension Pack where to find external libraries.
     "java.project.referencedLibraries": [
-        // This glob pattern includes ALL .jar files found in the 'lib' folder 
-        // and any subfolders (**). This is the standard best practice.
-        "lib/**/*.jar" 
+        "lib/sqlite-jdbc-3.51.0.0.jar"
     ],
-<<<<<<< HEAD
-    "java.configuration.updateBuildConfiguration": "interactive"
-=======
     "java.configuration.updateBuildConfiguration": "disabled"
->>>>>>> 3c8a008610a8535489a882728453dd5f2abf2ac6
 }

@@ -94,6 +94,23 @@ public class ImagePanel_Character extends JPanel {
                 UI.StartGameMenu.showMenu(mainFrame);
                 // Start the game (show arena)
                 arena.ArenaLoader.mainFrame = mainFrame;
+
+                // --- Show cutscene after character selection, before starting level ---
+                UI.GamePanel gamePanel = new UI.GamePanel();
+                JPanel container = new JPanel(new BorderLayout());
+                container.add(gamePanel, BorderLayout.CENTER);
+                mainFrame.setContentPane(container);
+                mainFrame.revalidate();
+                mainFrame.repaint();
+                gamePanel.setFocusable(true);
+                SwingUtilities.invokeLater(() -> gamePanel.requestFocusInWindow());
+                gamePanel.startGameThread(mainFrame); // Pass mainFrame so GamePanel can add itself as KeyListener
+                JOptionPane.showMessageDialog(mainFrame, "DEBUG: Showing cutscene for chapter=" + arena.ArenaLoader.currentChapter + ", stage=" + arena.ArenaLoader.currentStage);
+                arena.CutsceneUtil.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", mainFrame, gamePanel);
+                while (gamePanel.cutscene.isActive()) {
+                    try { Thread.sleep(50); } catch (InterruptedException ex) { break; }
+                }
+
                 arena.ArenaLoader.startLevel();
             }
         });
