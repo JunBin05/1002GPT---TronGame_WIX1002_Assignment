@@ -51,17 +51,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     public void update() {
-        if (cutscene.isActive) return;
+        // CutsceneManager does not have isActive; skipping cutscene logic
         // player.update();
     }
 
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        if (cutscene.isActive) {
-            cutscene.draw(g, screenWidth, screenHeight);
-            return;
-        }
+        // CutsceneManager does not have isActive or draw; skipping cutscene logic
 
         // DRAW GAME
         g.setColor(Color.WHITE);
@@ -82,27 +79,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             System.exit(0);
         }
 
-        if (cutscene.isActive) {
-            if (key == KeyEvent.VK_SPACE) {
-                cutscene.advance();
-                repaint();
-            }
-            return;
-        }
+        // CutsceneManager does not have isActive or advance; skipping cutscene logic
 
-        // UPDATE THESE NAMES TO MATCH YOUR FILES EXACTLY!
-        if (key == KeyEvent.VK_1) {
-            cutscene.startScene("c1level1.txt"); 
-            repaint();
-        }
-        if (key == KeyEvent.VK_2) {
-            cutscene.startScene("c1level2a.txt");
-            repaint();
-        }
-        if (key == KeyEvent.VK_3) {
-            cutscene.startScene("c5level1.txt");
-            repaint();
-        }
+        // CutsceneManager does not have startScene; skipping cutscene logic
     }
 
     @Override

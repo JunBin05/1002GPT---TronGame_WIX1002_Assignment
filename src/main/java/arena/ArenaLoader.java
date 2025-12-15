@@ -20,6 +20,7 @@ import characters.CharacterData;
 import characters.Direction;
 import controller.GameController;
 import UI.StartGameMenu;
+import UI.CutsceneManager;
 import designenemies.*;
 import XPSystem.TronRules; // Math for XP
 
@@ -453,6 +454,8 @@ public class ArenaLoader {
     public static void showGameOverDialog(JFrame parentFrame) { JDialog gameOverDialog = new JDialog(parentFrame, "Game Over", true); gameOverDialog.setSize(500, 250); gameOverDialog.setLayout(new BorderLayout()); gameOverDialog.setLocationRelativeTo(parentFrame); Color DIALOG_BG = new Color(15, 0, 40); gameOverDialog.getContentPane().setBackground(DIALOG_BG); JLabel title = new JLabel("::: DEREZZED :::", SwingConstants.CENTER); title.setFont(new Font("Monospaced", Font.BOLD, 42)); title.setForeground(Color.RED); title.setBorder(new EmptyBorder(30, 0, 0, 0)); gameOverDialog.add(title, BorderLayout.NORTH); JButton closeButton = new JButton("EXIT GRID"); closeButton.setFont(new Font("Monospaced", Font.BOLD, 20)); closeButton.setBackground(Color.BLACK); closeButton.setForeground(Color.CYAN); closeButton.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.CYAN, 2), BorderFactory.createEmptyBorder(10, 30, 10, 30))); closeButton.setFocusPainted(false); closeButton.addActionListener(e -> System.exit(0)); JPanel buttonPanel = new JPanel(); buttonPanel.setBackground(DIALOG_BG); buttonPanel.setBorder(new EmptyBorder(0, 0, 30, 0)); buttonPanel.add(closeButton); gameOverDialog.add(buttonPanel, BorderLayout.SOUTH); gameOverDialog.setVisible(true); }
 
     public static void startLevel() {
+        // Show pre-stage cutscene (suffix "a") if available
+        CutsceneManager.showCutscene(currentChapter, currentStage, "a", mainFrame);
         // ALWAYS clean up old listeners first, regardless of thread state
         if (mainFrame != null) {
             java.awt.event.KeyListener[] listeners = mainFrame.getKeyListeners();
@@ -526,8 +529,16 @@ public class ArenaLoader {
         // Pass persistentTron to sidebar
         JPanel sidebarPanel = createSidebarPanel(persistentTron, icons);
 
-        mainFrame.add(arenaPanel, BorderLayout.CENTER);
-        mainFrame.add(sidebarPanel, BorderLayout.EAST);
+        JPanel container = new JPanel(new BorderLayout());
+        container.add(arenaPanel, BorderLayout.CENTER);
+        container.add(sidebarPanel, BorderLayout.EAST);
+        mainFrame.setContentPane(container);
+        mainFrame.revalidate();
+        mainFrame.repaint();
+        // Show start simulation dialog
+        JOptionPane.showMessageDialog(mainFrame, "Press OK to start simulation!\nUse arrow keys to move.", "Start Simulation", JOptionPane.INFORMATION_MESSAGE);
+        // Ensure frame is focused for keyboard input
+        mainFrame.requestFocusInWindow();
 
         // --- SANITIZE GRID: remove stray 'D' markers so discs are visible on new stage ---
         sanitizeGrid(arena);
@@ -563,6 +574,8 @@ public class ArenaLoader {
     }
 
     public static void showLevelCompleteDialog() {
+        // Show post-stage cutscene (suffix "b") if available
+        CutsceneManager.showCutscene(currentChapter, currentStage, "b", mainFrame);
         TronRules.StageType type = TronRules.StageType.NORMAL;
         if (currentStage == 1 && currentChapter == 1) type = TronRules.StageType.TUTORIAL;
 

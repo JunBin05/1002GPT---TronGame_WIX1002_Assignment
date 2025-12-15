@@ -85,8 +85,16 @@ public class ImagePanel_Character extends JPanel {
             else {
                 String selectedChar = kevinButton.isSelected() ? "Kevin" : "Tron";
                 System.out.println("Starting game with: " + selectedChar);
-                // Launch Arena here!
-                // ArenaLoader.startGame(selectedChar); 
+                // Set the current chapter and reset to stage 1
+                arena.ArenaLoader.currentChapter = currentChapter;
+                arena.ArenaLoader.currentStage = 1;
+                // Make the window fullscreen (maximized)
+                mainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+                // Show the Tron-style start simulation menu
+                UI.StartGameMenu.showMenu(mainFrame);
+                // Start the game (show arena)
+                arena.ArenaLoader.mainFrame = mainFrame;
+                arena.ArenaLoader.startLevel();
             }
         });
         add(playArenaButton);
