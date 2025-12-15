@@ -19,6 +19,7 @@ public class ImagePanel_Home extends JPanel {
     private MainFrame mainFrameRef;
     private ProfilePictureButton profileButton; // <--- NEW
     private ProfileName profileNameBox = new ProfileName("Player1"); // <--- NEW
+    private ExitButton exitButton; // <--- NEW
 
     
     public ImagePanel_Home(String imagePath, String username, MainFrame mainFrame) {
@@ -49,15 +50,9 @@ public class ImagePanel_Home extends JPanel {
         add(leaderboardButton);
     
         leaderboardButton.addActionListener(e -> {
-            // Find the main window
-            Window parentWindow = SwingUtilities.getWindowAncestor(this);
-            
-            if (parentWindow instanceof JFrame) {
-
-                System.out.println("Opening Leaderboard for user: " + this.username); //debug
-                
-                LeaderBoardDialog dialog = new LeaderBoardDialog((JFrame) parentWindow, this.username);
-                dialog.setVisible(true);
+            if (mainFrameRef != null) {
+                // Switch the panel instead of opening a popup
+                mainFrameRef.changeToLeaderboard(this.username);
             }
         });
 
@@ -77,6 +72,10 @@ public class ImagePanel_Home extends JPanel {
         //7. Create Profile Name Box
         profileNameBox = new ProfileName(username);
         add(profileNameBox);
+
+        //8. Create Exit Button
+        exitButton = new ExitButton("images/exit_button.png");
+        add(exitButton);
 
 
 
@@ -132,7 +131,7 @@ public class ImagePanel_Home extends JPanel {
 
         // --- E. Setup Question Button (Right bottom of the window) ---
         int qnaSize = (int) (h * 0.18); // 15% of screen height
-        int qnaX = w - qnaSize - (int) (w * 0.02); // 2% from right
+        int qnaX = w - qnaSize - (int) (w * 0.15); // 2% from right
         int qnaY = h - qnaSize - 30;
 
         questionButton.setBounds(qnaX, qnaY, qnaSize, qnaSize);
@@ -153,6 +152,13 @@ public class ImagePanel_Home extends JPanel {
         int boxX = (int) (w * 0.73);
         int boxY = (int) (h * 0.10);
         profileNameBox.setBounds(boxX, boxY, boxWidth, boxHeight);
+
+        // --- H. Setup Exit Button (Top Right Corner) --- (make it beside qna button)
+        int exitSize = (int) (h * 0.175); 
+        int exitX = w - exitSize - (int) (w * 0.02); 
+        int exitY = h - exitSize - 30;
+        exitButton.setBounds(exitX, exitY, exitSize, exitSize);
+        exitButton.resizeIcon(exitSize);
 
     }
 
