@@ -1,3 +1,4 @@
+MUSIC | soft_main.wav | dummy
 kevintronchase.gif | 
 CLUgone.jpg        | Kevin | Damn it. He’s moving fast. He’s already cleared the sector boundary!
 SAME               | TRON  | He’s heading for the Portal access. If he reaches the main hub with that Shard...

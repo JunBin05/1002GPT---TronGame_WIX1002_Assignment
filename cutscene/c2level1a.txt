@@ -1,3 +1,4 @@
+MUSIC | soft_main.wav | dummy
 c1lightning.gif    | SYSTEM| CHAPTER 2: THE CORRUPTED
 c2CLUleaves.jpg     | SYSTEM | *CLU and Sark hook onto a spaceship*
 SAME                | KEVIN  | The code is breaking down faster than I thought. The whole system is destabilizing.

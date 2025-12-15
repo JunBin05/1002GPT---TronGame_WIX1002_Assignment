@@ -1,7 +1,10 @@
-25progress.png     | CLU | They are persistent. Every time I build, they interrupt.
-c2CLUnsark.jpg      | CLU | Go. Remove the variables. Do not let them reach the crystal.
+MUSIC | clu_entrance.wav | dummy
+25progress.png   | CLU | They are persistent. Every time I build, they interrupt.
+c2CLUnsark.jpg   | CLU | Go. Remove the variables. Do not let them reach the crystal.
+MUSIC | soft_main.wav | dummy
 c1tronbike.jpg
-c2sark.jpg     | TRON   | Sark!
-SAME      | KEVIN  | He’s trying to stall us! Tron, you keep going! Get to CLU!
-SAME   | TRON   | I can’t leave you behind!
-c2sarkvkevin.jpg                | KEVIN  | I created this mess, I’ll clear the path! Go!
+MUSIC | sark_one.wav | dummy
+c2sark.jpg     | TRON | Sark!
+SAME      | KEVIN | He’s trying to stall us! Tron, you keep going! Get to CLU!
+SAME   | TRON | I can’t leave you behind!
+c2sarkvkevin.jpg       | KEVIN | I created this mess, I’ll clear the path! Go!

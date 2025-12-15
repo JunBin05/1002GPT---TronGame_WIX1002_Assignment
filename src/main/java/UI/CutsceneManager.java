@@ -1,9 +1,11 @@
 package UI;
 
 import java.awt.*;
+import java.awt.image.ImageObserver;
 import java.io.*;
-import java.nio.charset.StandardCharsets; // <--- FIXES GIBBERISH
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import javax.sound.sampled.*; 
 import javax.swing.ImageIcon;
 
 public class CutsceneManager {
@@ -24,16 +26,18 @@ public class CutsceneManager {
     private int currentIndex = 0;
     public boolean isActive = false;
     private Image currentImage; 
+    
+    // AUDIO
+    private Clip musicClip; 
 
     // IMAGES
     private Image pKevin, pKevinReal, pTron, pClu, pQuorra, pQuorraEvil, pSark, pSam;
 
     public CutsceneManager() {
-        // LOAD IMAGES
+        // LOAD PORTRAITS
         pKevin      = new ImageIcon("cutscene/images/portrait_kevin.png").getImage();
         pKevinReal  = new ImageIcon("cutscene/images/portrait_kevin_real.png").getImage();
         pSam        = new ImageIcon("cutscene/images/portrait_sam.png").getImage();
-        
         pTron       = new ImageIcon("cutscene/images/portrait_tron.png").getImage();
         pClu        = new ImageIcon("cutscene/images/portrait_clu.png").getImage();
         pQuorra     = new ImageIcon("cutscene/images/portrait_quorra.png").getImage();
@@ -54,9 +58,8 @@ public class CutsceneManager {
                 return;
             }
 
-            // --- UTF-8 FIX: Handles special characters correctly ---
+            // UTF-8 READER
             BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8));
-            
             String line;
             while ((line = br.readLine()) != null) {
                 line = line.trim();
@@ -67,17 +70,36 @@ public class CutsceneManager {
                     if (parts.length >= 3) {
                         lines.add(new SceneLine(parts[0].trim(), parts[1].trim(), parts[2].trim()));
                     }
-                } else {
-                    lines.add(new SceneLine(line.trim(), null, null));
                 }
             }
             br.close();
-            loadCurrentImage();
+            
+            processCurrentLine(); 
 
         } catch (Exception e) {
             e.printStackTrace();
             isActive = false;
         }
+    }
+
+    private void processCurrentLine() {
+        if (currentIndex >= lines.size()) return;
+
+        SceneLine current = lines.get(currentIndex);
+
+        // AUDIO COMMANDS
+        if (current.imagePath.equalsIgnoreCase("MUSIC")) {
+            playMusic(current.name); 
+            advance(); 
+            return;
+        }
+        if (current.imagePath.equalsIgnoreCase("STOP_MUSIC")) {
+            stopMusic();
+            advance();
+            return;
+        }
+
+        loadCurrentImage();
     }
 
     private void loadCurrentImage() {
@@ -95,33 +117,76 @@ public class CutsceneManager {
     public void advance() {
         currentIndex++;
         if (currentIndex >= lines.size()) {
-            // CHECK FOR NEXT_FILE COMMAND
             SceneLine lastLine = lines.get(lines.size() - 1);
             if (lastLine.imagePath.equalsIgnoreCase("NEXT_FILE")) {
                 startScene(lastLine.name); 
             } else {
+                stopMusic(); 
                 isActive = false; 
             }
         } else {
-            loadCurrentImage();
+            processCurrentLine();
         }
     }
 
-    public void draw(Graphics g, int screenWidth, int screenHeight) {
+    public void playMusic(String filename) {
+        try {
+            File soundFile = new File("cutscene/sounds/" + filename);
+            if (!soundFile.exists()) {
+                System.out.println("Sound not found: " + soundFile.getAbsolutePath());
+                return;
+            }
+
+            AudioInputStream audioInput = AudioSystem.getAudioInputStream(soundFile);
+            
+            if (musicClip != null && musicClip.isRunning()) {
+                musicClip.stop();
+            }
+
+            musicClip = AudioSystem.getClip();
+            musicClip.open(audioInput);
+
+            // VOLUME CONTROL (-10dB)
+            try {
+                FloatControl gainControl = (FloatControl) musicClip.getControl(FloatControl.Type.MASTER_GAIN);
+                gainControl.setValue(-10.0f); 
+            } catch (Exception e) {}
+
+            musicClip.start();
+            musicClip.loop(Clip.LOOP_CONTINUOUSLY);
+
+        } catch (Exception e) {
+            System.out.println("Error playing sound: " + e.getMessage());
+        }
+    }
+
+    public void stopMusic() {
+        if (musicClip != null) {
+            musicClip.stop();
+            musicClip.close();
+        }
+    }
+
+    public void draw(Graphics g, int screenWidth, int screenHeight, ImageObserver observer) {
         if (!isActive || currentImage == null) return;
 
-        // 1. BACKGROUND
-        g.drawImage(currentImage, 0, 0, screenWidth, screenHeight, null);
+        g.drawImage(currentImage, 0, 0, screenWidth, screenHeight, observer);
 
         SceneLine current = lines.get(currentIndex);
 
-        // 2. PORTRAITS
+        // HIDE COMMANDS
+        if (current.imagePath.equalsIgnoreCase("MUSIC") || 
+            current.imagePath.equalsIgnoreCase("NEXT_FILE") ||
+            current.imagePath.equalsIgnoreCase("STOP_MUSIC")) {
+            return;
+        }
+
+        // PORTRAITS
         if (current.name != null) {
             Image spriteToDraw = null;
             boolean isVillain = false; 
             String n = current.name.toUpperCase();
             
-            // LOGIC
             if (n.contains("SAM")) spriteToDraw = pSam;
             else if (n.contains("REAL") || n.contains("OLD")) spriteToDraw = pKevinReal; 
             else if (n.contains("KEVIN") || n.contains("FLYNN")) spriteToDraw = pKevin;
@@ -136,37 +201,32 @@ public class CutsceneManager {
                 int spriteW = 450; 
                 int x = isVillain ? screenWidth - spriteW + 50 : -50;
                 int y = screenHeight - spriteH + 150; 
-                g.drawImage(spriteToDraw, x, y, spriteW, spriteH, null);
+                g.drawImage(spriteToDraw, x, y, spriteW, spriteH, observer);
             }
         }
 
-        // 3. TEXT BOX
+        // TEXT BOX (With Word Wrap)
         if (current.name != null && current.text != null) {
-            int boxHeight = 150; // Taller for wrapped text
+            int boxHeight = 150;
             int boxY = screenHeight - boxHeight;
 
             g.setColor(new Color(0, 0, 0, 220));
             g.fillRect(0, boxY, screenWidth, boxHeight);
             
-            // Name
             g.setColor(new Color(255, 215, 0));
             g.setFont(new Font("Arial", Font.BOLD, 18));
             g.drawString(current.name, 40, boxY + 35);
             
-            // Dialogue with WORD WRAP
             g.setColor(Color.WHITE);
             g.setFont(new Font("Consolas", Font.PLAIN, 18));
-            
             drawWrappedText(g, current.text, 40, boxY + 70, screenWidth - 80);
             
-            // Next Button
             g.setColor(Color.GRAY);
             g.setFont(new Font("Arial", Font.ITALIC, 10));
             g.drawString("SPACE", screenWidth - 50, screenHeight - 15);
         }
     }
 
-    // --- NEW HELPER METHOD FOR WORD WRAPPING ---
     private void drawWrappedText(Graphics g, String text, int x, int y, int lineWidth) {
         FontMetrics fm = g.getFontMetrics();
         String[] words = text.split(" ");
@@ -174,19 +234,15 @@ public class CutsceneManager {
         int lineHeight = fm.getHeight();
 
         for (String word : words) {
-            // Check width if we add the next word
             int width = fm.stringWidth(currentLine + word + " ");
-            
             if (width < lineWidth) {
                 currentLine += word + " ";
             } else {
-                // Draw current line and start a new one
                 g.drawString(currentLine, x, y);
                 y += lineHeight; 
                 currentLine = word + " ";
             }
         }
-        // Draw the last remaining line
         g.drawString(currentLine, x, y);
     }
 }

@@ -1,3 +1,4 @@
+MUSIC | sark_one.wav | dummy
 c2CLUcallsark.jpg   | SARK   | You cannot stop the perfection.
 SAME       | CLU | Sark. Change directive.
 SAME   | SARK   | Command?

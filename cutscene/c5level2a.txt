@@ -1,3 +1,4 @@
+MUSIC | clu_main.wav | dummy
 c5jets.jpg   | SYSTEM | *Kevin locks onto CLU's ship*
 c5CLUfound.jpg      | KEVIN  | Gotcha.
 c5crash.gif | SYSTEM | *Kevin crashes CLU's spaceship into the ground*

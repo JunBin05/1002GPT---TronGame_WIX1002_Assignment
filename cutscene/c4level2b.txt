@@ -1,3 +1,4 @@
+MUSIC | soft_main.wav | dummy
 c4jetfix.gif    | SYSTEM | *Kevin restarts the jet systems*
 c4jetfixed.jpg       | SYSTEM | Engines... online. Hydraulics... restored.
 SAME | KEVIN  | Okay. No more talking.

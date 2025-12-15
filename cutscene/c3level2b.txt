@@ -1,4 +1,6 @@
+MUSIC | soft_main.wav | dummy
 c3sarkteleport.gif   | SYSTEM | *Sark teleports back to CLU's spaceship*
+MUSIC | clu_entrance.wav | dummy
 c3returnCLU.jpg      | SARK | Lord CLU... Tron... he is stronger than calculated... I need repairs...
 50progress.jpg    | SYSTEM | *The Grid slowly turns Gold*
 c3returnCLU.jpg      | CLU | I gave you the power of the Shard. I gave you a second chance.

@@ -1,2 +1,13 @@
-c2option.gif | TRON  | We’re closing the distance. CLU’s signal is coming from that central tower.
+MUSIC | soft_main.wav | dummy
+c2option.jpg | TRON  | We’re closing the distance. CLU’s signal is coming from that central tower.
 SAME  | KEVIN | Tron... before we get there... I need to tell you something. CLU…
+SAME  | TRON | ...
+SAME  | TRON | Go ahead then...
+SAME  | KEVIN | It's about CLU, you remembered he got derezzed right?
+SAME  | TRON | Yeah?
+SAME  | KEVIN | Yeah, I restored him. I planned to create a brand new version of me but it took an unexpected turn.
+SAME  | KEVIN | The Grid might go down because of it.
+SAME  | TRON | I know you tried, Kevin. We can restored the Grid, once again together...
+SAME  | KEVIN | Yeah? I felt much better after pouring that out.
+addclubike.jpg |  SYSTEM  | *ENEMIES APPROACHING*
+c2option.jpg | TRON  | Let's clear the way, partner.

@@ -8,7 +8,7 @@ public class Main {
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setTitle("Tron Game");
         
-        // 1. REMOVE BORDERS (Optional: delete this line if you want the X button)
+        // 1. REMOVE BORDERS (Optional: delete if you want the X button)
         window.setUndecorated(true); 
 
         // 2. MAXIMIZE WINDOW
@@ -17,11 +17,12 @@ public class Main {
         GamePanel gamePanel = new GamePanel();
         window.add(gamePanel);
         
-        // 3. PACK AND SHOW
-        window.pack(); // This will resize the GamePanel to fit the full window
+        window.pack(); // Resize GamePanel to fit window
         window.setLocationRelativeTo(null);
         window.setVisible(true);
 
+        // 3. START GAME FLOW
+        gamePanel.setupGame(); 
         gamePanel.startGameThread();
     }
 }

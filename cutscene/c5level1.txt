@@ -1,2 +1,3 @@
+MUSIC | soft_main.wav | dummy
 c5jetchase.gif | SYSTEM | CHAPTER 5: THE CREATOR END
 SAME    | KEVIN  | Why do you have so many back-ups CLU…

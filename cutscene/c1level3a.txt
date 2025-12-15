@@ -1,3 +1,4 @@
+MUSIC | soft_main.wav | dummy
 c1tronbike.jpg   | TRON  | I’ve lost visual. The data stream is scrambled here. Which way, Flynn?
 SAME             | Kevin | Hold on. The Shard leaves a mark on the code. Like a scar.
 c1kevinpoint.png | Kevin | There... He’s bleeding corruption. He went left, toward the old Portal chamber.
