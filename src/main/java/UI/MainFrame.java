@@ -50,8 +50,8 @@ public class MainFrame extends JFrame {
  
         ImagePanel_GameMode gameModePanel = new ImagePanel_GameMode("images/tron_3.png", this, currentUsername);
     
-         setContentPane(gameModePanel);
-         revalidate();
+        setContentPane(gameModePanel);
+        revalidate();
         repaint();
     }
 
@@ -84,6 +84,16 @@ public class MainFrame extends JFrame {
         revalidate();
         repaint();
     }
+
+    public void changeToAchievement() {
+        // Create the achievement panel
+        ImagePanel_Ac acPanel = new ImagePanel_Ac(this);
+        
+        // Switch the screen content
+        setContentPane(acPanel);
+        revalidate();
+        repaint();
+    }
     
 
     
@@ -94,4 +104,10 @@ public class MainFrame extends JFrame {
             gui.setVisible(true);
         });
     }
+
+
+    public String getCurrentUsername() {
+        return this.currentUsername;
+    }
+    
 }

@@ -60,6 +60,13 @@ public class ImagePanel_Home extends JPanel {
         awardButton = new AwardButton("images/award_button.png");
         add(awardButton);
 
+        awardButton.addActionListener(e -> {
+            if (mainFrameRef != null) {
+                System.out.println("Switching to Achievement Screen...");
+                mainFrameRef.changeToAchievement(); // Call the new method
+            }
+        });
+
         // 5. Create Question Button
         questionButton = new QuestionButton("images/qna_button.png");
         add(questionButton);

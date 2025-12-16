@@ -110,7 +110,7 @@ public class LeaderBoardPanel extends JPanel {
         int headerHeight = (int) (h * 0.22); // Increased to 22% to clear the banner
         int listHeight   = (int) (h * 0.75); 
         
-        int btnSize   = (int) (h * 0.16);      
+        int btnSize   = (int) (h * 0.18);      
         int paddingX  = (int) (w * 0.05);      
         int fontSize  = (int) (h * 0.030);     
 
