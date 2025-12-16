@@ -20,7 +20,6 @@ public class AwardButton extends JButton {
         // 3. Add a simple click action
         addActionListener(e -> {
             System.out.println("Award Button Clicked!");
-            JOptionPane.showMessageDialog(this, "Award Collection Feature Coming Soon!");
         });
     }
 

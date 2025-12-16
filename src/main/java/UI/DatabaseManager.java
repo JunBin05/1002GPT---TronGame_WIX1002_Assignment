@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DatabaseManager {
 
@@ -37,10 +39,17 @@ public class DatabaseManager {
 
     private void createTable() {
         // Updated SQL to include PROFILE_IMAGE
+        // --- NEW: Added AC1 to AC6 columns for achievements (0=Locked, 1=Unlocked) ---
         String sql = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (\n"
                    + " ID TEXT PRIMARY KEY,\n"
                    + " PASSWORD_HASH INTEGER NOT NULL,\n"
-                   + " PROFILE_IMAGE TEXT DEFAULT 'images/default_profile.png'\n" 
+                   + " PROFILE_IMAGE TEXT DEFAULT 'images/default_profile.png',\n"
+                   + " AC1 INTEGER DEFAULT 0,\n" 
+                   + " AC2 INTEGER DEFAULT 0,\n"
+                   + " AC3 INTEGER DEFAULT 0,\n"
+                   + " AC4 INTEGER DEFAULT 0,\n"
+                   + " AC5 INTEGER DEFAULT 0,\n"
+                   + " AC6 INTEGER DEFAULT 0\n" 
                    + ");";
 
         try (Connection conn = connect();
@@ -56,6 +65,17 @@ public class DatabaseManager {
             } catch (SQLException ignored) {
                 // Column likely already exists, ignore this error
             }
+
+            // --- NEW: Safely add Achievement Columns if they are missing ---
+            String[] achCols = {"AC1", "AC2", "AC3", "AC4", "AC5", "AC6"};
+            for (String col : achCols) {
+                try {
+                    stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + col + " INTEGER DEFAULT 0");
+                } catch (SQLException ignored) {
+                    // Column likely exists
+                }
+            }
+            // ---------------------------------------------------------------
 
         } catch (SQLException e) {
             System.err.println("Error creating table: " + e.getMessage());
@@ -120,5 +140,51 @@ public class DatabaseManager {
                 else return false;
             }
         } catch (SQLException e) { return false; }
+    }
+
+    // --- NEW ACHIEVEMENT METHODS ---
+
+    /**
+     * Helper method to unlock a specific achievement (1-6)
+     */
+    public void unlockAchievement(String userId, int achIndex) {
+        if (achIndex < 1 || achIndex > 6) return; // Safety check
+        
+        String sql = "UPDATE " + TABLE_NAME + " SET AC" + achIndex + " = 1 WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            pstmt.executeUpdate();
+            System.out.println("Unlocked AC" + achIndex + " for user " + userId);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Returns a list of booleans: [true, false, true...]
+     * Index 0 = AC1, Index 1 = AC2, etc.
+     */
+    public List<Boolean> getAchievements(String userId) {
+        List<Boolean> statusList = new ArrayList<>();
+        String sql = "SELECT AC1, AC2, AC3, AC4, AC5, AC6 FROM " + TABLE_NAME + " WHERE ID = ?";
+
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                for (int i = 1; i <= 6; i++) {
+                    // getInt returns 1 if true, 0 if false
+                    statusList.add(rs.getInt("AC" + i) == 1);
+                }
+            } else {
+                // User not found? Default all to false
+                for (int i = 0; i < 6; i++) statusList.add(false);
+            }
+        } catch (SQLException e) {
+            // Error? Default all to false
+            for (int i = 0; i < 6; i++) statusList.add(false);
+        }
+        return statusList;
     }
 }
