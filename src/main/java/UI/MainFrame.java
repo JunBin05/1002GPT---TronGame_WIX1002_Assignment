@@ -50,8 +50,8 @@ public class MainFrame extends JFrame {
  
         ImagePanel_GameMode gameModePanel = new ImagePanel_GameMode("images/tron_3.png", this, currentUsername);
     
-         setContentPane(gameModePanel);
-         revalidate();
+        setContentPane(gameModePanel);
+        revalidate();
         repaint();
     }
 
@@ -109,4 +109,5 @@ public class MainFrame extends JFrame {
     public String getCurrentUsername() {
         return this.currentUsername;
     }
+    
 }

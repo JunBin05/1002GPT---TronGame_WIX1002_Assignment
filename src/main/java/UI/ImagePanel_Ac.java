@@ -12,15 +12,17 @@ public class ImagePanel_Ac extends JPanel {
     private Image backgroundImage;
     private MainFrame mainFrame; 
     private BackButton backButton;
-    
-    // List to hold our 6 achievement icons
     private List<JButton> achievementIcons; 
+    private DatabaseManager dbManager; 
+    
+    // We store the status list here so updateLayout can use it later
+    private List<Boolean> unlockedStatus; 
 
     public ImagePanel_Ac(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
+        this.dbManager = new DatabaseManager(); 
 
         // 1. Load Background
-        // Ensure this image exists!
         this.backgroundImage = new ImageIcon("images/ac_bg.png").getImage();
         setLayout(null); 
 
@@ -31,23 +33,48 @@ public class ImagePanel_Ac extends JPanel {
         });
         add(backButton);
 
-        // 3. Create 6 Achievement Icons
+        // 3. FETCH DATA: Get the list of True/False from Database
+        String currentUser = mainFrame.getCurrentUsername();
+        this.unlockedStatus = dbManager.getAchievements(currentUser);
+
+        // 4. Create 6 Achievement Icons
         achievementIcons = new ArrayList<>();
         
-        // Loop to create 6 buttons (ach_1.png to ach_6.png)
-        for (int i = 1; i <= 6; i++) {
-            String imgPath = "images/ach_" + i + ".png"; // filenames: ach_1.png, ach_2.png...
-            JButton btn = createIcon(imgPath);
+        for (int i = 0; i < 6; i++) {
+            int achID = i + 1; // 1 to 6
             
-            // Optional: Add click action for each achievement
-            int finalI = i; 
-            btn.addActionListener(e -> System.out.println("Clicked Achievement " + finalI));
+            // Check status safely
+            boolean isUnlocked = false;
+            if (unlockedStatus != null && i < unlockedStatus.size()) {
+                isUnlocked = unlockedStatus.get(i);
+            }
+
+            // --- LOGIC: CHOOSE IMAGE BASED ON STATUS ---
+            // If True  -> ac_1.png
+            // If False -> ac_1i.png (Transparent/Gray version)
+            String imgName = isUnlocked ? "ac_" + achID + ".png" : "ac_" + achID + "i.png";
+            String imgPath = "images/" + imgName;
+
+            JButton btn = createIcon(imgPath, isUnlocked);
+            
+            // Add click listener (mostly for debugging or feedback)
+            boolean finalStatus = isUnlocked;
+            btn.addActionListener(e -> {
+                if (finalStatus) {
+                    System.out.println("Achievement " + achID + " is UNLOCKED!");
+                } else {
+                    System.out.println("Achievement " + achID + " is LOCKED.");
+                    // UNCOMMENT BELOW TO TEST UNLOCKING:
+                    // dbManager.unlockAchievement(currentUser, achID);
+                    // System.out.println("Cheat applied! Re-enter screen to see change.");
+                }
+            });
             
             achievementIcons.add(btn);
             add(btn);
         }
 
-        // 4. Add Resize Listener
+        // 5. Add Resize Listener
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -56,16 +83,25 @@ public class ImagePanel_Ac extends JPanel {
         });
     }
 
-    // --- Helper to create a transparent icon button ---
-    private JButton createIcon(String path) {
+    // --- Helper to create button ---
+    private JButton createIcon(String path, boolean unlocked) {
         ImageIcon icon = new ImageIcon(path);
         JButton btn = new JButton(icon);
         
-        // Make it transparent/clean
         btn.setContentAreaFilled(false);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        if (unlocked) {
+            btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            btn.setEnabled(true); 
+        } else {
+            btn.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            // We set the "Disabled Icon" to be the same transparent image
+            // so Java doesn't try to add its own gray filter on top of yours.
+            btn.setDisabledIcon(icon);
+            btn.setEnabled(false); 
+        }
         
         return btn;
     }
@@ -76,46 +112,51 @@ public class ImagePanel_Ac extends JPanel {
         int h = getHeight();
         if (w == 0 || h == 0) return;
 
-        // A. Back Button (Top Left)
+        // A. Back Button
         int btnSize = (int) (h * 0.18); 
         backButton.setBounds(30, 30, btnSize, btnSize);
         backButton.resizeIcon(btnSize);
 
-        // B. Achievement Icons Grid (2 Rows, 3 Columns)
+        // B. Icons Grid
         int iconSize = (int) (h * 0.28); 
         int gap = (int) (w * 0.08);      
 
-        // Calculate total width of one row (3 icons + 2 gaps)
         int totalRowWidth = (iconSize * 3) + (gap * 2);
-        
-        // Starting X position to center the row
         int startX = (w - totalRowWidth) / 2;
-        
-        // Starting Y positions for Row 1 and Row 2
-        // Row 1 starts at 35% down, Row 2 starts at 60% down
         int row1Y = (int) (h * 0.30); 
         int row2Y = (int) (h * 0.62);
 
         for (int i = 0; i < achievementIcons.size(); i++) {
             JButton btn = achievementIcons.get(i);
             
-            // Determine Row and Column
-            int row = i / 3; // 0 for first 3, 1 for next 3
-            int col = i % 3; // 0, 1, 2
-            
+            int row = i / 3; 
+            int col = i % 3; 
             int x = startX + (col * (iconSize + gap));
             int y = (row == 0) ? row1Y : row2Y;
 
             btn.setBounds(x, y, iconSize, iconSize);
             
-            // Resize image smoothly
-            ImageIcon original = new ImageIcon("images/ac_" + (i+1) + "i.png");
+            // --- RESIZE LOGIC ---
+            // We need to re-check status here to ensure we resize the CORRECT image
+            boolean isUnlocked = false;
+            if (unlockedStatus != null && i < unlockedStatus.size()) {
+                isUnlocked = unlockedStatus.get(i);
+            }
+            
+            String imgName = isUnlocked ? "ac_" + (i+1) + ".png" : "ac_" + (i+1) + "i.png";
+            ImageIcon original = new ImageIcon("images/" + imgName);
+            
             if (original.getImage() != null) {
                 Image scaled = original.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH);
-                btn.setIcon(new ImageIcon(scaled));
+                ImageIcon scaledIcon = new ImageIcon(scaled);
+                btn.setIcon(scaledIcon);
+                btn.setDisabledIcon(scaledIcon); // Ensure locked version resizes too
             }
         }
     }
+
+    
+
 
     @Override
     protected void paintComponent(Graphics g) {
