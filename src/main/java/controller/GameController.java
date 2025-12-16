@@ -13,7 +13,6 @@ import arena.Arena;
 import arena.ArenaLoader;
 import arena.Disc;
 import characters.Character;
-import characters.Tron;
 import characters.Direction;
 import designenemies.Enemy;
 import XPSystem.TronRules;
@@ -26,7 +25,7 @@ public class GameController implements KeyListener, Runnable {
     private final Map<String, ImageIcon> icons;
     private final JPanel arenaPanel;
     private final JPanel hudPanel;
-    private final Tron playerCycle;
+    private final Character playerCycle;
 
     // changed to CopyOnWriteArrayList to avoid concurrent modification when adding discs from key events
     private List<Disc> activeDiscs = new CopyOnWriteArrayList<>();
@@ -49,12 +48,11 @@ public class GameController implements KeyListener, Runnable {
         this.icons = icons;
         this.arenaPanel = arenaPanel;
         this.hudPanel = hudPanel;
-        this.playerCycle = (Tron) cycles.get(0);
-        this.gameFrame.addKeyListener(this);
+        this.playerCycle = cycles.get(0);        this.gameFrame.addKeyListener(this);
         this.gameFrame.setFocusable(true);
     }
 
-    public Tron getPlayer() { return this.playerCycle; }
+    public Character getPlayer() { return this.playerCycle; }
     public void stopGame() {
         isRunning = false;
         try {
@@ -99,23 +97,16 @@ public class GameController implements KeyListener, Runnable {
                         case EAST -> nextC++; case WEST -> nextC--;
                     }
 
-                        boolean wallHit = false; boolean tailHit = false;
+                        boolean wallHit = false;
 
                         if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) { wallHit = true; }
                         else {
                             char tile = grid[nextR][nextC];
-                            if (tile == 'T') tailHit = true;
-                            else if (tile != '.' && tile != 'S') wallHit = true;
+                            // Treat Tron and Kevin tails as normal wall hits (no instant kill)
+                            if (tile != '.' && tile != 'S') wallHit = true;
                         }
 
-                        if (tailHit) {
-                            enemy.changeLives(-100.0);
-                            awardKillXp(enemy); // STORES XP, DOES NOT LEVEL UP YET
-                            deadEnemies.add(enemy);
-                            if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
-                                grid[enemy.getRow()][enemy.getCol()] = '.';
-                            }
-                        } else if (wallHit) {
+                        if (wallHit) {
                             enemy.changeLives(-0.5);
                             if (enemy.getLives() <= 0) {
                                 awardKillXp(enemy); // STORES XP
@@ -133,7 +124,7 @@ public class GameController implements KeyListener, Runnable {
                             int eCol = enemy.getCol();
                             if (eRow >= 0 && eRow < 40 && eCol >= 0 && eCol < 40) {
                                 if (grid[eRow][eCol] == '.') {
-                                    char trailChar = 'K'; // Default
+                                char trailChar = 'M'; // Default minion trail
                                     String name = enemy.getName();
 
                                 if (name.contains("Clu"))        trailChar = 'C'; // Gold
@@ -288,7 +279,8 @@ public class GameController implements KeyListener, Runnable {
                     element = '.';
                 }
             }
-            if (element != '.' && element != 'T' && element != 'S') collided = true;
+            // Allow stepping onto player's own trail/symbol (e.g., 'T' for Tron, 'K' for Kevin)
+            if (element != '.' && element != 'S' && element != this.playerCycle.getSymbol()) collided = true;
         }
         if (collided) {
             this.playerCycle.changeLives(-0.5);
@@ -304,10 +296,10 @@ public class GameController implements KeyListener, Runnable {
     private void handleTrailDecay(char[][] grid, int[][] trailTimer) {
         for (int r = 0; r < 40; r++) { for (int c = 0; c < 40; c++) {
             char currentElement = grid[r][c];
-            if (currentElement == 'T') {
+            if (currentElement == 'T' || currentElement == 'K') {
                 int placementStep = trailTimer[r][c];
                 if (placementStep > 0 && (globalStepCounter - placementStep) >= TRAIL_DURATION) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
-            } else if (currentElement == 'K' || currentElement == 'C' || 
+            } else if (currentElement == 'M' || currentElement == 'C' || 
                      currentElement == 'Y' || currentElement == 'G' || 
                      currentElement == 'R') {
                 // Enemy trails - check if it's a boss (longer duration)
@@ -355,6 +347,11 @@ public class GameController implements KeyListener, Runnable {
     @Override public void keyPressed(KeyEvent e) {
         char key = java.lang.Character.toUpperCase(e.getKeyChar());
         if (key == 'W' || key == 'S' || key == 'A' || key == 'D') this.playerCycle.setDirection(key);
+        // Support Arrow keys as well for better UX
+        if (e.getKeyCode() == KeyEvent.VK_LEFT) this.playerCycle.setDirection('A');
+        if (e.getKeyCode() == KeyEvent.VK_RIGHT) this.playerCycle.setDirection('D');
+        if (e.getKeyCode() == KeyEvent.VK_UP) this.playerCycle.setDirection('W');
+        if (e.getKeyCode() == KeyEvent.VK_DOWN) this.playerCycle.setDirection('S');
         if (e.getKeyCode() == KeyEvent.VK_SPACE) throwDiscAction();
     }
     @Override public void keyReleased(KeyEvent e) {}

@@ -3,6 +3,7 @@ package UI;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.JPanel;
+import javax.swing.JFrame;
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
 
@@ -16,7 +17,24 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     int FPS = 60;
 
     // SYSTEM
-    CutsceneManager cutscene = new CutsceneManager();
+    public CutsceneManager cutscene = new CutsceneManager();
+
+    // Convenience API for other packages to start cutscenes without accessing the field
+    public void startCutscene(String filename) {
+        if (cutscene != null) {
+            // Ensure the panel is in cutscene state so draw() will render the scene
+            this.gameState = CUTSCENE_STATE;
+            cutscene.startScene(filename);
+        }
+    }
+
+    // Overload that allows the caller to specify whether NEXT_FILE chaining is allowed.
+    public void startCutscene(String filename, boolean allowChaining) {
+        if (cutscene != null) {
+            this.gameState = CUTSCENE_STATE;
+            cutscene.startScene(filename, allowChaining);
+        }
+    }
     
     // STATES
     public int gameState;
@@ -45,6 +63,26 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     public void startGameThread() {
         gameThread = new Thread(this);
         gameThread.start();
+    }
+
+    // Overload that accepts a parent frame (e.g., MainFrame) so callers can pass
+    // the frame and the panel can attach a KeyListener to it as a fallback.
+    public void startGameThread(JFrame parentFrame) {
+        if (parentFrame != null) {
+            parentFrame.addKeyListener(this);
+        }
+        startGameThread();
+    }
+
+    /**
+     * Stops the game thread cleanly. This causes the run loop to exit.
+     */
+    public void stopGameThread() {
+        if (gameThread != null) {
+            Thread t = gameThread;
+            gameThread = null; // run() loop will exit
+            try { t.interrupt(); } catch (Exception ignored) {}
+        }
     }
 
     @Override
@@ -126,9 +164,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         // DRAW GAME
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 20));
-        g.drawString("LEVEL " + currentLevel, 100, 100);
-        g.drawString("Press ENTER to Simulate Win", 100, 150);
-        g.drawString("Press ESC to Quit", 100, 200);
+        // Overlay text removed per request: no lines shown during PLAY_STATE
+        // If needed later, re-enable specific messages via config or a debug flag.
     }
 
     @Override

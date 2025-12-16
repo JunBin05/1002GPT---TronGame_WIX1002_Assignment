@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import javax.sound.sampled.*; 
 import javax.swing.ImageIcon;
+import javax.swing.SwingUtilities;
 
 public class CutsceneManager {
 
@@ -26,6 +27,13 @@ public class CutsceneManager {
     private int currentIndex = 0;
     public boolean isActive = false;
     private Image currentImage; 
+    // Fade-out state for smooth transition when a scene finishes
+    private volatile boolean fadingOut = false;
+    private volatile float fadeAlpha = 1.0f;
+    // When true, a trailing NEXT_FILE line will cause the manager to immediately start the next file.
+    // When false, NEXT_FILE is ignored and the scene will end normally.
+    private boolean allowChaining = true;
+    private Component repaintTarget = null;
     
     // AUDIO
     private Clip musicClip; 
@@ -46,9 +54,14 @@ public class CutsceneManager {
     }
 
     public void startScene(String filename) {
+        startScene(filename, true);
+    }
+
+    public void startScene(String filename, boolean allowChaining) {
         lines.clear();
         currentIndex = 0;
         isActive = true;
+        this.allowChaining = allowChaining;
 
         try {
             File file = new File("cutscene/" + filename);
@@ -73,6 +86,8 @@ public class CutsceneManager {
                 }
             }
             br.close();
+            br.close();
+            System.out.println("[CUTSCENE] Started scene '" + filename + "' with " + lines.size() + " lines.");
             
             processCurrentLine(); 
 
@@ -85,7 +100,10 @@ public class CutsceneManager {
     private void processCurrentLine() {
         if (currentIndex >= lines.size()) return;
 
-        SceneLine current = lines.get(currentIndex);
+        // Guard against race where currentIndex may be == lines.size() during fade
+        int idx = currentIndex;
+        if (idx >= lines.size()) idx = Math.max(0, lines.size() - 1);
+        SceneLine current = lines.get(idx);
 
         // AUDIO COMMANDS
         if (current.imagePath.equalsIgnoreCase("MUSIC")) {
@@ -119,14 +137,62 @@ public class CutsceneManager {
         if (currentIndex >= lines.size()) {
             SceneLine lastLine = lines.get(lines.size() - 1);
             if (lastLine.imagePath.equalsIgnoreCase("NEXT_FILE")) {
-                startScene(lastLine.name); 
+                if (allowChaining) {
+                    startScene(lastLine.name);
+                } else {
+                    stopMusic();
+                    System.out.println("[CUTSCENE] Scene finished. Starting fade-out...");
+                    startFadeOut();
+                }
             } else {
-                stopMusic(); 
-                isActive = false; 
+                stopMusic();
+                System.out.println("[CUTSCENE] Scene finished. Starting fade-out...");
+                startFadeOut();
             }
         } else {
             processCurrentLine();
         }
+    }
+
+    private void startFadeOut() {
+        if (fadingOut) return;
+        fadingOut = true;
+        fadeAlpha = 1.0f;
+        Thread fadeThread = new Thread(() -> {
+            try {
+                int steps = 10;
+                int delay = 40; // ~400ms total
+                for (int i = 0; i < steps; i++) {
+                    fadeAlpha = 1.0f - ((float) (i + 1) / steps);
+                    if (repaintTarget != null) SwingUtilities.invokeLater(() -> repaintTarget.repaint());
+                    Thread.sleep(delay);
+                }
+            } catch (InterruptedException ignored) {}
+            // finalize
+            fadingOut = false;
+            isActive = false;
+            currentImage = null;
+            if (repaintTarget != null) SwingUtilities.invokeLater(() -> repaintTarget.repaint());
+            System.out.println("[CUTSCENE] Fade-out complete, scene stopped.");
+        });
+        fadeThread.setDaemon(true);
+        fadeThread.start();
+    }
+
+    /**
+     * Forcefully stop the cutscene immediately (no fade)
+     */
+    public void forceStop() {
+        fadingOut = false;
+        fadeAlpha = 0f;
+        isActive = false;
+        currentImage = null;
+        if (repaintTarget != null) SwingUtilities.invokeLater(() -> repaintTarget.repaint());
+    }
+
+    // Backwards-compatible method for checking active state
+    public boolean isActive() {
+        return isActive;
     }
 
     public void playMusic(String filename) {
@@ -167,12 +233,33 @@ public class CutsceneManager {
         }
     }
 
+    /**
+     * Returns whether the cutscene is currently fading out.
+     * Exposed as a method to avoid making the internal field public.
+     */
+    public boolean isFadingOut() {
+        return fadingOut;
+    }
+
     public void draw(Graphics g, int screenWidth, int screenHeight, ImageObserver observer) {
-        if (!isActive || currentImage == null) return;
+        // If nothing to draw, exit early
+        if (lines.isEmpty() || currentImage == null) return;
 
-        g.drawImage(currentImage, 0, 0, screenWidth, screenHeight, observer);
+        // remember repaint target so fade thread can trigger repaints
+        if (observer instanceof Component) repaintTarget = (Component) observer;
 
-        SceneLine current = lines.get(currentIndex);
+        Graphics2D g2 = (Graphics2D) g.create();
+        if (fadingOut) {
+            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fadeAlpha));
+        }
+        g2.drawImage(currentImage, 0, 0, screenWidth, screenHeight, observer);
+        g2.dispose();
+
+        // Defensive: currentIndex may be incremented to lines.size() while fade-out is running
+        int idx = currentIndex;
+        if (idx < 0) idx = 0;
+        if (idx >= lines.size()) idx = Math.max(0, lines.size() - 1);
+        SceneLine current = lines.get(idx);
 
         // HIDE COMMANDS
         if (current.imagePath.equalsIgnoreCase("MUSIC") || 
