@@ -14,8 +14,6 @@ public class ImagePanel_Ac extends JPanel {
     private BackButton backButton;
     private List<JButton> achievementIcons; 
     private DatabaseManager dbManager; 
-    
-    // We store the status list here so updateLayout can use it later
     private List<Boolean> unlockedStatus; 
 
     public ImagePanel_Ac(MainFrame mainFrame) {
@@ -37,6 +35,15 @@ public class ImagePanel_Ac extends JPanel {
         String currentUser = mainFrame.getCurrentUsername();
         this.unlockedStatus = dbManager.getAchievements(currentUser);
 
+        String[] descriptions = {
+            "First Blood: Defeat your very first enemy.",                   // For Icon 1
+            "Flawless Victory: Complete a level without losing any life.",  // For Icon 2
+            "Learning the Hard Way: Experience your first dead.",           // For Icon 3
+            "Boss Slayer: Defeat a boss for the first time.",               // For Icon 4
+            "Into the void: Fall Outside the map.",                         // For Icon 5
+            "Game Conqueror: Complete the first game."                      // For Icon 6
+        };      
+
         // 4. Create 6 Achievement Icons
         achievementIcons = new ArrayList<>();
         
@@ -55,7 +62,7 @@ public class ImagePanel_Ac extends JPanel {
             String imgName = isUnlocked ? "ac_" + achID + ".png" : "ac_" + achID + "i.png";
             String imgPath = "images/" + imgName;
 
-            JButton btn = createIcon(imgPath, isUnlocked);
+            JButton btn = createIcon(imgPath, isUnlocked, descriptions[i]);
             
             // Add click listener (mostly for debugging or feedback)
             boolean finalStatus = isUnlocked;
@@ -83,8 +90,8 @@ public class ImagePanel_Ac extends JPanel {
         });
     }
 
-    // --- Helper to create button ---
-    private JButton createIcon(String path, boolean unlocked) {
+    // Added 'String tooltip' parameter
+    private JButton createIcon(String path, boolean unlocked, String tooltip) {
         ImageIcon icon = new ImageIcon(path);
         JButton btn = new JButton(icon);
         
@@ -92,16 +99,22 @@ public class ImagePanel_Ac extends JPanel {
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
         
+        // --- THIS LINE APPLIES TO EVERYONE (LOCKED & UNLOCKED) ---
+        btn.setToolTipText(tooltip); 
+        // ---------------------------------------------------------
+
         if (unlocked) {
+            // Unlocked: Hand Cursor
             btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            btn.setEnabled(true); 
         } else {
+            // Locked: Default Cursor
             btn.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-            // We set the "Disabled Icon" to be the same transparent image
-            // so Java doesn't try to add its own gray filter on top of yours.
-            btn.setDisabledIcon(icon);
-            btn.setEnabled(false); 
         }
+        
+        // IMPORTANT: We keep the button ENABLED for everyone.
+        // If we setEnabled(false), the tooltip would NOT show.
+        // Since we handle the "gray" image manually, this is safe.
+        btn.setEnabled(true); 
         
         return btn;
     }
@@ -150,7 +163,6 @@ public class ImagePanel_Ac extends JPanel {
                 Image scaled = original.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH);
                 ImageIcon scaledIcon = new ImageIcon(scaled);
                 btn.setIcon(scaledIcon);
-                btn.setDisabledIcon(scaledIcon); // Ensure locked version resizes too
             }
         }
     }
