@@ -84,6 +84,16 @@ public class MainFrame extends JFrame {
         revalidate();
         repaint();
     }
+
+    public void changeToAchievement() {
+        // Create the achievement panel
+        ImagePanel_Ac acPanel = new ImagePanel_Ac(this);
+        
+        // Switch the screen content
+        setContentPane(acPanel);
+        revalidate();
+        repaint();
+    }
     
 
     
@@ -93,5 +103,10 @@ public class MainFrame extends JFrame {
             MainFrame gui = new MainFrame();
             gui.setVisible(true);
         });
+    }
+
+
+    public String getCurrentUsername() {
+        return this.currentUsername;
     }
 }
