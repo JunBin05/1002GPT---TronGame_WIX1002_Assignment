@@ -48,7 +48,7 @@ public class MainFrame extends JFrame {
 
     public void changeToGameMode() {
  
-        ImagePanel_GameMode gameModePanel = new ImagePanel_GameMode("images/tron_3a.png", this, currentUsername);
+        ImagePanel_GameMode gameModePanel = new ImagePanel_GameMode("images/tron_3.png", this, currentUsername);
     
          setContentPane(gameModePanel);
          revalidate();
