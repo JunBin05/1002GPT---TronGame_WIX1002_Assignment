@@ -88,7 +88,6 @@ public class GameController implements KeyListener, Runnable {
                     if (enemyMoveTick % moveInterval != 0) continue;
 
                     Direction nextMove = enemy.decideMove();
-                    enemy.currentDirection = nextMove;
 
                     int nextR = enemy.getRow();
                     int nextC = enemy.getCol();
@@ -127,8 +126,7 @@ public class GameController implements KeyListener, Runnable {
                             if (blockedByOtherEnemy) {
                                 // Other enemy occupies the cell: avoid damaging either side, just turn around
                                 enemy.setOppositeDirection();
-                                // Try to step back a bit to avoid repeated collisions (non-lethal)
-                                try { enemy.revertPosition(grid, trailTimer); } catch (Exception ignored) {}
+                                // Do not call revertPosition here because the enemy has not moved yet
                             } else {
                                 enemy.changeLives(-0.5);
                                 if (enemy.getLives() <= 0) {
@@ -138,11 +136,13 @@ public class GameController implements KeyListener, Runnable {
                                         grid[enemy.getRow()][enemy.getCol()] = '.';
                                     }
                                 } else {
-                                    enemy.revertPosition(grid, trailTimer);
+                                    // The enemy did not move into the wall, so just turn it around
                                     enemy.setOppositeDirection();
                                 }
                             }
                         } else {
+                            // Movement allowed: commit the new direction and advance
+                            enemy.currentDirection = nextMove;
                             enemy.advancePosition(grid);
                             int eRow = enemy.getRow();
                             int eCol = enemy.getCol();
