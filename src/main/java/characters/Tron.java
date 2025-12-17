@@ -12,9 +12,9 @@ public class Tron extends Character {
     public void levelUp() {
         super.levelUp(); 
         
-        // Much slower speed increase - only 0.02 per level instead of 0.05
-        speed += 0.02; 
-        handling += 0.02; 
+        // Uniform per-level increases (small): Tron focuses on speed and stability
+        speed = Math.min(1.0, speed + 0.005); 
+        handling = Math.min(1.0, handling + 0.003);
         
         // --- FIXED HEART LOGIC ---
         // Every 10 levels, increase MAXIMUM lives

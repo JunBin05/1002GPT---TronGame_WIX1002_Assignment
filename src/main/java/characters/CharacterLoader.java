@@ -55,4 +55,13 @@ public class CharacterLoader {
         System.err.println("FATAL: Character data not found in file for: " + characterName);
         return null;
     }
+
+    // Simple debug runner to verify the loader reads from the data file
+    public static void main(String[] args) {
+        System.out.println("[CharacterLoader] Debug run: attempting to load Tron and Kevin from " + FILE_PATH);
+        CharacterData t = loadCharacterData("Tron");
+        if (t != null) System.out.println(String.format("Loaded Tron -> speed=%.3f handling=%.3f lives=%d discs=%d xp=%d", t.speed, t.handling, t.lives, t.discsOwned, t.experiencePoints)); else System.out.println("Failed to load Tron data.");
+        CharacterData k = loadCharacterData("Kevin");
+        if (k != null) System.out.println(String.format("Loaded Kevin -> speed=%.3f handling=%.3f lives=%d discs=%d xp=%d", k.speed, k.handling, k.lives, k.discsOwned, k.experiencePoints)); else System.out.println("Failed to load Kevin data.");
+    }
 }

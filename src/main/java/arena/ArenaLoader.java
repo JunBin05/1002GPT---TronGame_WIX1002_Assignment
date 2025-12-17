@@ -61,6 +61,20 @@ public class ArenaLoader {
                 persistentKevin = new Kevin();
                 CharacterData data = CharacterLoader.loadCharacterData("Kevin");
                 if (data != null) persistentKevin.loadInitialAttributes(data);
+                // Try to load saved XP for Kevin if user logged in
+                try {
+                    if (mainFrame instanceof UI.MainFrame) {
+                        String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
+                        if (user != null && !user.trim().isEmpty()) {
+                            UI.DatabaseManager db = new UI.DatabaseManager();
+                            long savedXp = db.getKevinXp(user);
+                            if (savedXp > 0) {
+                                persistentKevin.setXp(savedXp);
+                                System.out.println("Loaded saved Kevin XP for " + user + ": " + savedXp);
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
             persistentPlayer = persistentKevin;
         } else {
@@ -68,6 +82,20 @@ public class ArenaLoader {
                 persistentTron = new Tron();
                 CharacterData data = CharacterLoader.loadCharacterData("Tron");
                 if (data != null) persistentTron.loadInitialAttributes(data);
+                // Try to load saved XP for Tron if user logged in
+                try {
+                    if (mainFrame instanceof UI.MainFrame) {
+                        String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
+                        if (user != null && !user.trim().isEmpty()) {
+                            UI.DatabaseManager db = new UI.DatabaseManager();
+                            long savedXp = db.getTronXp(user);
+                            if (savedXp > 0) {
+                                persistentTron.setXp(savedXp);
+                                System.out.println("Loaded saved Tron XP for " + user + ": " + savedXp);
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
             persistentPlayer = persistentTron;
         }
@@ -77,7 +105,21 @@ public class ArenaLoader {
     private static BufferedImage toBufferedImage(Image img) { if (img instanceof BufferedImage) return (BufferedImage) img; BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB); Graphics2D bGr = bimage.createGraphics(); bGr.drawImage(img, 0, 0, null); bGr.dispose(); return bimage; }
     private static BufferedImage rotateImage(BufferedImage image, double angleRadians) { double sin = Math.abs(Math.sin(angleRadians)); double cos = Math.abs(Math.cos(angleRadians)); int width = image.getWidth(); int height = image.getHeight(); int newWidth = (int) Math.floor(width * cos + height * sin); int newHeight = (int) Math.floor(height * cos + width * sin); BufferedImage rotatedImage = new BufferedImage(newWidth, newHeight, image.getType()); Graphics2D g2d = rotatedImage.createGraphics(); AffineTransform at = new AffineTransform(); at.translate(newWidth / 2, newHeight / 2); at.rotate(angleRadians); at.translate(-width / 2, -height / 2); g2d.drawImage(image, at, null); g2d.dispose(); return rotatedImage; }
     private static ImageIcon loadAndScale(String relativePath, int size) { try { File imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath); ImageIcon original = new ImageIcon(imageFile.getAbsolutePath()); if (original.getImageLoadStatus() == MediaTracker.COMPLETE) { Image scaled = original.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH); return new ImageIcon(scaled); } } catch (Exception e) {} return null; }
-    public static Arena loadArena(int choice) { return new ArenaOne(); }
+    public static Arena loadArena(int choice) {
+        try {
+            switch (currentChapter) {
+                case 1: return new ArenaOne();
+                case 2: return new ArenaTwo();
+                case 3: return new ArenaThree();
+                case 4: case 5: default: return new RandomArena();
+            }
+        } catch (Exception ex) {
+            System.err.println("[ArenaLoader] Failed to load arena for chapter " + currentChapter + ": " + ex.getMessage());
+            ex.printStackTrace();
+            // Fallback: return RandomArena to avoid crashing
+            try { return new RandomArena(); } catch (Exception e) { throw new RuntimeException("No arena available", e); }
+        }
+    }
 
     private static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
         Map<String, ImageIcon> icons = new HashMap<>();
@@ -344,11 +386,46 @@ public class ArenaLoader {
             discSlotsContainer.repaint();
         }
 
-        // 2. UPDATE HEARTS - Dynamic based on maxLives
+        // 2. UPDATE HEARTS - Dynamic based on maxLives (Prefer saved max-level stats if user is logged-in)
+        double displayMaxLives = player.getMaxLives();
+        double displayCurrentLives = player.getLives();
+        int displayDiscCap = player.getDiscCapacity();
+        double displaySpeed = player.getSpeed();
+        double displayHandling = player.getHandling();
+        int displayLevel = player.getLevel();
+
+        if (mainFrame instanceof UI.MainFrame) {
+            String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
+            if (username != null && !username.trim().isEmpty()) {
+                try {
+                    UI.DatabaseManager db = new UI.DatabaseManager();
+                    int savedLevel = (player.name.equals("Tron")) ? db.getTronLevel(username) : db.getKevinLevel(username);
+                    if (savedLevel > 0) {
+                        // Construct a fresh instance and simulate level-ups to compute attributes at saved level
+                        characters.CharacterData base = characters.CharacterLoader.loadCharacterData(player.name);
+                        characters.Character simulated = player.name.equals("Tron") ? new characters.Tron() : new characters.Kevin();
+                        if (base != null) simulated.loadInitialAttributes(base);
+                        while (simulated.getLevel() < savedLevel) simulated.levelUp();
+
+                        displayLevel = simulated.getLevel();
+                        displaySpeed = simulated.getSpeed();
+                        displayHandling = simulated.getHandling();
+                        displayDiscCap = simulated.getDiscCapacity();
+                        displayMaxLives = simulated.getMaxLives();
+
+                        // For current lives, cap it to displayMaxLives (don't change player's actual lives)
+                        if (displayCurrentLives > displayMaxLives) displayCurrentLives = displayMaxLives;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
         if (hpContainer != null) {
             hpContainer.removeAll();
-            double currentLives = player.getLives();
-            double maxLives = player.getMaxLives();
+            double currentLives = displayCurrentLives;
+            double maxLives = displayMaxLives;
             int totalHalfUnits = (currentLives <= 0.001) ? 0 : (int) Math.round(currentLives * 2);
             int maxHalfUnits = (int) Math.round(maxLives * 2);
             int maxHearts = (maxHalfUnits + 1) / 2; // Round up: 2 half-units = 1 heart
@@ -367,25 +444,25 @@ public class ArenaLoader {
 
         // 3. UPDATE LEVEL & XP
         if (levelLabel != null) {
-            levelLabel.setText("LEVEL " + player.getLevel());
+            levelLabel.setText("LEVEL " + displayLevel);
         }
         if (xpLabel != null) {
             long currentXP = player.getXp();
-            long nextXP = TronRules.getTotalXpForLevel(player.getLevel() + 1);
+            long nextXP = TronRules.getTotalXpForLevel(displayLevel + 1);
             xpLabel.setText("XP: " + currentXP + " / " + nextXP);
         }
         
         // 4. UPDATE SPEED & HANDLING
         if (speedLabel != null) {
-            speedLabel.setText("SPD: " + String.format("%.2f", player.getSpeed()));
+            speedLabel.setText("SPD: " + String.format("%.2f", displaySpeed));
         }
         if (handlingLabel != null) {
-            handlingLabel.setText("PRE: " + String.format("%.2f", player.getHandling()));
+            handlingLabel.setText("PRE: " + String.format("%.2f", displayHandling));
         }
         
         // 5. UPDATE DISC LABEL
         if (discLabel != null) {
-            discLabel.setText("DISCS: " + player.discsOwned);
+            discLabel.setText("DISCS: " + displayDiscCap);
         }
     }
 
@@ -475,13 +552,13 @@ public class ArenaLoader {
                             }
                             break;
                         // --- NEW COLORED TRAILS ---
-                        case 'C': // Clu (Gold)
-                            cellPanel.setBackground(new Color(255, 215, 0)); 
-                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.ORANGE, 1)); 
+                        case 'C': // Clu (orange for stronger contrast)
+                            cellPanel.setBackground(new Color(255, 140, 0)); // bright orange
+                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(200, 100, 0), 2)); 
                             break;
-                        case 'Y': // Sark (Yellow)
-                            cellPanel.setBackground(Color.YELLOW); 
-                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1)); 
+                        case 'Y': // Sark (vivid yellow)
+                            cellPanel.setBackground(new Color(255, 230, 0)); // vivid yellow
+                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1)); 
                             break;
                         case 'G': // Koura (Green)
                             cellPanel.setBackground(new Color(50, 205, 50)); 
@@ -501,7 +578,28 @@ public class ArenaLoader {
         arenaPanel.revalidate(); arenaPanel.repaint();
     }
 
-    public static void showGameOverDialog(JFrame parentFrame) { JDialog gameOverDialog = new JDialog(parentFrame, "Game Over", true); gameOverDialog.setSize(500, 250); gameOverDialog.setLayout(new BorderLayout()); gameOverDialog.setLocationRelativeTo(parentFrame); Color DIALOG_BG = new Color(15, 0, 40); gameOverDialog.getContentPane().setBackground(DIALOG_BG); JLabel title = new JLabel("::: DEREZZED :::", SwingConstants.CENTER); title.setFont(new Font("Monospaced", Font.BOLD, 42)); title.setForeground(Color.RED); title.setBorder(new EmptyBorder(30, 0, 0, 0)); gameOverDialog.add(title, BorderLayout.NORTH); JButton closeButton = new JButton("EXIT GRID"); closeButton.setFont(new Font("Monospaced", Font.BOLD, 20)); closeButton.setBackground(Color.BLACK); closeButton.setForeground(Color.CYAN); closeButton.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.CYAN, 2), BorderFactory.createEmptyBorder(10, 30, 10, 30))); closeButton.setFocusPainted(false); closeButton.addActionListener(e -> System.exit(0)); JPanel buttonPanel = new JPanel(); buttonPanel.setBackground(DIALOG_BG); buttonPanel.setBorder(new EmptyBorder(0, 0, 30, 0)); buttonPanel.add(closeButton); gameOverDialog.add(buttonPanel, BorderLayout.SOUTH); gameOverDialog.setVisible(true); }
+    public static void showGameOverDialog(JFrame parentFrame) {
+        // Present a friendly choice to the player: try the level again or quit
+        JLabel title = new JLabel("::: DEREZZED :::", SwingConstants.CENTER);
+        title.setFont(new Font("Monospaced", Font.BOLD, 42));
+        title.setForeground(Color.RED);
+        title.setBorder(new EmptyBorder(10, 0, 10, 0));
+
+        JLabel message = new JLabel("<html><div style='text-align:center;'>You have lost this stage.<br/>Would you like to try again?</div></html>", SwingConstants.CENTER);
+        message.setFont(new Font("Monospaced", Font.PLAIN, 16));
+        message.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        Object[] options = {"Try Again", "Quit"};
+        int choice = JOptionPane.showOptionDialog(parentFrame, new Object[]{title, message}, "Game Over",
+                JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+
+        if (choice == JOptionPane.YES_OPTION) {
+            // Restart the current stage
+            startLevel();
+        } else {
+            System.exit(0);
+        }
+    }
 
     public static void startLevel() {
         System.out.println("[ArenaLoader] startLevel() called");
@@ -512,150 +610,211 @@ public class ArenaLoader {
             }
             levelStarting = true;
         }
-        // ALWAYS clean up old listeners first, regardless of thread state
-        if (mainFrame != null) {
-            java.awt.event.KeyListener[] listeners = mainFrame.getKeyListeners();
-            for (java.awt.event.KeyListener kl : listeners) {
-                mainFrame.removeKeyListener(kl);
-            }
-        }
 
-        // Stop old thread if still running
-        if (gameThread != null && gameThread.isAlive()) {
-            activeController.stopGame();
-            try {
-                gameThread.join(5000);
-            } catch (InterruptedException ex) {
-                // ignore
-            }
-        }
-        activeController = null;
-        mainFrame.getContentPane().removeAll();
-
-        Arena arena = loadArena(1);
-        Map<String, ImageIcon> icons = loadAllIcons(mainFrame);
-
-        // --- PERSISTENCE LOGIC ---
-        // Ensure we have a selected persistent player (default to Tron)
-        if (persistentPlayer == null) {
-            setSelectedPlayer("Tron");
-        }
-
-        // Reset Position for new level
-        persistentPlayer.r = 20;
-        persistentPlayer.c = 15;
-        persistentPlayer.currentDirection = Direction.EAST;
-        persistentPlayer.setStunned(false); // Make sure the player isn't stunned from last level
-        // Refill discs and reset health for new stage
-        persistentPlayer.prepareForNextStage();
-
-        // Add to active cycle list
-        List<Character> cycles = new ArrayList<>();
-        cycles.add(persistentPlayer);
-
-        // Load Enemies
-        List<Character> enemies = LevelManager.loadStage(currentChapter, currentStage, arena.getGrid());
-        cycles.addAll(enemies);
-
-        // Check if any boss enemies spawned and show notification
-        StringBuilder bossWarning = new StringBuilder();
-        for (Character c : enemies) {
-            if (c instanceof designenemies.Enemy) {
-                designenemies.Enemy enemy = (designenemies.Enemy) c;
-                if (enemy.isBoss()) {
-                    bossWarning.append("⚠ BOSS ALERT: ").append(enemy.getName()).append(" [BOSS]\n");
+        try {
+            // ALWAYS clean up old listeners first, regardless of thread state
+            if (mainFrame != null) {
+                java.awt.event.KeyListener[] listeners = mainFrame.getKeyListeners();
+                for (java.awt.event.KeyListener kl : listeners) {
+                    mainFrame.removeKeyListener(kl);
                 }
             }
-        }
-        if (bossWarning.length() > 0) {
-            // Show boss warning and FREEZE the game (blocking dialog)
-            JLabel msgLabel = new JLabel("<html><b style='color:red;font-size:16px;'>⚠ BOSS ENCOUNTER ⚠</b><br>" +
-                    bossWarning.toString().replace("\n", "<br>") + 
-                    "<br>Watch out for faster movement and longer trails!</html>");
-            JOptionPane.showMessageDialog(mainFrame, msgLabel, "BOSS WARNING", JOptionPane.WARNING_MESSAGE);
-        }
 
-        System.out.println("Starting C" + currentChapter + ":S" + currentStage + " | Player Level: " + persistentPlayer.getLevel());
-
-        // --- CREATE GAME PANEL (for cutscene integration) ---
-        UI.GamePanel gamePanel = new UI.GamePanel();
-        JPanel arenaPanel = new JPanel(new GridLayout(40, 40));
-        arenaPanel.setBackground(new Color(10, 10, 20));
-
-        // Pass the selected persistent player to sidebar
-        JPanel sidebarPanel = createSidebarPanel(persistentPlayer, icons);
-
-        JPanel container = new JPanel(new BorderLayout());
-        container.add(gamePanel, BorderLayout.CENTER); // Use gamePanel for cutscene overlay
-        container.add(sidebarPanel, BorderLayout.EAST);
-        mainFrame.setContentPane(container);
-        mainFrame.revalidate();
-        mainFrame.repaint();
-
-        // Ensure the GamePanel has keyboard focus and a running thread so it can receive
-        // Space (and other) key events while the pre-stage cutscene plays.
-        gamePanel.setFocusable(true);
-        // Request focus on the EDT to increase reliability
-        SwingUtilities.invokeLater(() -> gamePanel.requestFocusInWindow());
-        // Start the internal game loop and attach KeyListener to the frame
-        gamePanel.startGameThread(mainFrame);
-
-        // Show pre-stage cutscene (suffix "a") if available, using CutsceneUtil and the real GamePanel
-        // Avoid showing it again if it was already shown earlier (e.g., after character selection)
-        if (!(lastPreCutsceneChapter == currentChapter && lastPreCutsceneStage == currentStage)) {
-            // Play the per-stage pre-cutscene WITHOUT following NEXT_FILE links so it doesn't chain to other stages
-            CutsceneUtil.showCutsceneIfExists(currentChapter, currentStage, "a", mainFrame, gamePanel, false);
-            // Record that we showed it
-            lastPreCutsceneChapter = currentChapter;
-            lastPreCutsceneStage = currentStage;
-        }
-
-        // Wait for cutscene to finish before showing start simulation dialog.
-        // IMPORTANT: Do not block the EDT here (cutscene animations run on the GamePanel's thread),
-        // so spawn a background waiter thread and continue work on the EDT when ready.
-        Thread waiter = new Thread(() -> {
-            try {
-                while (gamePanel.cutscene.isActive()) {
-                    Thread.sleep(50);
-                }
-
-                // Now show the start dialog and initialize the active controller on the EDT
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(mainFrame, "Press OK to start simulation!\nUse arrow keys to move.", "Start Simulation", JOptionPane.INFORMATION_MESSAGE);
-                    // Ensure frame is focused for keyboard input
-                    mainFrame.requestFocusInWindow();
-
-                    // --- SANITIZE GRID: remove stray 'D' markers so discs are visible on new stage ---
-                    // Ensure any lingering cutscene overlay is force-stopped so arena renders cleanly
-                    try { gamePanel.cutscene.forceStop(); } catch (Exception ignored) {}
-                    sanitizeGrid(arena);
-
-                    // Replace the temporary GamePanel with the actual arena panel so the arena is visible
-                    Container content = mainFrame.getContentPane();
+            // Stop old thread if still running. DO NOT block the EDT — defer start until previous thread exits.
+            if (gameThread != null && gameThread.isAlive()) {
+                System.out.println("[ArenaLoader] Previous game thread is still alive; requesting stop and will restart after it finishes.");
+                activeController.stopGame();
+                Thread stopper = new Thread(() -> {
                     try {
-                        // Stop the game panel thread before removing it to avoid stray repaints
-                        try { gamePanel.stopGameThread(); } catch (Exception ignored) {}
-                        content.remove(gamePanel);
-                        content.add(arenaPanel, BorderLayout.CENTER);
-                    } catch (Exception e) {
-                        System.out.println("WARN: Failed to swap panels: " + e.getMessage());
+                        gameThread.join(3000);
+                    } catch (InterruptedException ex) {
+                        // ignore
+                    }
+                    System.out.println("[ArenaLoader] Previous game thread stopped; resuming startLevel on EDT.");
+                    SwingUtilities.invokeLater(() -> startLevel());
+                }, "ArenaLoader-Starter");
+                stopper.setDaemon(true);
+                stopper.start();
+                // Allow future startLevel calls when the stopper re-invokes startLevel
+                synchronized (startLock) { levelStarting = false; }
+                return;
+            }
+            activeController = null;
+            mainFrame.getContentPane().removeAll();
+
+            // Select arena based on the current chapter so transitions load correct map
+            Arena arena = loadArena(currentChapter);
+            Map<String, ImageIcon> icons = loadAllIcons(mainFrame);
+
+            // --- PERSISTENCE LOGIC ---
+            // Ensure we have a selected persistent player (default to Tron)
+            if (persistentPlayer == null) {
+                setSelectedPlayer("Tron");
+            }
+
+            // If the user is logged-in, ensure we load saved XP (in case setSelectedPlayer was called
+            // before the mainFrame/username was available). We do this once per startLevel to be safe.
+            try {
+                if (mainFrame instanceof UI.MainFrame) {
+                    String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
+                    if (user != null && !user.trim().isEmpty()) {
+                        UI.DatabaseManager db = new UI.DatabaseManager();
+                        // Load and reconcile saved level and XP so we don't show mismatched state
+                        int savedTronLevel = db.getTronLevel(user);
+                        long savedTronXp = db.getTronXp(user);
+                        if (savedTronLevel > 0) {
+                            // Ensure saved XP is at least the min total XP for that saved level
+                            long minXpForLevel = XPSystem.TronRules.getTotalXpForLevel(savedTronLevel);
+                            if (savedTronXp < minXpForLevel) savedTronXp = minXpForLevel;
+                            if (persistentTron != null) { persistentTron.setXp(savedTronXp); System.out.println("[ArenaLoader] Reconciled and loaded Tron level/XP for " + user + ": L" + savedTronLevel + ", XP=" + savedTronXp); }
+                        } else {
+                            long saved = db.getTronXp(user);
+                            if (saved > 0 && persistentTron != null) { persistentTron.setXp(saved); System.out.println("[ArenaLoader] Loaded Tron XP for " + user + ": " + saved); }
+                        }
+
+                        int savedKevinLevel = db.getKevinLevel(user);
+                        long savedKevinXp = db.getKevinXp(user);
+                        if (savedKevinLevel > 0) {
+                            long minXpForLevel = XPSystem.TronRules.getTotalXpForLevel(savedKevinLevel);
+                            if (savedKevinXp < minXpForLevel) savedKevinXp = minXpForLevel;
+                            if (persistentKevin != null) { persistentKevin.setXp(savedKevinXp); System.out.println("[ArenaLoader] Reconciled and loaded Kevin level/XP for " + user + ": L" + savedKevinLevel + ", XP=" + savedKevinXp); }
+                        } else {
+                            long saved = db.getKevinXp(user);
+                            if (saved > 0 && persistentKevin != null) { persistentKevin.setXp(saved); System.out.println("[ArenaLoader] Loaded Kevin XP for " + user + ": " + saved); }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            // Reset Position for new level
+            persistentPlayer.r = 20;
+            persistentPlayer.c = 15;
+            persistentPlayer.currentDirection = Direction.EAST;
+            persistentPlayer.setStunned(false); // Make sure the player isn't stunned from last level
+            // Refill discs and reset health for new stage
+            persistentPlayer.prepareForNextStage();
+
+            // Add to active cycle list
+            List<Character> cycles = new ArrayList<>();
+            cycles.add(persistentPlayer);
+
+            // Load Enemies
+            List<Character> enemies = LevelManager.loadStage(currentChapter, currentStage, arena.getGrid());
+            cycles.addAll(enemies);
+
+            // Check if any boss enemies spawned and show notification
+            StringBuilder bossWarning = new StringBuilder();
+            for (Character c : enemies) {
+                if (c instanceof designenemies.Enemy) {
+                    designenemies.Enemy enemy = (designenemies.Enemy) c;
+                    if (enemy.isBoss()) {
+                        bossWarning.append("⚠ BOSS ALERT: ").append(enemy.getName()).append(" [BOSS]\n");
+                    }
+                }
+            }
+            if (bossWarning.length() > 0) {
+                // Show boss warning and FREEZE the game (blocking dialog)
+                JLabel msgLabel = new JLabel("<html><b style='color:red;font-size:16px;'>⚠ BOSS ENCOUNTER ⚠</b><br>" +
+                        bossWarning.toString().replace("\n", "<br>") + 
+                        "<br>Watch out for faster movement and longer trails!</html>");
+                JOptionPane.showMessageDialog(mainFrame, msgLabel, "BOSS WARNING", JOptionPane.WARNING_MESSAGE);
+            }
+
+            System.out.println("Starting C" + currentChapter + ":S" + currentStage + " | Player Level: " + persistentPlayer.getLevel());
+
+            // --- CREATE GAME PANEL (for cutscene integration) ---
+            UI.GamePanel gamePanel = new UI.GamePanel();
+            JPanel arenaPanel = new JPanel(new GridLayout(40, 40));
+            arenaPanel.setBackground(new Color(10, 10, 20));
+
+            // Pass the selected persistent player to sidebar
+            JPanel sidebarPanel = createSidebarPanel(persistentPlayer, icons);
+
+            JPanel container = new JPanel(new BorderLayout());
+            container.add(gamePanel, BorderLayout.CENTER); // Use gamePanel for cutscene overlay
+            container.add(sidebarPanel, BorderLayout.EAST);
+            mainFrame.setContentPane(container);
+            mainFrame.revalidate();
+            mainFrame.repaint();
+
+            // Ensure the GamePanel has keyboard focus and a running thread so it can receive
+            // Space (and other) key events while the pre-stage cutscene plays.
+            gamePanel.setFocusable(true);
+            // Request focus on the EDT to increase reliability
+            SwingUtilities.invokeLater(() -> gamePanel.requestFocusInWindow());
+            // Start the internal game loop and attach KeyListener to the frame
+            gamePanel.startGameThread(mainFrame);
+
+            // Show pre-stage cutscene (suffix "a") if available, using CutsceneUtil and the real GamePanel
+            // Avoid showing it again if it was already shown earlier (e.g., after character selection)
+            if (!(lastPreCutsceneChapter == currentChapter && lastPreCutsceneStage == currentStage)) {
+                // Play the per-stage pre-cutscene WITHOUT following NEXT_FILE links so it doesn't chain to other stages
+                CutsceneUtil.showCutsceneIfExists(currentChapter, currentStage, "a", mainFrame, gamePanel, false);
+                // Record that we showed it
+                lastPreCutsceneChapter = currentChapter;
+                lastPreCutsceneStage = currentStage;
+            }
+
+            // Wait for cutscene to finish before showing start simulation dialog.
+            // IMPORTANT: Do not block the EDT here (cutscene animations run on the GamePanel's thread),
+            // so spawn a background waiter thread and continue work on the EDT when ready.
+            Thread waiter = new Thread(() -> {
+                try {
+                    while (gamePanel.cutscene.isActive()) {
+                        Thread.sleep(50);
                     }
 
-                    // Populate arena and refresh UI
-                    redrawArena(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
-                    mainFrame.revalidate(); mainFrame.repaint();
+                    // Now show the start dialog and initialize the active controller on the EDT
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(mainFrame, "Press OK to start simulation!\nUse arrow keys to move.", "Start Simulation", JOptionPane.INFORMATION_MESSAGE);
+                        // Ensure frame is focused for keyboard input
+                        mainFrame.requestFocusInWindow();
 
-                    // Start the active controller (game loop)
-                    activeController = new GameController(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
-                    gameThread = new Thread(activeController);
-                    gameThread.start();
-                    // Allow future startLevel calls after initialization completes
-                    synchronized (startLock) { levelStarting = false; }
-                });
-            } catch (InterruptedException ignored) {}
-        });
-        waiter.setDaemon(true);
-        waiter.start();
+                        // --- SANITIZE GRID: remove stray 'D' markers so discs are visible on new stage ---
+                        // Ensure any lingering cutscene overlay is force-stopped so arena renders cleanly
+                        try { gamePanel.cutscene.forceStop(); } catch (Exception ignored) {}
+                        sanitizeGrid(arena);
+
+                        // Replace the temporary GamePanel with the actual arena panel so the arena is visible
+                        Container content = mainFrame.getContentPane();
+                        try {
+                            // Stop the game panel thread before removing it to avoid stray repaints
+                            try { gamePanel.stopGameThread(); } catch (Exception ignored) {}
+                            content.remove(gamePanel);
+                            content.add(arenaPanel, BorderLayout.CENTER);
+                        } catch (Exception e) {
+                            System.out.println("WARN: Failed to swap panels: " + e.getMessage());
+                        }
+
+                        // Populate arena and refresh UI
+                        redrawArena(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
+                        mainFrame.revalidate(); mainFrame.repaint();
+
+                        // Start the active controller (game loop)
+                        activeController = new GameController(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
+                        gameThread = new Thread(activeController);
+                        gameThread.start();
+                        // Allow future startLevel calls after initialization completes
+                        synchronized (startLock) { levelStarting = false; }
+                    });
+                } catch (InterruptedException ignored) {}
+            });
+            waiter.setDaemon(true);
+            waiter.start();
+        } catch (Exception ex) {
+            System.err.println("[ArenaLoader] Error during startLevel: " + ex.getMessage());
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(mainFrame, "Failed to load the next chapter: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            // Return to chapter selection to let user choose again
+            if (mainFrame instanceof UI.MainFrame) ((UI.MainFrame) mainFrame).changeToStoryMode();
+            synchronized (startLock) { levelStarting = false; }
+        }
+        // Note: the rest of the initialization (sanitizing grid, swapping panels, and starting
+        // the GameController) is handled in the background waiter thread above. We purposely
+        // avoid duplicating that logic here to prevent double-initialization when startLevel
+        // is called multiple times during chapter transitions.
+
+        // levelStarting will be reset by the waiter thread once initialization completes.
     }
 
     /**
@@ -718,10 +877,31 @@ public class ArenaLoader {
 
         if (activeController != null) {
             Character player = activeController.getPlayer();
-            xpReward = TronRules.calculateStageReward(player.getLevel(), type);
-            player.addXP(xpReward);
+            // Use stage-clear-only XP (no per-kill farming). The award is applied in GameController
+            xpReward = TronRules.calculateStageClearXp(currentChapter, currentStage);
             currentLives = player.getLives();
             maxLives = player.getMaxLives();
+
+            // Persist the player's progress (non-blocking)
+            if (mainFrame instanceof UI.MainFrame) {
+                String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
+                if (username != null && !username.trim().isEmpty()) {
+                    long totalXp = player.getXp();
+                    int chapterToSave = currentChapter; // save current unlocked chapter
+                    int tronLvl = (persistentTron != null) ? persistentTron.getLevel() : 0;
+                    int kevinLvl = (persistentKevin != null) ? persistentKevin.getLevel() : 0;
+                    String timeNow = java.time.Instant.now().toString();
+                    new Thread(() -> {
+                        try {
+                            UI.DatabaseManager db = new UI.DatabaseManager();
+                            db.updateCompletion(username, chapterToSave, totalXp, timeNow, tronLvl, kevinLvl);                            // Persist precise XP as well so level and XP stay consistent after restart
+                            if (persistentPlayer != null) {
+                                if ("Tron".equalsIgnoreCase(persistentPlayer.name)) db.setTronXp(username, totalXp);
+                                else if ("Kevin".equalsIgnoreCase(persistentPlayer.name)) db.setKevinXp(username, totalXp);
+                            }                        } catch (Exception e) { e.printStackTrace(); }
+                    }).start();
+                }
+            }
         }
 
         String message = String.format(
@@ -735,8 +915,14 @@ public class ArenaLoader {
         if (choice == JOptionPane.YES_OPTION) {
             currentStage++;
             // Basic Progression
-            if (currentStage > 3 && currentChapter == 1) { currentChapter++; currentStage = 1; showChapterClearDialog(); return;}
-            if (currentStage > 6 && currentChapter == 2) { currentChapter++; currentStage = 1; showChapterClearDialog(); return;}
+            if (currentStage > 3 && currentChapter == 1) {
+                System.out.println("[ArenaLoader] Chapter 1 completed. Advancing to Chapter 2");
+                currentChapter++; currentStage = 1; showChapterClearDialog(); return;
+            }
+            if (currentStage > 6 && currentChapter == 2) {
+                System.out.println("[ArenaLoader] Chapter 2 completed. Advancing to Chapter 3");
+                currentChapter++; currentStage = 1; showChapterClearDialog(); return;
+            }
             // ... add other chapter checks here
             startLevel();
         } else {
@@ -745,8 +931,55 @@ public class ArenaLoader {
     }
 
     private static void showChapterClearDialog() {
-        JOptionPane.showMessageDialog(mainFrame, "CHAPTER COMPLETE!\nLoading next chapter...");
-        startLevel();
+        Object[] options = {"Next Chapter", "Chapter Select", "Exit"};
+        int choice = JOptionPane.showOptionDialog(mainFrame,
+                "CHAPTER COMPLETE!\nWhat would you like to do next?",
+                "CHAPTER COMPLETE",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.INFORMATION_MESSAGE,
+                null,
+                options,
+                options[0]);
+
+        if (choice == 0 || choice == 1) {
+            // Persist chapter completion (unlock saved) before returning/starting
+            if (mainFrame instanceof UI.MainFrame) {
+                String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
+                if (username != null && !username.trim().isEmpty()) {
+                    final int chapterToSave = currentChapter; // already incremented by caller
+                    final long totalXp = (persistentPlayer != null) ? persistentPlayer.getXp() : 0L;
+                    final int tronLvl = (persistentTron != null) ? persistentTron.getLevel() : 0;
+                    final int kevinLvl = (persistentKevin != null) ? persistentKevin.getLevel() : 0;
+                    final String timeNow = java.time.Instant.now().toString();
+                    new Thread(() -> {
+                        try {
+                            UI.DatabaseManager db = new UI.DatabaseManager();
+                            db.updateCompletion(username, chapterToSave, totalXp, timeNow, tronLvl, kevinLvl);
+                            if (persistentPlayer != null) {
+                                if ("Tron".equalsIgnoreCase(persistentPlayer.name)) db.setTronXp(username, totalXp);
+                                else if ("Kevin".equalsIgnoreCase(persistentPlayer.name)) db.setKevinXp(username, totalXp);
+                            }
+                        } catch (Exception e) { e.printStackTrace(); }
+                    }).start();
+                }
+            }
+        }
+
+        if (choice == 0) {
+            // Proceed to next chapter (start next level)
+            startLevel();
+        } else if (choice == 1) {
+            // Return to Chapter Selection (Story Mode)
+            if (mainFrame instanceof UI.MainFrame) {
+                ((UI.MainFrame) mainFrame).changeToStoryMode();
+            } else {
+                // Fallback: just show a message and return to main frame
+                JOptionPane.showMessageDialog(mainFrame, "Returning to Chapter Selection.");
+            }
+        } else {
+            // Exit the game
+            System.exit(0);
+        }
     }
 
     public static void main(String[] args) {

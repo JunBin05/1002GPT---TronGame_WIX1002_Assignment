@@ -49,7 +49,14 @@ public class DatabaseManager {
                    + " AC3 INTEGER DEFAULT 0,\n"
                    + " AC4 INTEGER DEFAULT 0,\n"
                    + " AC5 INTEGER DEFAULT 0,\n"
-                   + " AC6 INTEGER DEFAULT 0\n" 
+                   + " AC6 INTEGER DEFAULT 0,\n"
+                   + " HIGHEST_CHAPTER INTEGER DEFAULT 0,\n"
+                   + " HIGHEST_SCORE INTEGER DEFAULT 0,\n"
+                   + " TRON_LEVEL INTEGER DEFAULT 0,\n"
+                   + " KEVIN_LEVEL INTEGER DEFAULT 0,\n"
+                   + " TRON_XP INTEGER DEFAULT 0,\n"
+                   + " KEVIN_XP INTEGER DEFAULT 0,\n"
+                   + " LAST_COMPLETED TEXT DEFAULT NULL\n"
                    + ");";
 
         try (Connection conn = connect();
@@ -75,6 +82,14 @@ public class DatabaseManager {
                     // Column likely exists
                 }
             }
+            // --- New: Add tracking columns if missing ---
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN HIGHEST_CHAPTER INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN HIGHEST_SCORE INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN TRON_LEVEL INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN KEVIN_LEVEL INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN TRON_XP INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN KEVIN_XP INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN LAST_COMPLETED TEXT DEFAULT NULL"); } catch (SQLException ignored) {}
             // ---------------------------------------------------------------
 
         } catch (SQLException e) {
@@ -186,5 +201,120 @@ public class DatabaseManager {
             for (int i = 0; i < 6; i++) statusList.add(false);
         }
         return statusList;
+    }
+
+    // --- New: completion tracking ---
+    public void updateCompletion(String userId, int chapter, long score, String completionDate, int tronLevel, int kevinLevel) {
+        String select = "SELECT HIGHEST_CHAPTER, HIGHEST_SCORE, TRON_LEVEL, KEVIN_LEVEL FROM " + TABLE_NAME + " WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(select)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            int prevChapter = 0; long prevScore = 0; int prevTron = 0; int prevKevin = 0;
+            if (rs.next()) {
+                prevChapter = rs.getInt("HIGHEST_CHAPTER");
+                prevScore = rs.getLong("HIGHEST_SCORE");
+                prevTron = rs.getInt("TRON_LEVEL");
+                prevKevin = rs.getInt("KEVIN_LEVEL");
+            } else {
+                // No such user; nothing to update
+                return;
+            }
+
+            int newChapter = Math.max(prevChapter, chapter);
+            long newScore = Math.max(prevScore, score);
+            int newTron = Math.max(prevTron, tronLevel);
+            int newKevin = Math.max(prevKevin, kevinLevel);
+            String update = "UPDATE " + TABLE_NAME + " SET HIGHEST_CHAPTER = ?, HIGHEST_SCORE = ?, LAST_COMPLETED = ?, TRON_LEVEL = ?, KEVIN_LEVEL = ? WHERE ID = ?";
+            try (PreparedStatement up = conn.prepareStatement(update)) {
+                up.setInt(1, newChapter);
+                up.setLong(2, newScore);
+                up.setString(3, completionDate);
+                up.setInt(4, newTron);
+                up.setInt(5, newKevin);
+                up.setString(6, userId);
+                up.executeUpdate();
+                System.out.println("Updated completion for " + userId + ": chapter=" + newChapter + ", score=" + newScore + ", date=" + completionDate + ", tron=" + newTron + ", kevin=" + newKevin);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public int getHighestChapter(String userId) {
+        String sql = "SELECT HIGHEST_CHAPTER FROM " + TABLE_NAME + " WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return rs.getInt("HIGHEST_CHAPTER");
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    public long getHighestScore(String userId) {
+        String sql = "SELECT HIGHEST_SCORE FROM " + TABLE_NAME + " WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return rs.getLong("HIGHEST_SCORE");
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    public int getTronLevel(String userId) {
+        String sql = "SELECT TRON_LEVEL FROM " + TABLE_NAME + " WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return rs.getInt("TRON_LEVEL");
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    public int getKevinLevel(String userId) {
+        String sql = "SELECT KEVIN_LEVEL FROM " + TABLE_NAME + " WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return rs.getInt("KEVIN_LEVEL");
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    public long getTronXp(String userId) {
+        String sql = "SELECT TRON_XP FROM " + TABLE_NAME + " WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return rs.getLong("TRON_XP");
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0L;
+    }
+
+    public long getKevinXp(String userId) {
+        String sql = "SELECT KEVIN_XP FROM " + TABLE_NAME + " WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return rs.getLong("KEVIN_XP");
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0L;
+    }
+
+    public void setTronXp(String userId, long xp) {
+        String sql = "UPDATE " + TABLE_NAME + " SET TRON_XP = ? WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, xp);
+            pstmt.setString(2, userId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    public void setKevinXp(String userId, long xp) {
+        String sql = "UPDATE " + TABLE_NAME + " SET KEVIN_XP = ? WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, xp);
+            pstmt.setString(2, userId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) { e.printStackTrace(); }
     }
 }

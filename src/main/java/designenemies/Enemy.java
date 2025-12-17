@@ -44,20 +44,31 @@ public class Enemy extends Character {
 
         // 4. Set Local Fields from the Text File
         this.difficulty = stats.difficulty;
-        this.intelligence = stats.intelligence;
-        this.speedDesc = stats.speed;
-        this.handlingDesc = stats.handling;
+        this.intelligence = stats.intelligenceDesc;
+        this.speedDesc = stats.speedDesc;
+        this.handlingDesc = stats.handlingDesc;
         this.description = stats.description;
         this.xpReward = stats.xp; // Stored, even if unused by controller
+
+        // Initialize per-instance numeric attributes from stats base values
+        if (stats != null) {
+            this.speed = stats.baseSpeed;
+            this.handling = stats.baseHandling;
+            this.aggression = stats.baseAggression;
+        }
         
         // 5. Boss Logic (Lives & Behavior flag)
         this.isEnemyBoss = isBoss; 
         if (isBoss) {
             this.lives = 3;
             this.maxLives = 3;
+            // Default boss trail duration (can be tuned later by LevelManager)
+            this.setTrailDuration(14);
         } else {
             this.lives = 1;
             this.maxLives = 1;
+            // Default minion trail duration
+            this.setTrailDuration(7);
         }
     }
 
@@ -76,14 +87,37 @@ public class Enemy extends Character {
         }
     }
 
+    // Behavior tuning
+    private int moveInterval = isEnemyBoss ? 2 : 3; // number of ticks between moves (lower => faster)
+
+    // New numeric attributes (per-instance)
+    private double speed = 0.4;      // affects moveInterval
+    private double handling = 0.7;   // 0..1, higher = more likely to keep straight at corners
+    private double aggression = 0.2; // 0..1, higher = bosses are more likely to use smart moves
+
     // --- DECISION LOGIC ---
     public Direction decideMove() {
         if (this.isEnemyBoss) {
-            return decideMoveSmart();
+            // Boss uses aggression as the probability to execute the smart strategy
+            if (rand.nextDouble() < this.aggression) return decideMoveSmart();
+            return decideMoveStupid();
         } else {
             return decideMoveStupid();
         }
     }
+
+    // Move interval getter/setter (used by controller to determine move frequency)
+    public int getMoveInterval() { return this.moveInterval; }
+    public void setMoveInterval(int interval) { this.moveInterval = Math.max(1, interval); }
+
+    public double getSpeed() { return this.speed; }
+    public void setSpeed(double s) { this.speed = Math.max(0.0, s); }
+
+    public double getHandling() { return this.handling; }
+    public void setHandling(double h) { this.handling = Math.max(0.0, Math.min(1.0, h)); }
+
+    public double getAggression() { return this.aggression; }
+    public void setAggression(double a) { this.aggression = Math.max(0.0, Math.min(1.0, a)); }
 
     // --- STRATEGY 1: SMART (Boss) ---
     private Direction decideMoveSmart() {
@@ -105,8 +139,8 @@ public class Enemy extends Character {
     private Direction decideMoveStupid() {
         int[] straight = getNextCoords(currentDirection);
         
-        // Momentum
-        if (isMinionSafe(straight[0], straight[1]) && rand.nextDouble() > 0.1) {
+        // Momentum: probability to keep moving straight equals 'handling' (higher handling -> more precise)
+        if (isMinionSafe(straight[0], straight[1]) && rand.nextDouble() < this.handling) {
             return currentDirection;
         }
 
@@ -172,7 +206,9 @@ public class Enemy extends Character {
     // Kept for compatibility, even if Controller uses Rules instead
     public long getXp() { return this.xpReward; }
 
-    public int getTrailDuration() { return this.isEnemyBoss ? 14 : 7; }
+    // Respect the per-instance trail duration set via setTrailDuration()
+    @Override
+    public int getTrailDuration() { return super.getTrailDuration(); }
     public double getSpeedModifier() { return this.isEnemyBoss ? 1.5 : 1.0; }
     public String getBossIndicator() { return this.isEnemyBoss ? " [BOSS]" : ""; }
 

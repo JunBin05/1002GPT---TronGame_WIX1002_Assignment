@@ -83,8 +83,8 @@ public class GameController implements KeyListener, Runnable {
                 if (c != playerCycle && c instanceof Enemy) {
                     Enemy enemy = (Enemy) c;
                     
-                    // Boss enemies move faster (every 2 ticks instead of 3)
-                    int moveInterval = enemy.isBoss() ? 2 : 3;
+                    // Use per-enemy move interval so bosses can be tuned by chapter
+                    int moveInterval = (enemy instanceof designenemies.Enemy) ? ((designenemies.Enemy)enemy).getMoveInterval() : 3;
                     if (enemyMoveTick % moveInterval != 0) continue;
 
                     Direction nextMove = enemy.decideMove();
@@ -99,24 +99,48 @@ public class GameController implements KeyListener, Runnable {
 
                         boolean wallHit = false;
 
-                        if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) { wallHit = true; }
+                        boolean blockedByOtherEnemy = false;
+                        if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) { 
+                            wallHit = true; 
+                        }
                         else {
-                            char tile = grid[nextR][nextC];
-                            // Treat Tron and Kevin tails as normal wall hits (no instant kill)
-                            if (tile != '.' && tile != 'S') wallHit = true;
+                            // If any other enemy is currently at the target cell, mark as blocked but do NOT damage
+                            for (Character other : cycles) {
+                                if (other == enemy) continue;
+                                if (other instanceof Enemy) {
+                                    if (other.getRow() == nextR && other.getCol() == nextC) {
+                                        blockedByOtherEnemy = true;
+                                        wallHit = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!blockedByOtherEnemy) {
+                                char tile = grid[nextR][nextC];
+                                // Treat Tron and Kevin tails as normal wall hits (no instant kill)
+                                if (tile != '.' && tile != 'S') wallHit = true;
+                            }
                         }
 
                         if (wallHit) {
-                            enemy.changeLives(-0.5);
-                            if (enemy.getLives() <= 0) {
-                                awardKillXp(enemy); // STORES XP
-                                deadEnemies.add(enemy);
-                                if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
-                                    grid[enemy.getRow()][enemy.getCol()] = '.';
-                                }
-                            } else {
-                                enemy.revertPosition(grid, trailTimer);
+                            if (blockedByOtherEnemy) {
+                                // Other enemy occupies the cell: avoid damaging either side, just turn around
                                 enemy.setOppositeDirection();
+                                // Try to step back a bit to avoid repeated collisions (non-lethal)
+                                try { enemy.revertPosition(grid, trailTimer); } catch (Exception ignored) {}
+                            } else {
+                                enemy.changeLives(-0.5);
+                                if (enemy.getLives() <= 0) {
+                                    awardKillXp(enemy); // STORES XP
+                                    deadEnemies.add(enemy);
+                                    if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
+                                        grid[enemy.getRow()][enemy.getCol()] = '.';
+                                    }
+                                } else {
+                                    enemy.revertPosition(grid, trailTimer);
+                                    enemy.setOppositeDirection();
+                                }
                             }
                         } else {
                             enemy.advancePosition(grid);
@@ -159,10 +183,32 @@ public class GameController implements KeyListener, Runnable {
             if (cycles.size() == 1 && cycles.get(0) == playerCycle) {
                 isRunning = false;
 
-                // 1. Commit XP and Level Up NOW (at end of stage)
-                String summaryHtml = playerCycle.commitPendingXP();
+                // 1. Award Stage Clear XP (if applicable), then commit XP and Level Up NOW (at end of stage)
+                long stageXp = TronRules.calculateStageClearXp(ArenaLoader.currentChapter, ArenaLoader.currentStage);
+
+                if (stageXp > 0) {
+                    playerCycle.addXP(stageXp);
+                    System.out.println("[GameController] Stage Clear XP awarded: " + stageXp + " (C" + ArenaLoader.currentChapter + " S" + ArenaLoader.currentStage + ")");
+                }
+
+                String username = null;
+                if (gameFrame instanceof UI.MainFrame) username = ((UI.MainFrame) gameFrame).getCurrentUsername();
+                String summaryHtml = playerCycle.commitPendingXP(username);
+
+                // Persist the player's XP (non-blocking)
+                if (username != null && !username.trim().isEmpty()) {
+                    final String userToSave = username;
+                    new Thread(() -> {
+                        try {
+                            UI.DatabaseManager db = new UI.DatabaseManager();
+                            if ("Tron".equalsIgnoreCase(playerCycle.name)) db.setTronXp(userToSave, playerCycle.getXp());
+                            else if ("Kevin".equalsIgnoreCase(playerCycle.name)) db.setKevinXp(userToSave, playerCycle.getXp());
+                        } catch (Exception e) { e.printStackTrace(); }
+                    }).start();
+                }
 
                 // 2. Show the Nice Popup
+                System.out.println("[GameController] Stage cleared. Preparing to show level complete dialog.");
                 SwingUtilities.invokeLater(() -> {
                     // Use a JLabel to render the HTML properly
                     JLabel messageLabel = new JLabel(summaryHtml);
@@ -200,8 +246,13 @@ public class GameController implements KeyListener, Runnable {
 
         long reward = TronRules.calculateEnemyXp(playerCycle.getLevel(), type);
 
-        // --- CHANGED: Call storeXP instead of addXP ---
-        playerCycle.addXP(reward);
+        if (!TronRules.STAGE_ONLY_XP) {
+            // Only add per-kill XP when stage-only mode is disabled
+            playerCycle.addXP(reward);
+        } else {
+            // Stage-only mode: skip awarding XP on kills to prevent farming
+            // (Optional: show visual feedback or small score increment)
+        }
     }
 
     private void moveDiscs(char[][] grid) {
@@ -257,6 +308,9 @@ public class GameController implements KeyListener, Runnable {
 
 
     private void movePlayer(char[][] grid, int[][] trailTimer) {
+        // Try to apply any pending player direction (handling-dependent)
+        try { this.playerCycle.tryApplyPendingDirection(grid); } catch (Exception ignored) {}
+
         int futureR = this.playerCycle.r; int futureC = this.playerCycle.c;
         switch (this.playerCycle.currentDirection) { case NORTH -> futureR--; case SOUTH -> futureR++; case EAST -> futureC++; case WEST -> futureC--; }
         char element = ' '; boolean collided = false;
@@ -298,24 +352,32 @@ public class GameController implements KeyListener, Runnable {
             char currentElement = grid[r][c];
             if (currentElement == 'T' || currentElement == 'K') {
                 int placementStep = trailTimer[r][c];
-                if (placementStep > 0 && (globalStepCounter - placementStep) >= TRAIL_DURATION) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
+                if (placementStep > 0) {
+                    int playerTrailDuration = TRAIL_DURATION;
+                    if (cycles != null && !cycles.isEmpty()) playerTrailDuration = cycles.get(0).getTrailDuration();
+                    if ((globalStepCounter - placementStep) >= playerTrailDuration) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
+                }
             } else if (currentElement == 'M' || currentElement == 'C' || 
                      currentElement == 'Y' || currentElement == 'G' || 
                      currentElement == 'R') {
-                // Enemy trails - check if it's a boss (longer duration)
-                // For now use BOSS_TRAIL_DURATION for all enemies - bosses will be explicitly marked
                 int placementStep = trailTimer[r][c];
                 if (placementStep > 0) {
-                    // Check if any active cycle is a boss at this position - use longer duration
-                    int trailDuration = TRAIL_DURATION;
+                    int trailDuration = TRAIL_DURATION; // default
+                    // Try to find an enemy instance matching this trail char and use its trailDuration
                     for (Character cycle : cycles) {
-                        if (cycle instanceof Enemy) {
-                            Enemy enemy = (Enemy) cycle;
-                            if (enemy.isBoss()) {
-                                trailDuration = BOSS_TRAIL_DURATION;
-                                break;
-                            }
+                        if (!(cycle instanceof Enemy)) continue;
+                        Enemy enemy = (Enemy) cycle;
+                        String name = enemy.getName();
+                        if ((currentElement == 'C' && name.contains("Clu")) ||
+                            (currentElement == 'Y' && name.contains("Sark")) ||
+                            (currentElement == 'G' && name.contains("Koura")) ||
+                            (currentElement == 'R' && name.contains("Rinzler")) ||
+                            (currentElement == 'M' && !enemy.isBoss())) {
+                            trailDuration = enemy.getTrailDuration();
+                            break;
                         }
+                        // fallback: if any boss exists, prefer boss trail duration
+                        if (enemy.isBoss()) trailDuration = Math.max(trailDuration, enemy.getTrailDuration());
                     }
                     if ((globalStepCounter - placementStep) >= trailDuration) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
                 }
@@ -346,12 +408,12 @@ public class GameController implements KeyListener, Runnable {
     @Override public void keyTyped(KeyEvent e) {}
     @Override public void keyPressed(KeyEvent e) {
         char key = java.lang.Character.toUpperCase(e.getKeyChar());
-        if (key == 'W' || key == 'S' || key == 'A' || key == 'D') this.playerCycle.setDirection(key);
+        if (key == 'W' || key == 'S' || key == 'A' || key == 'D') this.playerCycle.requestDirection(key);
         // Support Arrow keys as well for better UX
-        if (e.getKeyCode() == KeyEvent.VK_LEFT) this.playerCycle.setDirection('A');
-        if (e.getKeyCode() == KeyEvent.VK_RIGHT) this.playerCycle.setDirection('D');
-        if (e.getKeyCode() == KeyEvent.VK_UP) this.playerCycle.setDirection('W');
-        if (e.getKeyCode() == KeyEvent.VK_DOWN) this.playerCycle.setDirection('S');
+        if (e.getKeyCode() == KeyEvent.VK_LEFT) this.playerCycle.requestDirection('A');
+        if (e.getKeyCode() == KeyEvent.VK_RIGHT) this.playerCycle.requestDirection('D');
+        if (e.getKeyCode() == KeyEvent.VK_UP) this.playerCycle.requestDirection('W');
+        if (e.getKeyCode() == KeyEvent.VK_DOWN) this.playerCycle.requestDirection('S');
         if (e.getKeyCode() == KeyEvent.VK_SPACE) throwDiscAction();
     }
     @Override public void keyReleased(KeyEvent e) {}

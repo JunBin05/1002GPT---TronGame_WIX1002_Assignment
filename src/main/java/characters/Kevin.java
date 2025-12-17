@@ -12,9 +12,17 @@ public class Kevin extends Character {
     public void levelUp() {
         super.levelUp(); // Refills discs, increments level
         
-        // Much slower speed increase - reduced from 0.03 to 0.015, handling from 0.08 to 0.03
-        speed += 0.015;    
-        handling += 0.03;  
+        // Kevin gains handling slowly so it reaches cap around level 90, small speed gain
+        // Calculation: (1.0 - baseHandling) / (90 - 1) ≈ 0.00337 per level
+        handling = Math.min(1.0, handling + 0.00337);
+        speed = Math.min(1.0, speed + 0.003);
+
+        // Kevin gets +1 disc capacity every 10 levels (in addition to base growth)
+        if (level % 10 == 0) {
+            this.discCapacity = Math.min(this.discCapacity + 1, XPSystem.TronRules.MAX_DISCS);
+            this.currentDiscCount = this.discCapacity;
+            System.out.println(">> Kevin bonus: disc capacity increased to " + this.discCapacity);
+        }
         
         if (level % 10 == 0) {
             this.maxLives += 1.0; 

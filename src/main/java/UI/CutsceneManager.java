@@ -41,6 +41,9 @@ public class CutsceneManager {
     // IMAGES
     private Image pKevin, pKevinReal, pTron, pClu, pQuorra, pQuorraEvil, pSark, pSam;
 
+    // Auto-advance helper: for short (single-line) cutscenes, automatically advance after a short delay
+    private volatile Thread autoAdvanceThread = null;
+
     public CutsceneManager() {
         // LOAD PORTRAITS
         pKevin      = new ImageIcon("cutscene/images/portrait_kevin.png").getImage();
@@ -89,7 +92,28 @@ public class CutsceneManager {
             br.close();
             System.out.println("[CUTSCENE] Started scene '" + filename + "' with " + lines.size() + " lines.");
             
-            processCurrentLine(); 
+            processCurrentLine();
+
+            // If this scene only has a single line, auto-advance after a short delay so
+            // post-stage cutscenes don't hang the flow if the user doesn't press SPACE.
+            if (lines.size() == 1) {
+                // cancel any existing auto-advance thread
+                if (autoAdvanceThread != null && autoAdvanceThread.isAlive()) {
+                    try { autoAdvanceThread.interrupt(); } catch (Exception ignored) {}
+                }
+                autoAdvanceThread = new Thread(() -> {
+                    try {
+                        Thread.sleep(1200); // 1.2s default delay
+                        // Guard: only advance if still active (user may have already advanced)
+                        if (isActive) {
+                            System.out.println("[CUTSCENE] Auto-advancing single-line scene: " + filename);
+                            advance();
+                        }
+                    } catch (InterruptedException ignored) {}
+                }, "Cutscene-AutoAdvance");
+                autoAdvanceThread.setDaemon(true);
+                autoAdvanceThread.start();
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -133,6 +157,12 @@ public class CutsceneManager {
     }
 
     public void advance() {
+        // Cancel any pending auto-advance to avoid double-advancing
+        if (autoAdvanceThread != null && autoAdvanceThread.isAlive()) {
+            try { autoAdvanceThread.interrupt(); } catch (Exception ignored) {}
+            autoAdvanceThread = null;
+        }
+
         currentIndex++;
         if (currentIndex >= lines.size()) {
             SceneLine lastLine = lines.get(lines.size() - 1);
@@ -183,6 +213,11 @@ public class CutsceneManager {
      * Forcefully stop the cutscene immediately (no fade)
      */
     public void forceStop() {
+        // Cancel any pending auto-advance thread
+        if (autoAdvanceThread != null && autoAdvanceThread.isAlive()) {
+            try { autoAdvanceThread.interrupt(); } catch (Exception ignored) {}
+            autoAdvanceThread = null;
+        }
         fadingOut = false;
         fadeAlpha = 0f;
         isActive = false;

@@ -26,6 +26,8 @@ public class ArenaThree extends Arena {
             grid[startR][startC + c] = '#';
             grid[startR + 19][startC + c] = '#';
         }
+        grid[15][10]='.';
+        grid[15][29]='.';
 
         // Ears
         grid[startR - 2][startC + 3] = '#';
