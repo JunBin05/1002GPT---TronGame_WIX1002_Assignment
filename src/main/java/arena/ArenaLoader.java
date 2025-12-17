@@ -104,7 +104,44 @@ public class ArenaLoader {
     // --- HELPER METHODS (Images) ---
     private static BufferedImage toBufferedImage(Image img) { if (img instanceof BufferedImage) return (BufferedImage) img; BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB); Graphics2D bGr = bimage.createGraphics(); bGr.drawImage(img, 0, 0, null); bGr.dispose(); return bimage; }
     private static BufferedImage rotateImage(BufferedImage image, double angleRadians) { double sin = Math.abs(Math.sin(angleRadians)); double cos = Math.abs(Math.cos(angleRadians)); int width = image.getWidth(); int height = image.getHeight(); int newWidth = (int) Math.floor(width * cos + height * sin); int newHeight = (int) Math.floor(height * cos + width * sin); BufferedImage rotatedImage = new BufferedImage(newWidth, newHeight, image.getType()); Graphics2D g2d = rotatedImage.createGraphics(); AffineTransform at = new AffineTransform(); at.translate(newWidth / 2, newHeight / 2); at.rotate(angleRadians); at.translate(-width / 2, -height / 2); g2d.drawImage(image, at, null); g2d.dispose(); return rotatedImage; }
-    private static ImageIcon loadAndScale(String relativePath, int size) { try { File imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath); ImageIcon original = new ImageIcon(imageFile.getAbsolutePath()); if (original.getImageLoadStatus() == MediaTracker.COMPLETE) { Image scaled = original.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH); return new ImageIcon(scaled); } } catch (Exception e) {} return null; }
+
+    private static ImageIcon loadAndScale(String relativePath, int size) { 
+        try { File imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath);
+            if (!imageFile.exists()) return null;
+            ImageIcon original = new ImageIcon(imageFile.getAbsolutePath()); 
+            if (original.getImageLoadStatus() == MediaTracker.COMPLETE) { 
+                Image srcImg = original.getImage();
+                int origW = srcImg.getWidth(null);
+                int origH = srcImg.getHeight(null);
+                int newW = size;
+                int newH = size;
+
+                if (origW > origH) {
+                    newH = (int) (size * ((double) origH / origW));
+                } else {
+                    newW = (int) (size * ((double) origW / origH));
+                }
+
+                // Create a transparent square canvas and center the image
+                BufferedImage combined = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g = combined.createGraphics();
+                
+                // High quality rendering hints
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int x = (size - newW) / 2;
+                int y = (size - newH) / 2;
+                g.drawImage(srcImg, x, y, newW, newH, null);
+                g.dispose();
+
+                return new ImageIcon(combined);
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return null;
+    }
+
     public static Arena loadArena(int choice) {
         try {
             switch (currentChapter) {
@@ -125,6 +162,7 @@ public class ArenaLoader {
         Map<String, ImageIcon> icons = new HashMap<>();
         int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
         int TRUE_CELL_SIZE = (int) ((screenHeight*2) / 40);
+        int FACE_SIZE = (int) (screenHeight / 45);
         final int HUD_ICON_SIZE = 60;
         final int DISC_INVENTORY_SIZE = 50;
 
@@ -139,11 +177,11 @@ public class ArenaLoader {
         icons.put("kevin_profile", loadAndScale("images" + File.separator + "Kevin.png", 200));
 
         loadCharSet(icons, "tron", "Tron.png", TRUE_CELL_SIZE);
-        loadCharSet(icons, "kevin", "kevin.png", 100);
-        loadCharSet(icons, "sark", "Sark.png", TRUE_CELL_SIZE);
-        loadCharSet(icons, "clu", "Clu.png", TRUE_CELL_SIZE);
-        loadCharSet(icons, "rinzler", "Rinzler.png", TRUE_CELL_SIZE);
-        loadCharSet(icons, "koura", "Koura.png", TRUE_CELL_SIZE);
+        loadCharSet(icons, "kevin", "kevin.png", TRUE_CELL_SIZE);
+        loadCharSet(icons, "sark", "Sark (Face).png", FACE_SIZE);
+        loadCharSet(icons, "clu", "Clu (Face).png", FACE_SIZE);
+        loadCharSet(icons, "rinzler", "Rinzler (Face).png", FACE_SIZE);
+        loadCharSet(icons, "koura", "Koura (Face).png", FACE_SIZE);
         return icons;
     }
 
@@ -505,9 +543,7 @@ public class ArenaLoader {
                             if (enemy.isBoss()) {
                                 cellPanel.setBackground(new Color(150, 0, 50)); // Dark purple/red
                                 cellPanel.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3)); // Thick magenta border
-                                iconLabel.setText(enemy.getName() + "\n[BOSS]");
-                                iconLabel.setFont(new Font("Monospaced", Font.BOLD, 8));
-                                iconLabel.setForeground(Color.MAGENTA);
+                               
                             } else {
                                 cellPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
                             }
