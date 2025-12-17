@@ -1,0 +1,51 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}",
+            "console": "internalConsole"
+        },
+        {
+            "type": "java",
+            "name": "HomeFrame",
+            "request": "launch",
+            "mainClass": "UI.HomeFrame",
+            "projectName": "tron-game"
+        },
+        {
+            "type": "java",
+            "name": "MainFrame",
+            "request": "launch",
+            "mainClass": "UI.MainFrame",
+            "projectName": "tron-game"
+        },
+        {
+            "type": "java",
+            "name": "Main",
+            "request": "launch",
+            "mainClass": "XPSystem.Main",
+            "projectName": "tron-game"
+        },
+        {
+            "type": "java",
+            "name": "TronFullStory",
+            "request": "launch",
+            "mainClass": "XPSystem.TronFullStory",
+            "projectName": "tron-game"
+        },
+        {
+            "type": "java",
+            "name": "ArenaLoader",
+            "request": "launch",
+            "mainClass": "arena.ArenaLoader",
+            "projectName": "tron-game"
+        }
+    ]
+}

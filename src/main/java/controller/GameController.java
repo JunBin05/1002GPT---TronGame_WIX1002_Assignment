@@ -4,182 +4,417 @@ import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList; // <- added
 
-// Import all necessary classes from other packages
-import arena.Arena; 
-import arena.ArenaLoader; 
-import characters.Character; 
-import characters.Tron; 
+import arena.Arena;
+import arena.ArenaLoader;
+import arena.Disc;
+import characters.Character;
 import characters.Direction;
-import characters.Kevin; 
+import designenemies.Enemy;
+import XPSystem.TronRules;
 
 public class GameController implements KeyListener, Runnable {
-    
+
     private final JFrame gameFrame;
     private final Arena arena;
     private final List<Character> cycles;
     private final Map<String, ImageIcon> icons;
-    private final JPanel arenaPanel; 
-    private final JPanel hudPanel;   
-    private final Tron playerCycle; 
-    
-    // --- FIELDS ---
-    private boolean onSpeedRamp = false; // Flag to remember if we are on a ramp
-    private final int NORMAL_DELAY = 80; // Normal speed
-    private final int FAST_DELAY = 20;   // Turbo speed
-    
-    // FIX: Start at 1 so the first block decays correctly
-    private int globalStepCounter = 1; 
-    private static final int TRAIL_DURATION = 7; 
+    private final JPanel arenaPanel;
+    private final JPanel hudPanel;
+    private final Character playerCycle;
 
-    // --- CONSTRUCTOR ---
+    // changed to CopyOnWriteArrayList to avoid concurrent modification when adding discs from key events
+    private List<Disc> activeDiscs = new CopyOnWriteArrayList<>();
+    private volatile boolean isRunning = true;
+
+    private boolean onSpeedRamp = false;
+    private final int BASE_DELAY = 100; // Base speed in milliseconds
+    private final int FAST_DELAY = 20;
+
+    private int globalStepCounter = 1;
+    private static final int TRAIL_DURATION = 7;
+    private static final int BOSS_TRAIL_DURATION = 14; // Boss trails last 2x longer
+    private static final int DISC_THROW_DISTANCE = 6;
+
     public GameController(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons,
                           JPanel arenaPanel, JPanel hudPanel) {
         this.gameFrame = frame;
         this.arena = arena;
         this.cycles = cycles;
         this.icons = icons;
-        this.arenaPanel = arenaPanel; 
-        this.hudPanel = hudPanel;     
-        this.playerCycle = (Tron) cycles.get(0); 
-        this.gameFrame.addKeyListener(this); 
-        this.gameFrame.setFocusable(true);   
+        this.arenaPanel = arenaPanel;
+        this.hudPanel = hudPanel;
+        this.playerCycle = cycles.get(0);        this.gameFrame.addKeyListener(this);
+        this.gameFrame.setFocusable(true);
     }
 
-    // --- GAME LOOP ---
+    public Character getPlayer() { return this.playerCycle; }
+    public void stopGame() {
+        isRunning = false;
+        try {
+            if (this.gameFrame != null) {
+                this.gameFrame.removeKeyListener(this);
+            }
+        } catch (Exception ex) {
+            // ignore
+        }
+    }
+
     @Override
     public void run() {
         char[][] grid = arena.getGrid();
         int[][] trailTimer = arena.getTrailTimer();
-        
-        while (true) {
-            
-            // 1. DETERMINE NEXT POSITION
-            int futureR = this.playerCycle.r;
-            int futureC = this.playerCycle.c;
 
-            switch (this.playerCycle.currentDirection) {
-                case NORTH -> futureR--; 
-                case SOUTH -> futureR++; 
-                case EAST -> futureC++; 
-                case WEST -> futureC--; 
-            }
+        List<Character> deadEnemies = new ArrayList<>();
+        int enemyMoveTick = 0;
 
-            // 2. CHECK COLLISION
-            char element = ' '; 
-            boolean collided = false;
-            
-            // A. Boundary Check
-            if (futureR < 0 || futureR >= 40 || futureC < 0 || futureC >= 40) {
-                this.playerCycle.changeLives(-this.playerCycle.getLives()); 
-                collided = true;
-            } 
-            
-            // B. Obstacle Check
-            if (!collided && futureR >= 0 && futureC >= 0 && futureR < 40 && futureC < 40) {
-                element = grid[futureR][futureC]; 
+        while (isRunning) {
 
-                // WHITELIST: You are SAFE on Empty (.), Your Tail (T), and Speed Ramps (S).
-                // You DIE on Walls (#), Obstacles (O), or Enemy Trails (K).
-                if (element != '.' && element != 'T' && element != 'S') {
-                    collided = true;
-                }
-            }
-            
-            // 3. EXECUTE MOVE
-            if (collided) {
-                // --- COLLISION LOGIC ---
-                this.playerCycle.changeLives(-0.5); 
-                System.out.println(this.playerCycle.name + " hit barrier. Lives: " + this.playerCycle.getLives());
-                
-                if (this.playerCycle.getLives() > 0.0) {
-                    this.playerCycle.revertPosition(grid, trailTimer); 
-                    this.playerCycle.setOppositeDirection();
-                }
-                
-                SwingUtilities.invokeLater(() -> {
-                    ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, 
-                                            this.arenaPanel, this.hudPanel);
-                });
-                
-            } else {
-                // --- SAFE MOVE LOGIC ---
+            moveDiscs(grid);
+            moveDiscs(grid);
+            movePlayer(grid, trailTimer);
 
-                // A. Restore the grid behind us
-                // If we are leaving a Speed Ramp, put the 'S' back.
-                // If we are leaving normal ground, put a Trail 'T'.
-                if (onSpeedRamp) {
-                    grid[this.playerCycle.r][this.playerCycle.c] = 'S';
-                } else {
-                    grid[this.playerCycle.r][this.playerCycle.c] = this.playerCycle.getSymbol(); // 'T'
-                    trailTimer[this.playerCycle.r][this.playerCycle.c] = globalStepCounter; // Start decay timer
-                }
-
-                // B. Check if the NEW tile is a ramp
-                if (element == 'S') {
-                    onSpeedRamp = true; // Turn on Turbo Mode
-                } else {
-                    onSpeedRamp = false; // Back to Normal
-                }
-
-                // C. Move the Character
-                this.globalStepCounter++;
-                this.playerCycle.advancePosition(grid); 
-                
-                // D. Redraw
-                SwingUtilities.invokeLater(() -> {
-                    ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, 
-                                            this.arenaPanel, this.hudPanel);
-                });
-            }
-
-            // 4. GAME OVER CHECK
-            if (this.playerCycle.getLives() <= 0.0) {
-                SwingUtilities.invokeLater(() -> {
-                    ArenaLoader.showGameOverDialog(this.gameFrame);
-                });
-                break; 
-            }
-            
-            // 5. JETWALL DECAY LOGIC
-            for (int r = 0; r < 40; r++) {
-                for (int c = 0; c < 40; c++) {
-                    char currentElement = grid[r][c];
+            enemyMoveTick++;
+            for (Character c : cycles) {
+                if (c != playerCycle && c instanceof Enemy) {
+                    Enemy enemy = (Enemy) c;
                     
-                    if (currentElement == 'T' || currentElement == 'K') {
-                        int placementStep = trailTimer[r][c];
-                        if (placementStep > 0 && (globalStepCounter - placementStep) >= TRAIL_DURATION) {
-                            grid[r][c] = '.'; 
-                            trailTimer[r][c] = 0; 
+                    // Use per-enemy move interval so bosses can be tuned by chapter
+                    int moveInterval = (enemy instanceof designenemies.Enemy) ? ((designenemies.Enemy)enemy).getMoveInterval() : 3;
+                    if (enemyMoveTick % moveInterval != 0) continue;
+
+                    Direction nextMove = enemy.decideMove();
+                    enemy.currentDirection = nextMove;
+
+                    int nextR = enemy.getRow();
+                    int nextC = enemy.getCol();
+                    switch (nextMove) {
+                        case NORTH -> nextR--; case SOUTH -> nextR++;
+                        case EAST -> nextC++; case WEST -> nextC--;
+                    }
+
+                        boolean wallHit = false;
+
+                        boolean blockedByOtherEnemy = false;
+                        if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) { 
+                            wallHit = true; 
+                        }
+                        else {
+                            // If any other enemy is currently at the target cell, mark as blocked but do NOT damage
+                            for (Character other : cycles) {
+                                if (other == enemy) continue;
+                                if (other instanceof Enemy) {
+                                    if (other.getRow() == nextR && other.getCol() == nextC) {
+                                        blockedByOtherEnemy = true;
+                                        wallHit = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!blockedByOtherEnemy) {
+                                char tile = grid[nextR][nextC];
+                                // Treat Tron and Kevin tails as normal wall hits (no instant kill)
+                                if (tile != '.' && tile != 'S') wallHit = true;
+                            }
+                        }
+
+                        if (wallHit) {
+                            if (blockedByOtherEnemy) {
+                                // Other enemy occupies the cell: avoid damaging either side, just turn around
+                                enemy.setOppositeDirection();
+                                // Try to step back a bit to avoid repeated collisions (non-lethal)
+                                try { enemy.revertPosition(grid, trailTimer); } catch (Exception ignored) {}
+                            } else {
+                                enemy.changeLives(-0.5);
+                                if (enemy.getLives() <= 0) {
+                                    awardKillXp(enemy); // STORES XP
+                                    deadEnemies.add(enemy);
+                                    if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
+                                        grid[enemy.getRow()][enemy.getCol()] = '.';
+                                    }
+                                } else {
+                                    enemy.revertPosition(grid, trailTimer);
+                                    enemy.setOppositeDirection();
+                                }
+                            }
+                        } else {
+                            enemy.advancePosition(grid);
+                            int eRow = enemy.getRow();
+                            int eCol = enemy.getCol();
+                            if (eRow >= 0 && eRow < 40 && eCol >= 0 && eCol < 40) {
+                                if (grid[eRow][eCol] == '.') {
+                                char trailChar = 'M'; // Default minion trail
+                                    String name = enemy.getName();
+
+                                if (name.contains("Clu"))        trailChar = 'C'; // Gold
+                                else if (name.contains("Sark"))  trailChar = 'Y'; // Yellow
+                                else if (name.contains("Koura")) trailChar = 'G'; // Green
+                                else if (name.contains("Rinzler")) trailChar = 'R'; // Red
+                                
+                                grid[eRow][eCol] = trailChar;
+                                trailTimer[eRow][eCol] = globalStepCounter;
+                                }
+                            }
                         }
                     }
                 }
+
+            if (!deadEnemies.isEmpty()) {
+                cycles.removeAll(deadEnemies);
+                deadEnemies.clear();
             }
-            
-            // 6. CONTROL SPEED
+
+            SwingUtilities.invokeLater(() -> {
+                ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons,
+                                        this.arenaPanel, this.hudPanel);
+            });
+
+            if (this.playerCycle.getLives() <= 0.0) {
+                SwingUtilities.invokeLater(() -> ArenaLoader.showGameOverDialog(this.gameFrame));
+                break;
+            }
+
+            // --- STAGE CLEAR LOGIC ---
+            if (cycles.size() == 1 && cycles.get(0) == playerCycle) {
+                isRunning = false;
+
+                // 1. Award Stage Clear XP (if applicable), then commit XP and Level Up NOW (at end of stage)
+                long stageXp = TronRules.calculateStageClearXp(ArenaLoader.currentChapter, ArenaLoader.currentStage);
+
+                if (stageXp > 0) {
+                    playerCycle.addXP(stageXp);
+                    System.out.println("[GameController] Stage Clear XP awarded: " + stageXp + " (C" + ArenaLoader.currentChapter + " S" + ArenaLoader.currentStage + ")");
+                }
+
+                String username = null;
+                if (gameFrame instanceof UI.MainFrame) username = ((UI.MainFrame) gameFrame).getCurrentUsername();
+                String summaryHtml = playerCycle.commitPendingXP(username);
+
+                // Persist the player's XP (non-blocking)
+                if (username != null && !username.trim().isEmpty()) {
+                    final String userToSave = username;
+                    new Thread(() -> {
+                        try {
+                            UI.DatabaseManager db = new UI.DatabaseManager();
+                            if ("Tron".equalsIgnoreCase(playerCycle.name)) db.setTronXp(userToSave, playerCycle.getXp());
+                            else if ("Kevin".equalsIgnoreCase(playerCycle.name)) db.setKevinXp(userToSave, playerCycle.getXp());
+                        } catch (Exception e) { e.printStackTrace(); }
+                    }).start();
+                }
+
+                // 2. Show the Nice Popup
+                System.out.println("[GameController] Stage cleared. Preparing to show level complete dialog.");
+                SwingUtilities.invokeLater(() -> {
+                    // Use a JLabel to render the HTML properly
+                    JLabel messageLabel = new JLabel(summaryHtml);
+                    JOptionPane.showMessageDialog(gameFrame, messageLabel, "Stage Complete", JOptionPane.PLAIN_MESSAGE);
+
+                    // 3. Load next level
+                    ArenaLoader.showLevelCompleteDialog();
+                });
+            }
+
+            handleTrailDecay(grid, trailTimer);
+
             try {
-                // Ternary Operator: If onSpeedRamp is true, use FAST_DELAY (20), else use NORMAL (80)
-                int currentSpeed = onSpeedRamp ? FAST_DELAY : NORMAL_DELAY;
-                Thread.sleep(currentSpeed); 
+                // --- NEW SMOOTHER SPEED FORMULA ---
+                double speedVal = playerCycle.getSpeed();
+                int speedAdjustment = (int)((speedVal - 1.0) * 30); // 30ms reduction per 1.0 speed
+                int dynamicDelay = BASE_DELAY - speedAdjustment;
+
+                if (dynamicDelay < 30) dynamicDelay = 30; // Hard cap so it's never instant
+
+                int currentSpeed = onSpeedRamp ? FAST_DELAY : dynamicDelay;
+                Thread.sleep(currentSpeed);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
     }
-    
-    // --- KeyListener Interface Methods ---
-    @Override
-    public void keyTyped(KeyEvent e) {}
 
-    @Override
-    public void keyPressed(KeyEvent e) {
-        char key = java.lang.Character.toUpperCase(e.getKeyChar());
-        if (key == 'W' || key == 'S' || key == 'A' || key == 'D') {
-            this.playerCycle.setDirection(key);
+    private void awardKillXp(Enemy enemy) {
+        TronRules.EnemyType type = TronRules.EnemyType.MINION;
+        if (enemy.name.contains("Sark")) type = TronRules.EnemyType.SARK;
+        else if (enemy.name.contains("Clu")) type = TronRules.EnemyType.CLU;
+        else if (enemy.name.contains("Rinzler")) type = TronRules.EnemyType.RINZLER;
+        else if (enemy.name.contains("Koura")) type = TronRules.EnemyType.KOURA;
+
+        long reward = TronRules.calculateEnemyXp(playerCycle.getLevel(), type);
+
+        if (!TronRules.STAGE_ONLY_XP) {
+            // Only add per-kill XP when stage-only mode is disabled
+            playerCycle.addXP(reward);
+        } else {
+            // Stage-only mode: skip awarding XP on kills to prevent farming
+            // (Optional: show visual feedback or small score increment)
         }
     }
-    
-    @Override
-    public void keyReleased(KeyEvent e) {}
+
+    private void moveDiscs(char[][] grid) {
+    for (int i = activeDiscs.size() - 1; i >= 0; i--) {
+        Disc disc = activeDiscs.get(i);
+
+        // Restore the tile the disc was previously occupying
+        if (disc.r >= 0 && disc.r < 40 && disc.c >= 0 && disc.c < 40) {
+            if (grid[disc.r][disc.c] == 'D') {
+                grid[disc.r][disc.c] = disc.getOriginalTile();
+            }
+        }
+
+        // Check if disc has already traveled max distance BEFORE moving again
+        boolean stopFlying = false;
+        if (disc.distanceTraveled >= DISC_THROW_DISTANCE) {
+            stopFlying = true;
+        }
+
+        if (!stopFlying) {
+            int nextR = disc.r;
+            int nextC = disc.c;
+
+            // Movement
+            switch (disc.dir) {
+                case NORTH -> nextR--;
+                case SOUTH -> nextR++;
+                case EAST  -> nextC++;
+                case WEST  -> nextC--;
+            }
+
+            // Check for boundaries and obstacles
+            if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
+                stopFlying = true;
+            } else if (grid[nextR][nextC] == '#' || grid[nextR][nextC] == 'O') {
+                stopFlying = true;
+            } else {
+                // Safe to move: update position and distance
+                disc.r = nextR;
+                disc.c = nextC;
+                disc.distanceTraveled++;
+
+                // Remember what tile is at this cell
+                char tileHere = grid[nextR][nextC];
+                disc.setOriginalTile(tileHere);
+            }
+        }
+
+        // Always show disc as 'D' while it's active (whether flying or stopped)
+        grid[disc.r][disc.c] = 'D';
+    }
+}
+
+
+    private void movePlayer(char[][] grid, int[][] trailTimer) {
+        // Try to apply any pending player direction (handling-dependent)
+        try { this.playerCycle.tryApplyPendingDirection(grid); } catch (Exception ignored) {}
+
+        int futureR = this.playerCycle.r; int futureC = this.playerCycle.c;
+        switch (this.playerCycle.currentDirection) { case NORTH -> futureR--; case SOUTH -> futureR++; case EAST -> futureC++; case WEST -> futureC--; }
+        char element = ' '; boolean collided = false;
+        if (futureR < 0 || futureR >= 40 || futureC < 0 || futureC >= 40) { this.playerCycle.changeLives(-this.playerCycle.getLives()); collided = true; }
+        else {
+            element = grid[futureR][futureC];
+            if (element == 'D') {
+                // Pickup: restore the tile underneath the disc instead of blindly writing '.'
+                Disc picked = null;
+                for (Disc d : activeDiscs) {
+                    if (d.r == futureR && d.c == futureC) { picked = d; break; }
+                }
+                this.playerCycle.pickupDisc();
+                if (picked != null) {
+                    grid[futureR][futureC] = picked.getOriginalTile();
+                    activeDiscs.remove(picked);
+                    element = grid[futureR][futureC];
+                } else {
+                    grid[futureR][futureC] = '.';
+                    element = '.';
+                }
+            }
+            // Allow stepping onto player's own trail/symbol (e.g., 'T' for Tron, 'K' for Kevin)
+            if (element != '.' && element != 'S' && element != this.playerCycle.getSymbol()) collided = true;
+        }
+        if (collided) {
+            this.playerCycle.changeLives(-0.5);
+            if (this.playerCycle.getLives() > 0.0) { this.playerCycle.revertPosition(grid, trailTimer); this.playerCycle.setOppositeDirection(); }
+        } else {
+            if (onSpeedRamp) grid[this.playerCycle.r][this.playerCycle.c] = 'S';
+            else { grid[this.playerCycle.r][this.playerCycle.c] = this.playerCycle.getSymbol(); trailTimer[this.playerCycle.r][this.playerCycle.c] = globalStepCounter; }
+            if (element == 'S') onSpeedRamp = true; else onSpeedRamp = false;
+            this.globalStepCounter++; this.playerCycle.advancePosition(grid);
+        }
+    }
+
+    private void handleTrailDecay(char[][] grid, int[][] trailTimer) {
+        for (int r = 0; r < 40; r++) { for (int c = 0; c < 40; c++) {
+            char currentElement = grid[r][c];
+            if (currentElement == 'T' || currentElement == 'K') {
+                int placementStep = trailTimer[r][c];
+                if (placementStep > 0) {
+                    int playerTrailDuration = TRAIL_DURATION;
+                    if (cycles != null && !cycles.isEmpty()) playerTrailDuration = cycles.get(0).getTrailDuration();
+                    if ((globalStepCounter - placementStep) >= playerTrailDuration) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
+                }
+            } else if (currentElement == 'M' || currentElement == 'C' || 
+                     currentElement == 'Y' || currentElement == 'G' || 
+                     currentElement == 'R') {
+                int placementStep = trailTimer[r][c];
+                if (placementStep > 0) {
+                    int trailDuration = TRAIL_DURATION; // default
+                    // Try to find an enemy instance matching this trail char and use its trailDuration
+                    for (Character cycle : cycles) {
+                        if (!(cycle instanceof Enemy)) continue;
+                        Enemy enemy = (Enemy) cycle;
+                        String name = enemy.getName();
+                        if ((currentElement == 'C' && name.contains("Clu")) ||
+                            (currentElement == 'Y' && name.contains("Sark")) ||
+                            (currentElement == 'G' && name.contains("Koura")) ||
+                            (currentElement == 'R' && name.contains("Rinzler")) ||
+                            (currentElement == 'M' && !enemy.isBoss())) {
+                            trailDuration = enemy.getTrailDuration();
+                            break;
+                        }
+                        // fallback: if any boss exists, prefer boss trail duration
+                        if (enemy.isBoss()) trailDuration = Math.max(trailDuration, enemy.getTrailDuration());
+                    }
+                    if ((globalStepCounter - placementStep) >= trailDuration) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
+                }
+            }
+        }}
+    }
+
+    private void throwDiscAction() {
+        if (!this.playerCycle.hasDisc()) {
+            return;
+        }
+        this.playerCycle.throwDisc();
+        Disc newDisc = new Disc(this.playerCycle.r, this.playerCycle.c, this.playerCycle.currentDirection, DISC_THROW_DISTANCE);
+        // Remember what tile is under the disc at spawn
+        try {
+            char[][] grid = arena.getGrid();
+            if (this.playerCycle.r >= 0 && this.playerCycle.r < 40 && this.playerCycle.c >= 0 && this.playerCycle.c < 40) {
+                newDisc.setOriginalTile(grid[this.playerCycle.r][this.playerCycle.c]);
+                grid[this.playerCycle.r][this.playerCycle.c] = 'D';
+            }
+        } catch (Exception ex) {
+            // ignore
+        }
+        activeDiscs.add(newDisc);
+        SwingUtilities.invokeLater(() -> { ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, arenaPanel, hudPanel); });
+    }
+
+    @Override public void keyTyped(KeyEvent e) {}
+    @Override public void keyPressed(KeyEvent e) {
+        char key = java.lang.Character.toUpperCase(e.getKeyChar());
+        if (key == 'W' || key == 'S' || key == 'A' || key == 'D') this.playerCycle.requestDirection(key);
+        // Support Arrow keys as well for better UX
+        if (e.getKeyCode() == KeyEvent.VK_LEFT) this.playerCycle.requestDirection('A');
+        if (e.getKeyCode() == KeyEvent.VK_RIGHT) this.playerCycle.requestDirection('D');
+        if (e.getKeyCode() == KeyEvent.VK_UP) this.playerCycle.requestDirection('W');
+        if (e.getKeyCode() == KeyEvent.VK_DOWN) this.playerCycle.requestDirection('S');
+        if (e.getKeyCode() == KeyEvent.VK_SPACE) throwDiscAction();
+    }
+    @Override public void keyReleased(KeyEvent e) {}
 }

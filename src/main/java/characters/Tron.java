@@ -3,22 +3,25 @@ package characters;
 public class Tron extends Character {
 
     public Tron() {
-        super("Tron", "Blue"); // Tron is Blue [cite: 85]
-        this.symbol = 'T'; // Use 'T' for visual identification before image is ready
-        // Initial stats will be loaded from characters.txt later
+        super("Tron", "Blue"); 
+        this.symbol = 'T';
+        this.imageBaseName = "tron"; 
     }
 
     @Override
     public void levelUp() {
-        level++;
-        // Tron gains more speed and stability per level[cite: 100].
-        // Example implementation (customize as needed):
-        speed += 0.5; 
-        handling += 0.1; 
+        super.levelUp(); 
         
-        // Add 1 life every 10 levels [cite: 95]
+        // Uniform per-level increases (small): Tron focuses on speed and stability
+        speed = Math.min(1.0, speed + 0.005); 
+        handling = Math.min(1.0, handling + 0.003);
+        
+        // --- FIXED HEART LOGIC ---
+        // Every 10 levels, increase MAXIMUM lives
         if (level % 10 == 0) {
-            lives += 1;
+            this.maxLives += 1.0; 
+            this.lives = this.maxLives; // Heal to the new max immediately
+            System.out.println(">> MAX LIVES INCREASED! New Max: " + this.maxLives);
         }
     }
 }

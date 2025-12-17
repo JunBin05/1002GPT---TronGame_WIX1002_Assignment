@@ -12,10 +12,14 @@ public class MainFrame extends JFrame {
         super("Tron Game");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
-        setSize(1024, 768);
-        setLocationRelativeTo(null); // Center on screen
+        // Start in maximized state so the main menu fills the entire screen like the arena
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        // Optionally set undecorated for a true fullscreen look (commented out to preserve window chrome during development)
+        // setUndecorated(true);
 
         ImagePanel backgroundPanel = new ImagePanel("images/tron_2.png");
+        // Ensure the initial panel fills available space immediately
+        backgroundPanel.setPreferredSize(getSize());
         
         // --- NEW CODE START ---
         // Pass 'this' (the MainFrame itself) to the panel
@@ -94,8 +98,6 @@ public class MainFrame extends JFrame {
         revalidate();
         repaint();
     }
-    
-
     
 
     public static void main(String[] args) {

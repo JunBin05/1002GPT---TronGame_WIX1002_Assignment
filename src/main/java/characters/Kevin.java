@@ -3,22 +3,31 @@ package characters;
 public class Kevin extends Character {
 
     public Kevin() {
-        super("Kevin", "White"); // Kevin is White [cite: 85]
-        this.symbol = 'K'; // Use 'K' for visual identification before image is ready
-        // Initial stats will be loaded from characters.txt later
+        super("Kevin", "Orange"); 
+        this.symbol = 'K';
+        this.imageBaseName = "kevin"; 
     }
 
     @Override
     public void levelUp() {
-        level++;
-        // Kevin gains more handling precision and discsOwned per level[cite: 101].
-        // Example implementation (customize as needed):
-        handling += 0.5;
-        speed += 0.1;
+        super.levelUp(); // Refills discs, increments level
         
-        // Add additional disc slot every 15 levels [cite: 96]
-        if (level % 15 == 0) {
-            discsOwned += 1;
+        // Kevin gains handling slowly so it reaches cap around level 90, small speed gain
+        // Calculation: (1.0 - baseHandling) / (90 - 1) ≈ 0.00337 per level
+        handling = Math.min(1.0, handling + 0.00337);
+        speed = Math.min(1.0, speed + 0.003);
+
+        // Kevin gets +1 disc capacity every 10 levels (in addition to base growth)
+        if (level % 10 == 0) {
+            this.discCapacity = Math.min(this.discCapacity + 1, XPSystem.TronRules.MAX_DISCS);
+            this.currentDiscCount = this.discCapacity;
+            System.out.println(">> Kevin bonus: disc capacity increased to " + this.discCapacity);
+        }
+        
+        if (level % 10 == 0) {
+            this.maxLives += 1.0; 
+            this.lives = this.maxLives; // Heal to the new max immediately
+            System.out.println(">> MAX LIVES INCREASED! New Max: " + this.maxLives);
         }
     }
 }

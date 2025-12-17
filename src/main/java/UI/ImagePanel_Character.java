@@ -85,8 +85,48 @@ public class ImagePanel_Character extends JPanel {
             else {
                 String selectedChar = kevinButton.isSelected() ? "Kevin" : "Tron";
                 System.out.println("Starting game with: " + selectedChar);
-                // Launch Arena here!
-                // ArenaLoader.startGame(selectedChar); 
+                // Inform ArenaLoader which character the player selected (Tron or Kevin)
+                arena.ArenaLoader.setSelectedPlayer(selectedChar);
+                // Set the current chapter and reset to stage 1
+                arena.ArenaLoader.currentChapter = currentChapter;
+                arena.ArenaLoader.currentStage = 1;
+                // Make the window fullscreen (maximized)
+                mainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+                // Prepare the arena GamePanel (so cutscene can play inside it)
+                arena.ArenaLoader.mainFrame = mainFrame;
+
+                UI.GamePanel gamePanel = new UI.GamePanel();
+                JPanel container = new JPanel(new BorderLayout());
+                container.add(gamePanel, BorderLayout.CENTER);
+                mainFrame.setContentPane(container);
+                mainFrame.revalidate();
+                mainFrame.repaint();
+                gamePanel.setFocusable(true);
+                SwingUtilities.invokeLater(() -> gamePanel.requestFocusInWindow());
+
+                // Start the game loop so GIFs / animations will animate during the cutscene
+                gamePanel.startGameThread(mainFrame);
+
+                // Show the pre-stage cutscene for the selected chapter/stage (no NEXT_FILE chaining)
+                arena.CutsceneUtil.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", mainFrame, gamePanel, false);
+                // Record that we've shown the pre-stage cutscene so ArenaLoader won't show it again.
+                arena.ArenaLoader.markPreCutsceneShown(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage);
+
+                // Wait for cutscene to finish on a background thread (do not block the EDT)
+                Thread waitThread = new Thread(() -> {
+                    try {
+                        while (gamePanel.cutscene.isActive()) {
+                            Thread.sleep(50);
+                        }
+                        // When cutscene finishes, show the Start Simulation menu on the EDT and then start the level
+                        SwingUtilities.invokeLater(() -> {
+                            UI.StartGameMenu.showMenu(mainFrame);
+                            arena.ArenaLoader.startLevel();
+                        });
+                    } catch (InterruptedException ignored) {}
+                });
+                waitThread.setDaemon(true);
+                waitThread.start();
             }
         });
         add(playArenaButton);

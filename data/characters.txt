@@ -1,3 +1,4 @@
 # Character, Speed, Handling, Lives, DiscsOwned, ExperiencePoints
-Tron, 0.4, 0.5, 3, 1, 0
-Kevin, 0.7, 0.8, 2, 2, 0
+# Tweaked defaults for better early-game balance; stronger scaling happens at high levels (80+)
+Tron, 0.4, 0.55, 3, 1, 0
+Kevin, 0.45, 0.70, 3, 2, 0

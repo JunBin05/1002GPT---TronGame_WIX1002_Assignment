@@ -1,0 +1,136 @@
+package XPSystem;
+
+public class TronRules {
+    // 1. CONSTANTS
+    private static final double BASE_XP = 100.0;
+    private static final double EXPONENT = 1.5; // eased further: faster early progression
+    public static final int MAX_LEVEL = 99;
+    public static final int MAX_DISCS = 10;
+
+    // Toggle: when true, XP is only awarded on stage clear (no per-kill XP)
+    public static final boolean STAGE_ONLY_XP = true;
+
+    // Stage-clear XP tuning (tweakable)
+    private static final double BASE_STAGE_XP = 300.0; // base XP for stage clear (raised so C1S1 grants level)
+    private static final double STAGE_MULTIPLIER_PER_STAGE = 0.12; // +12% per stage
+    private static final double CHAPTER_MULTIPLIER_PER_CHAPTER = 0.28; // +28% per chapter (increased)
+
+    // Progressive run scaling: when enabled, scale stage XP so that a single full run
+    // (C1S1 -> C5S4) will reach TARGET_END_LEVEL (e.g., 99) gradually.
+    private static final boolean PROGRESSIVE_SCALING_ENABLED = true;
+    private static final int PROGRESS_TARGET_LEVEL = 99;
+    private static Double progressionScaleCache = null; // computed lazily to avoid startup cost
+
+    // 2. ENUMS
+    public enum EnemyType {
+        MINION, KOURA, SARK, RINZLER, CLU
+    }
+
+    public enum StageType {
+        TUTORIAL, NORMAL, BOSS_KILL, BOSS_SURVIVE, STORY_CLIMAX
+    }
+
+    // 3. BASE XP CALCULATION
+    public static long getTotalXpForLevel(int level) {
+        if (level <= 1)
+            return 0;
+        return (long) (BASE_XP * Math.pow(level, EXPONENT));
+    }
+
+    public static int getDiscCount(int level) {
+        return Math.min(1 + (level / 10), MAX_DISCS);
+    }
+
+    // 4. ENEMY XP (UPDATED FOR LEVEL 50 PACING)
+    public static long calculateEnemyXp(int currentLevel, EnemyType enemy) {
+        // Calculate the "Gap"
+        long currentTotal = getTotalXpForLevel(currentLevel);
+        long nextTotal = getTotalXpForLevel(currentLevel + 1);
+        long gap = nextTotal - currentTotal;
+
+        double multiplier = 0;
+        switch (enemy) {
+            case MINION:
+                multiplier = 0.15;
+                break; // 15% (Was 40%)
+            case KOURA:
+                multiplier = 1.00;
+                break; // +1 Level (Was 3.0)
+            case SARK:
+                multiplier = 1.50;
+                break; // +1.5 Levels (Was 4.0)
+            case RINZLER:
+                multiplier = 2.00;
+                break; // +2 Levels (Was 5.0)
+            case CLU:
+                multiplier = 3.00;
+                break; // +3 Levels (Was 8.0)
+        }
+
+        return (long) (gap * multiplier);
+    }
+
+    // 5. STAGE REWARD (UPDATED FOR LEVEL 50 PACING)
+    public static long calculateStageReward(int currentLevel, StageType type) {
+        long currentTotal = getTotalXpForLevel(currentLevel);
+        long nextTotal = getTotalXpForLevel(currentLevel + 1);
+        long gap = nextTotal - currentTotal;
+
+        double multiplier = 0;
+        switch (type) {
+            case TUTORIAL:
+                multiplier = 1.0;
+                break; // Start Lvl 2 (Was 2.0)
+            case NORMAL:
+                multiplier = 1.2;
+                break; // +1.2 Levels (Was 3.5)
+            case BOSS_KILL:
+                multiplier = 2.5;
+                break; // +2.5 Levels (Was 5.0)
+            case BOSS_SURVIVE:
+                multiplier = 3.0;
+                break; // +3.0 Levels (Was 6.0)
+            case STORY_CLIMAX:
+                multiplier = 4.0;
+                break; // +4.0 Levels (Was 8.0)
+        }
+
+        return (long) (gap * multiplier);
+    }
+
+    /**
+     * Stage-clear XP helper (stage-only XP mode). Calculates XP based on chapter & stage
+     * and ignores the level "gap" curve so XP cannot be farmed by repeated kills.
+     */
+    private static double computeUnscaledStageXp(int chapter, int stage) {
+        double stageMult = 1.0 + Math.max(0, stage - 1) * STAGE_MULTIPLIER_PER_STAGE;
+        double chapterMult = 1.0 + Math.max(0, chapter - 1) * CHAPTER_MULTIPLIER_PER_CHAPTER;
+        return BASE_STAGE_XP * stageMult * chapterMult;
+    }
+
+    private static double computeProgressionScale() {
+        if (!PROGRESSIVE_SCALING_ENABLED) return 1.0;
+        if (progressionScaleCache != null) return progressionScaleCache;
+
+        // Stages per chapter: 1->3, 2->6, 3->5, 4->5, 5->4
+        int[] stagesPerChapter = {0, 3, 6, 5, 5, 4};
+        double totalUnscaled = 0.0;
+        for (int c = 1; c <= 5; c++) {
+            for (int s = 1; s <= stagesPerChapter[c]; s++) {
+                totalUnscaled += computeUnscaledStageXp(c, s);
+            }
+        }
+        double target = (double) getTotalXpForLevel(PROGRESS_TARGET_LEVEL);
+        if (totalUnscaled <= 0.0) { progressionScaleCache = 1.0; return progressionScaleCache; }
+        progressionScaleCache = target / totalUnscaled;
+        System.out.println(String.format("[TronRules] Progression scaling: target=%,.0f totalUnscaled=%,.0f scale=%.4f", target, totalUnscaled, progressionScaleCache));
+        return progressionScaleCache;
+    }
+
+    public static long calculateStageClearXp(int chapter, int stage) {
+        double unscaled = computeUnscaledStageXp(chapter, stage);
+        double scale = computeProgressionScale();
+        double xp = unscaled * scale;
+        return (long) Math.max(0, Math.round(xp));
+    }
+}

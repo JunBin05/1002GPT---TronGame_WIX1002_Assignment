@@ -1,73 +1,303 @@
 package characters;
 
-import java.awt.Point;
-import java.util.LinkedList;
+import XPSystem.TronRules; 
 
 public abstract class Character {
-    // --- Position and Identifier (MUST BE PUBLIC for ArenaLoader access) ---
     public int r;            
     public int c;            
-    public String name;      
+    public String name;  
+    public String imageBaseName; 
+    public int currentDiscCount = 0;    
+    public Direction currentDirection; 
     
-    private static final int MAX_TRAIL_LENGTH = 7;
-    public Direction currentDirection; // Tracks the cycle's current heading
-    // -------------------------------------
-    
-    // Core Stats (Protected)
     protected double lives;
     protected double maxLives;     
-    protected double speed;      
-    protected double handling;   
-    protected int discsOwned;    
-    protected int experiencePoints; 
     protected int level = 1;     
+    protected long currentXp = 0; 
+    protected int discCapacity = 1; 
+
+    protected long pendingXp = 0; 
 
     protected String color;      
     protected char symbol = 'P'; 
+    public boolean isStunned = false;
+
+    // Attributes
+    protected int experiencePoints; 
+    protected double speed = 1.0;      
+    protected double handling = 1.0;   
+    public int discsOwned;  
+
+    // Pending turn requested by player input. Applied probabilistically based on handling.
+    protected char pendingDirection = '\0';
+
+    public void requestDirection(char dir) { this.pendingDirection = java.lang.Character.toUpperCase(dir); }
+
+    /**
+     * Attempt to apply the pending direction based on handling and grid availability.
+     * Returns true if applied (direction changed), false otherwise.
+     */
+    public boolean tryApplyPendingDirection(char[][] grid) {
+        if (this.pendingDirection == '\0') return false;
+        int nextR = this.r; int nextC = this.c;
+        switch (java.lang.Character.toUpperCase(this.pendingDirection)) {
+            case 'W' -> nextR--;
+            case 'S' -> nextR++;
+            case 'A' -> nextC--;
+            case 'D' -> nextC++;
+            default -> { return false; }
+        }
+        // out of bounds or blocked?
+        if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) return false;
+        char tile = grid[nextR][nextC];
+        if (tile == '#' || tile == 'O' || tile == 'D' || tile == 'M') return false;
+
+        // Decide if the player's handling allows the turn to be executed now
+        double roll = Math.random();
+        if (roll < this.handling) {
+            setDirection(this.pendingDirection);
+            this.pendingDirection = '\0';
+            return true;
+        }
+        // not applied this tick, keep pending for next tick
+        return false;
+    }
 
     public Character(String name, String color) {
         this.name = name;
         this.color = color;
-        // Initialize the direction to a default state (e.g., North/Up)
         this.currentDirection = Direction.NORTH; 
     }
 
-    public boolean isStunned = false;
+    // --- MISSING METHOD ADDED HERE ---
+    public void setStartPosition(int r, int c) {
+        this.r = r;
+        this.c = c;
+    }
+    // ---------------------------------
 
     public void loadInitialAttributes(CharacterData data) {
         this.speed = data.speed;
         this.handling = data.handling;
         this.lives = data.lives;
         this.maxLives = data.lives;
-        this.discsOwned = data.discsOwned;
-        this.experiencePoints = data.experiencePoints;
+        
+        // Initial Capacity Check
+        this.discCapacity = 1 + (this.level / 15);
+        this.currentDiscCount = this.discCapacity; 
+        
+        this.experiencePoints = data.experiencePoints; 
+    }
+    
+    // --- FORCE REFILL ---
+    // Called by GameController Constructor to ensure Stage 2 starts fresh
+    public void prepareForNextStage() {
+        // Recalculate capacity just in case
+        this.discCapacity = 1 + (this.level / 15);
+        
+        this.currentDiscCount = this.discCapacity; // Refill Ammo
+        this.lives = this.maxLives;                // Heal to Full
+        this.isStunned = false;
+        
+        System.out.println(name + " Ready for Stage. Discs: " + currentDiscCount + "/" + discCapacity + " HP: " + lives);
     }
 
-    // FIX: Getters needed by ArenaLoader
+    public void addXP(long amount) {
+        this.pendingXp += amount;
+    }
+
+    /**
+     * Set the current XP for this character and synchronize level accordingly.
+     * This is used when loading saved player data from the database.
+     */
+    public void setXp(long xp) {
+        if (xp < 0) xp = 0;
+        this.currentXp = xp;
+        // Recompute level to match XP (start from current level, levelUp will apply buffs)
+        while (level < TronRules.MAX_LEVEL && currentXp >= TronRules.getTotalXpForLevel(level + 1)) {
+            levelUp();
+        }
+    }
+
+    public String commitPendingXP(String username) {
+        if (pendingXp == 0) return "No XP Gained.";
+
+        long oldXp = currentXp;
+        int oldLevel = level;
+        double oldSpeed = speed;
+
+        // Determine saved max level for display purposes (do not change player's state)
+        int savedMaxLevel = 0;
+        if (username != null && !username.trim().isEmpty()) {
+            try {
+                UI.DatabaseManager db = new UI.DatabaseManager();
+                if (this.name.equals("Tron")) savedMaxLevel = db.getTronLevel(username);
+                else if (this.name.equals("Kevin")) savedMaxLevel = db.getKevinLevel(username);
+            } catch (Exception e) {
+                // ignore and proceed with savedMaxLevel = 0
+            }
+        }
+
+        int displayOldLevel = Math.max(savedMaxLevel, oldLevel);
+
+        // Now apply XP and level up the in-memory character
+        this.currentXp += pendingXp;
+        long gained = pendingXp;
+        this.pendingXp = 0; 
+
+        boolean didLevelUp = false;
+        while (level < TronRules.MAX_LEVEL && currentXp >= TronRules.getTotalXpForLevel(level + 1)) {
+            levelUp(); 
+            didLevelUp = true;
+        }
+
+        int newLevel = level;
+        int displayNewLevel = Math.max(savedMaxLevel, newLevel);
+
+        // Build display stats for OLD and NEW using simulated leveling from base stats so attributes match sidebar
+        double displayOldSpeed = oldSpeed;
+        double displayNewSpeed = this.speed;
+        double displayOldHandling = this.handling;
+        double displayNewHandling = this.handling;
+        int displayOldDiscCap = this.discCapacity;
+        int displayNewDiscCap = this.discCapacity;
+        double displayOldMaxLives = this.maxLives;
+        double displayNewMaxLives = this.maxLives;
+
+        try {
+            // Load base attributes from file and simulate to displayOldLevel and displayNewLevel
+            characters.CharacterData base = characters.CharacterLoader.loadCharacterData(this.name);
+            characters.Character sim = (this.name.equals("Tron")) ? new characters.Tron() : new characters.Kevin();
+            if (base != null) sim.loadInitialAttributes(base);
+
+            // Simulate to old
+            while (sim.getLevel() < displayOldLevel) sim.levelUp();
+            displayOldSpeed = sim.getSpeed();
+            displayOldHandling = sim.getHandling();
+            displayOldDiscCap = sim.getDiscCapacity();
+            displayOldMaxLives = sim.getMaxLives();
+
+            // Simulate to new
+            while (sim.getLevel() < displayNewLevel) sim.levelUp();
+            displayNewSpeed = sim.getSpeed();
+            displayNewHandling = sim.getHandling();
+            displayNewDiscCap = sim.getDiscCapacity();
+            displayNewMaxLives = sim.getMaxLives();
+        } catch (Exception e) {
+            // If anything fails, fall back to in-memory values we already captured
+            displayOldSpeed = oldSpeed;
+            displayNewSpeed = this.speed;
+            displayOldDiscCap = this.discCapacity;
+            displayNewDiscCap = this.discCapacity;
+            displayOldMaxLives = this.maxLives;
+            displayNewMaxLives = this.maxLives;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body style='width: 300px; background-color: #222; color: #00FFCC; font-family: Sans-serif; padding: 10px;'>");
+        sb.append("<h2 style='text-align: center; border-bottom: 2px solid #00FFCC;'>SYSTEM UPDATE</h2>");
+        sb.append("<table style='width: 100%; color: white;'>");
+
+        sb.append(String.format("<tr><td>XP Gained:</td><td style='text-align: right; color: #00FF00;'>+%d</td></tr>", gained));
+        sb.append(String.format("<tr><td>Total XP:</td><td style='text-align: right;'>%d</td></tr>", currentXp));
+
+        if (didLevelUp || displayOldLevel != displayNewLevel) {
+            sb.append("<tr><td colspan='2'><hr></td></tr>");
+            sb.append(String.format("<tr><td><b>LEVEL:</b></td><td style='text-align: right; color: yellow;'><b>%d &rarr; %d</b></td></tr>", displayOldLevel, displayNewLevel));
+            sb.append(String.format("<tr><td>Speed:</td><td style='text-align: right;'>%.2f &rarr; <span style='color: #00FFCC;'>%.2f</span></td></tr>", displayOldSpeed, displayNewSpeed));
+
+            // Show Capacity Increase (show new capacity)
+            sb.append(String.format("<tr><td>Disc Cap:</td><td style='text-align: right;'>%d</td></tr>", displayNewDiscCap));
+            sb.append(String.format("<tr><td>Max Lives:</td><td style='text-align: right;'>%.1f</td></tr>", displayNewMaxLives));
+        } else {
+             sb.append("<tr><td colspan='2'><br><i style='color: #888;'>Progress to Level " + (displayNewLevel+1) + "...</i></td></tr>");
+        }
+
+        sb.append("</table></body></html>");
+        return sb.toString();
+    }
+
+    public void levelUp() {
+        level++;
+        
+        // --- NEW RULE: 1 Disc + 1 extra every 15 levels ---
+        this.discCapacity = 1 + (this.level / 15);
+        
+        // Refill immediately on level up
+        this.currentDiscCount = this.discCapacity; 
+        
+        System.out.println(">>> LEVEL UP! " + name + " is now Level " + level + ". Disc Cap: " + discCapacity);
+
+        // Persist XP immediately when leveling up for logged-in users so UI remains consistent
+        try {
+            if (arena.ArenaLoader.mainFrame instanceof UI.MainFrame) {
+                String user = ((UI.MainFrame) arena.ArenaLoader.mainFrame).getCurrentUsername();
+                if (user != null && !user.trim().isEmpty()) {
+                    new Thread(() -> {
+                        try {
+                            UI.DatabaseManager db = new UI.DatabaseManager();
+                            if (this.name.equals("Tron")) db.setTronXp(user, this.currentXp);
+                            else if (this.name.equals("Kevin")) db.setKevinXp(user, this.currentXp);
+                        } catch (Exception e) {
+                            // ignore persistence failures (non-critical)
+                        }
+                    }).start();
+                }
+            }
+        } catch (Exception e) {
+            // ignore any errors retrieving mainFrame
+        }
+    }
+
+    public boolean hasDisc() { return currentDiscCount > 0; }
+    
+    public void throwDisc() {
+        if (currentDiscCount > 0) {
+            currentDiscCount--;
+        }
+    }
+
+    public void pickupDisc() {
+        if (currentDiscCount < discCapacity) {
+            currentDiscCount++;
+        }
+    }
+
+    // Getters
     public int getRow() { return r; }
     public int getCol() { return c; }
+    public double getLives() { return this.lives; }
+    public double getMaxLives() { return this.maxLives; }
+    public char getSymbol() { return this.symbol; }
+    public int getLevel() { return this.level; } 
+    public long getXp() { return this.currentXp; }
+    public double getSpeed() { return this.speed; }
+    public double getHandling() { return this.handling; }
+    public int getDiscCapacity() { return this.discCapacity; }
 
-    public double getLives() {
-        return this.lives;
-    }
-
-    public double getMaxLives() { 
-        return this.maxLives; 
-    }
-
-    public char getSymbol() {
-        return this.symbol;
-    }
+    public void setStunned(boolean stunned) { this.isStunned = stunned; }
 
     public void changeLives(double amount) {
         this.lives += amount;
+        if (this.lives > this.maxLives) this.lives = this.maxLives;
     }
+
+    // Public setters so callers (e.g., LevelManager) can tune health values per-stage
+    public void setMaxLives(double max) {
+        this.maxLives = max;
+        if (this.lives > this.maxLives) this.lives = this.maxLives;
+    }
+
+    public void setLives(double lives) {
+        this.lives = lives;
+        if (this.lives > this.maxLives) this.lives = this.maxLives;
+    }
+
+    // Trail visibility length (number of steps before a trail cell decays)
+    protected int trailDuration = 7;
+    public int getTrailDuration() { return this.trailDuration; }
+    public void setTrailDuration(int duration) { this.trailDuration = Math.max(1, duration); }
     
-    // --- UPDATED: Method to Handle Direction Input (Turning) ---
-    /**
-     * Updates the cycle's currentDirection based on WASD input.
-     * This method handles turning only.
-     */
     public void setDirection(char directionInput) {
         switch (directionInput) {
             case 'W' -> this.currentDirection = Direction.NORTH; 
@@ -84,56 +314,19 @@ public abstract class Character {
             case EAST -> Direction.WEST;
             case WEST -> Direction.EAST;
         };
-        System.out.println(this.name + " reversed direction due to collision. New direction: " + this.currentDirection);
     }
 
     public void revertPosition(char grid[][], int [][] trailTimer) {
-        // Moves the cycle's position one unit backward based on its current direction.
-        // NOTE: This does NOT change the currentDirection, which is needed for the turn.
-        switch (this.currentDirection) {
-            case NORTH:
-                r++; // Go South (since last move was North)
-                break;
-            case SOUTH:
-                r--; // Go North (since last move was South)
-                break;
-            case EAST:
-                c--;  // Go West (since last move was East)
-                break;
-            case WEST:
-                c++;  // Go East (since last move was West)
-                break;
-        }
-        
-        // Clear the invalid position from the grid if we were actually on the board
+        switch (this.currentDirection) { case NORTH -> r++; case SOUTH -> r--; case EAST -> c--; case WEST -> c++; }
         if (r >= 0 && r < 40 && c >= 0 && c < 40) {
             grid[this.r][this.c] = '.'; 
             trailTimer[this.r][this.c] = 0;
         }
-
         this.isStunned = true;
     }
     
-    // --- NEW: Method to Advance Position (Moving Straight) ---
-    /**
-     * Moves the cycle one grid unit in the currentDirection.
-     * This method handles the continuous movement required by Light Cycles.
-     */
     public void advancePosition(char[][] grid) {
-        if (this.isStunned) {
-            // Skip movement this frame, but clear the stun for the next frame
-            this.isStunned = false;
-            return;
-        }
-
-        switch (this.currentDirection) {
-            case NORTH -> r--; 
-            case SOUTH -> r++; 
-            case WEST -> c--; 
-            case EAST -> c++; 
-        }
+        if (this.isStunned) { this.isStunned = false; return; }
+        switch (this.currentDirection) { case NORTH -> r--; case SOUTH -> r++; case WEST -> c--; case EAST -> c++; }
     }
-    
-    // The previous 'move(char direction)' method is now replaced by setDirection() and advancePosition().
-    public abstract void levelUp(); 
 }
