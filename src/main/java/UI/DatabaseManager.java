@@ -318,7 +318,7 @@ public class DatabaseManager {
         } catch (SQLException e) { e.printStackTrace(); }
     }
     
-// --- UPDATED: GET TOP 10 (FIXED DATE DISPLAY) ---
+    // --- UPDATED: GET TOP 10 (FIXED DATE DISPLAY) ---
     public List<String[]> getTop10Scores() {
         List<String[]> results = new ArrayList<>();
         
