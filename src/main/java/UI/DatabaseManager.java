@@ -317,4 +317,39 @@ public class DatabaseManager {
             pstmt.executeUpdate();
         } catch (SQLException e) { e.printStackTrace(); }
     }
+    
+// --- UPDATED: GET TOP 10 (FIXED DATE DISPLAY) ---
+    public List<String[]> getTop10Scores() {
+        List<String[]> results = new ArrayList<>();
+        
+        String sql = "SELECT ID, HIGHEST_CHAPTER, HIGHEST_SCORE, LAST_COMPLETED " +
+                     "FROM " + TABLE_NAME + " " +
+                     "ORDER BY HIGHEST_SCORE DESC, HIGHEST_CHAPTER DESC LIMIT 10";
+
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                String name = rs.getString("ID");
+                String level = String.valueOf(rs.getInt("HIGHEST_CHAPTER"));
+                String score = String.valueOf(rs.getLong("HIGHEST_SCORE"));
+                String date = rs.getString("LAST_COMPLETED");
+                
+                // --- FIX 2: Handle empty or long dates when reading ---
+                if (date == null) {
+                    date = "-";
+                } else if (date.contains("T")) {
+                    // Split at "T" and take the first part (The Date)
+                    date = date.split("T")[0];
+                }
+                // -----------------------------------------------------
+
+                results.add(new String[]{name, level, score, date});
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return results;
+    }
 }
