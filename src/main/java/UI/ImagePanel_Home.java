@@ -71,6 +71,12 @@ public class ImagePanel_Home extends JPanel {
         questionButton = new QuestionButton("images/qna_button.png");
         add(questionButton);
 
+        questionButton.addActionListener(e -> {
+            if (mainFrameRef != null) {
+            mainFrameRef.changeToGameRule(); 
+            }
+        });
+
         //6. Create Profile Picture Button
         String savedImagePath = dbManager.getProfileImage(username);
         profileButton = new ProfilePictureButton(savedImagePath, username, dbManager);
