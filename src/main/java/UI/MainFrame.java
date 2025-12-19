@@ -98,6 +98,12 @@ public class MainFrame extends JFrame {
         revalidate();
         repaint();
     }
+    public void changeToGameRule() {
+        ImagePanel_GameRule gameRulePanel = new ImagePanel_GameRule(this);
+        setContentPane(gameRulePanel);
+        revalidate();
+        repaint();
+    }
     
 
     public static void main(String[] args) {

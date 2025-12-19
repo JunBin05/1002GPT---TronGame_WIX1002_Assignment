@@ -20,7 +20,6 @@ public class QuestionButton extends JButton {
         // 3. Add a simple click action
         addActionListener(e -> {
             System.out.println("QNA Button Clicked!");
-            JOptionPane.showMessageDialog(this, "QNA Feature Coming Soon!");
         });
     }
 

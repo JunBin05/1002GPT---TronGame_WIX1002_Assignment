@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
+import java.util.List;
  
 public class ImagePanel_StoryMode extends JPanel {
 
@@ -17,69 +18,76 @@ public class ImagePanel_StoryMode extends JPanel {
 
     private JLabel chapterImageLabel;
     
-    private java.util.List<Image> chapterImages; // Holds all 3 images
-    private int currentIndex = 0;      // Tracks current page 
+    // --- NEW: Database and Logic Variables ---
+    private DatabaseManager dbManager;
+    private int highestChapterUnlocked; 
+    // ----------------------------------------
+    
+    private List<Image> chapterImages; 
+    private int currentIndex = 0; 
 
-
-    // Constructor: Only needs the image path
     public ImagePanel_StoryMode(String imagePath, MainFrame mainFrame, String username) {
         this.mainFrameRef = mainFrame;
         this.username = username;
-
+        this.dbManager = new DatabaseManager(); // Init DB
         setLayout(null); 
+
+        // 1. Fetch User Progress (Default to 1 if new)
+        this.highestChapterUnlocked = dbManager.getHighestChapter(username);
+        if (this.highestChapterUnlocked == 0) this.highestChapterUnlocked = 1; 
 
         this.backgroundImage = new ImageIcon(imagePath).getImage();
 
-        // 1. Create Back Button
+        // 2. Create Back Button
         backButton = new BackButton("images/back_button.png");
         backButton.addActionListener(e -> {
             if (mainFrameRef != null) {
-                // Switch back to Game Mode, passing the username back!
                 mainFrameRef.changeToGameMode(); 
             }
         });
         add(backButton);
-        // 2. Setup Chapter Image
-        chapterImages = new ArrayList<>();
-        // Make sure these files exist in your images folder!
-        chapterImages.add(new ImageIcon("images/chapter1.png").getImage()); // Index 0
-        chapterImages.add(new ImageIcon("images/chapter2.png").getImage()); // Index 1
-        chapterImages.add(new ImageIcon("images/chapter3.png").getImage()); // Index 2
-        chapterImages.add(new ImageIcon("images/chapter4.png").getImage()); // Index 3
-        chapterImages.add(new ImageIcon("images/chapter5.png").getImage()); // Index 4
 
-        // Setup Label
+        // 3. Load UNLOCKED Images (Index 0-4)
+        chapterImages = new ArrayList<>();
+        chapterImages.add(new ImageIcon("images/chapter1.png").getImage());
+        chapterImages.add(new ImageIcon("images/chapter2.png").getImage());
+        chapterImages.add(new ImageIcon("images/chapter3.png").getImage());
+        chapterImages.add(new ImageIcon("images/chapter4.png").getImage());
+        chapterImages.add(new ImageIcon("images/chapter5.png").getImage());
+
+        // 4. Setup Label
         chapterImageLabel = new JLabel();
-        // 1. Change cursor to Hand so user knows they can click
         chapterImageLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // 2. Add Click Event
+        // --- CLICK EVENT: CHECK LOCK STATUS ---
         chapterImageLabel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 
-                // Calculate the Chapter Number (Index 0 = Chapter 1, Index 1 = Chapter 2, etc.)
-                int selectedChapter = currentIndex + 1;
+                int selectedChapter = currentIndex + 1; // 1 to 5
                 
-                System.out.println("User selected Chapter " + selectedChapter);
-
-                // Check if MainFrame exists and call the new method
-                if (mainFrameRef != null) {
-                    // Pass the username AND the chapter number
-                    mainFrameRef.changeToCharacterSelect(username, selectedChapter);
+                // --- LOGIC: Only allow if unlocked ---
+                if (selectedChapter <= highestChapterUnlocked) {
+                    System.out.println("User selected Chapter " + selectedChapter);
+                    if (mainFrameRef != null) {
+                        mainFrameRef.changeToCharacterSelect(username, selectedChapter);
+                    }
+                } else {
+                    System.out.println("Chapter " + selectedChapter + " is LOCKED! You must finish Chapter " + (selectedChapter - 1) + " first.");
+                    // Optional: Show a small popup message
+                    JOptionPane.showMessageDialog(null, "This chapter is locked! Complete the previous chapter to unlock it.");
                 }
             }
          });
         add(chapterImageLabel);
 
-        // 3. Create Right Button
+        // 5. Create Navigation Buttons
         rightButton = new RightButton("images/right_button.png");
-        rightButton.addActionListener(e -> changeChapter(1)); // Go Forward
+        rightButton.addActionListener(e -> changeChapter(1)); 
         add(rightButton);
 
-        //4. Create Left Button
         leftButton = new LeftButton("images/left_button.png");
-        leftButton.addActionListener(e -> changeChapter(-1)); // Go Backward
+        leftButton.addActionListener(e -> changeChapter(-1)); 
         add(leftButton);
 
         addComponentListener(new ComponentAdapter() {
@@ -88,23 +96,17 @@ public class ImagePanel_StoryMode extends JPanel {
                 updateLayout();
             }
         });
-
     }
 
     private void changeChapter(int direction) {
         currentIndex += direction;
 
-        // Loop Logic:
-        // If at the end (index 3), go back to start (index 0)
         if (currentIndex >= chapterImages.size()) {
             currentIndex = 0;
-        } 
-        // If at the start (index -1), go to end (index 2)
-        else if (currentIndex < 0) {
+        } else if (currentIndex < 0) {
             currentIndex = chapterImages.size() - 1;
         }
 
-        // Refresh the screen to show the new image
         updateLayout();
     }
 
@@ -113,44 +115,63 @@ public class ImagePanel_StoryMode extends JPanel {
         int h = getHeight();
         if (w == 0 || h == 0) return;
 
-        //1. Set Back Button
+        // 1. Back Button
         int backSize = (int) (h * 0.18);
         backButton.setBounds(30, 30, backSize, backSize);
         backButton.resizeIcon(backSize);
 
-        //2. Set Chapter Image Position
+        // 2. Chapter Image Logic
         int imgW = (int) (w * 0.50);
         int imgH = (int) (h * 0.60);
         int imgX = (w / 2) - (imgW / 2);
         int imgY = (h / 2) - (imgH / 2) + 60;
         chapterImageLabel.setBounds(imgX, imgY, imgW, imgH);
 
-         if (!chapterImages.isEmpty()) {
-            // Get the current image from the list using currentIndex
-            Image currentImg = chapterImages.get(currentIndex);
+        // --- NEW LOGIC: DECIDE WHICH IMAGE TO SHOW ---
+        int currentChapterNum = currentIndex + 1;
+        Image displayImg;
+
+        if (currentChapterNum <= highestChapterUnlocked) {
+            // UNLOCKED: Show the normal image from the list
+            displayImg = chapterImages.get(currentIndex);
+            chapterImageLabel.setCursor(new Cursor(Cursor.HAND_CURSOR)); // Hand cursor
+        } else {
+            // LOCKED: Load the specific lock image file
+            // Expecting files: chapter2_lock.jpg, chapter3_lock.jpg, etc.
+            String lockPath = "images/chapter" + currentChapterNum + "_lock.png";
+            displayImg = new ImageIcon(lockPath).getImage();
             
-            // Resize it to fit
-            Image scaled = currentImg.getScaledInstance(imgW, imgH, Image.SCALE_SMOOTH);
+            // If the specific lock image doesn't exist, fallback to normal one (or a generic lock)
+            if (displayImg.getWidth(null) == -1) { 
+                 // Fallback if specific lock image missing
+                 displayImg = chapterImages.get(currentIndex); 
+            }
+            
+            chapterImageLabel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR)); // Normal cursor (not clickable)
+        }
+
+        // Resize and Set
+        if (displayImg != null) {
+            Image scaled = displayImg.getScaledInstance(imgW, imgH, Image.SCALE_SMOOTH);
             chapterImageLabel.setIcon(new ImageIcon(scaled));
         }
-        //3. Set Right Button
+        // ---------------------------------------------
+
+        // 3. Navigation Buttons
         int rightSize = (int) (h * 0.18);
         int rightX = w - rightSize - 80;
         rightButton.setBounds(rightX, 350, rightSize, rightSize);
         rightButton.resizeIcon(rightSize);
 
-        //4. Set Left Button
         int leftSize = (int) (h * 0.18);
         int leftX = 80;
         leftButton.setBounds(leftX, 350, leftSize, leftSize);
         leftButton.resizeIcon(leftSize);
-
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        // Draw image to fill the screen
         if (backgroundImage != null) {
             g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         }
