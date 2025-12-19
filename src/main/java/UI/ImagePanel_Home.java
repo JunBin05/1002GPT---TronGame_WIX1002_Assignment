@@ -32,7 +32,7 @@ public class ImagePanel_Home extends JPanel {
         this.backgroundImage = new ImageIcon(imagePath).getImage();
 
         // 1. Create Sound Button
-        soundButton = new SoundButton("images/sound_button.png", "images/game_music.wav");
+        soundButton = new SoundButton("images/sound_button.png", "audio/sound_background.wav");
         add(soundButton);
 
         // 2. Create Play Button
