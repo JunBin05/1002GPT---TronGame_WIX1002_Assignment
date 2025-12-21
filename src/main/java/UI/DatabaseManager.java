@@ -11,8 +11,12 @@ import java.util.List;
 
 public class DatabaseManager {
 
-    private static final String DB_URL = "jdbc:sqlite:user_data.db";
+    // Use a busy timeout (ms) to wait for locks instead of immediately failing
+    private static final String DB_URL = "jdbc:sqlite:user_data.db?busy_timeout=5000";
     private static final String TABLE_NAME = "users";
+
+    // Global write lock across instances to serialize concurrent writers (reduces SQLITE_BUSY)
+    private static final Object WRITE_LOCK = new Object();
 
     private boolean driverLoaded = false;
 
@@ -27,6 +31,12 @@ public class DatabaseManager {
         
         if (driverLoaded) {
             createTable();
+            // Try to enable WAL journal mode to reduce locking contention
+            try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
+                stmt.execute("PRAGMA journal_mode=WAL;");
+            } catch (SQLException e) {
+                System.err.println("Warning: Failed to set WAL mode: " + e.getMessage());
+            }
         }
     }
 
@@ -90,6 +100,12 @@ public class DatabaseManager {
             try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN TRON_XP INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
             try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN KEVIN_XP INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
             try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN LAST_COMPLETED TEXT DEFAULT NULL"); } catch (SQLException ignored) {}
+            // --- NEW: Per-chapter resume columns (C1_STAGE .. C5_STAGE) ---
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN C1_STAGE INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN C2_STAGE INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN C3_STAGE INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN C4_STAGE INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE " + TABLE_NAME + " ADD COLUMN C5_STAGE INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
             // ---------------------------------------------------------------
 
         } catch (SQLException e) {
@@ -119,14 +135,27 @@ public class DatabaseManager {
     // --- NEW: SAVE IMAGE PATH ---
     public void setProfileImage(String userId, String imagePath) {
         String sql = "UPDATE " + TABLE_NAME + " SET PROFILE_IMAGE = ? WHERE ID = ?";
-        try (Connection conn = connect();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, imagePath);
-            pstmt.setString(2, userId);
-            pstmt.executeUpdate();
-            System.out.println("Saved profile image for " + userId);
-        } catch (SQLException e) {
-            e.printStackTrace();
+        synchronized (WRITE_LOCK) {
+            int attempts = 0;
+            while (true) {
+                try (Connection conn = connect();
+                     PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setString(1, imagePath);
+                    pstmt.setString(2, userId);
+                    pstmt.executeUpdate();
+                    System.out.println("Saved profile image for " + userId);
+                    break;
+                } catch (SQLException e) {
+                    String msg = e.getMessage() != null ? e.getMessage() : "";
+                    if (msg.contains("SQLITE_BUSY") && attempts < 3) {
+                        attempts++;
+                        try { Thread.sleep(100 * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        continue;
+                    }
+                    e.printStackTrace();
+                    break;
+                }
+            }
         }
     }
 
@@ -136,12 +165,25 @@ public class DatabaseManager {
         int passwordHash = password.hashCode(); 
         // Note: New users automatically get the DEFAULT 'default_profile.png' from the table definition
         String sql = "INSERT INTO " + TABLE_NAME + "(ID, PASSWORD_HASH) VALUES(?,?)";
-        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, userId.trim());
-            pstmt.setInt(2, passwordHash);
-            pstmt.executeUpdate();
-            return true;
-        } catch (SQLException e) { return false; }
+        synchronized (WRITE_LOCK) {
+            int attempts = 0;
+            while (true) {
+                try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setString(1, userId.trim());
+                    pstmt.setInt(2, passwordHash);
+                    pstmt.executeUpdate();
+                    return true;
+                } catch (SQLException e) {
+                    String msg = e.getMessage() != null ? e.getMessage() : "";
+                    if (msg.contains("SQLITE_BUSY") && attempts < 3) {
+                        attempts++;
+                        try { Thread.sleep(100 * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        continue;
+                    }
+                    return false;
+                }
+            }
+        }
     }
     
     public boolean checkLogin(String userId, String password) {
@@ -166,12 +208,25 @@ public class DatabaseManager {
         if (achIndex < 1 || achIndex > 6) return; // Safety check
         
         String sql = "UPDATE " + TABLE_NAME + " SET AC" + achIndex + " = 1 WHERE ID = ?";
-        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, userId);
-            pstmt.executeUpdate();
-            System.out.println("Unlocked AC" + achIndex + " for user " + userId);
-        } catch (SQLException e) {
-            e.printStackTrace();
+        synchronized (WRITE_LOCK) {
+            int attempts = 0;
+            while (true) {
+                try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setString(1, userId);
+                    pstmt.executeUpdate();
+                    System.out.println("Unlocked AC" + achIndex + " for user " + userId);
+                    break;
+                } catch (SQLException e) {
+                    String msg = e.getMessage() != null ? e.getMessage() : "";
+                    if (msg.contains("SQLITE_BUSY") && attempts < 3) {
+                        attempts++;
+                        try { Thread.sleep(100 * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        continue;
+                    }
+                    e.printStackTrace();
+                    break;
+                }
+            }
         }
     }
 
@@ -205,40 +260,109 @@ public class DatabaseManager {
 
     // --- New: completion tracking ---
     public void updateCompletion(String userId, int chapter, long score, String completionDate, int tronLevel, int kevinLevel) {
-        String select = "SELECT HIGHEST_CHAPTER, HIGHEST_SCORE, TRON_LEVEL, KEVIN_LEVEL FROM " + TABLE_NAME + " WHERE ID = ?";
-        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(select)) {
-            pstmt.setString(1, userId);
-            ResultSet rs = pstmt.executeQuery();
-            int prevChapter = 0; long prevScore = 0; int prevTron = 0; int prevKevin = 0;
-            if (rs.next()) {
-                prevChapter = rs.getInt("HIGHEST_CHAPTER");
-                prevScore = rs.getLong("HIGHEST_SCORE");
-                prevTron = rs.getInt("TRON_LEVEL");
-                prevKevin = rs.getInt("KEVIN_LEVEL");
-            } else {
-                // No such user; nothing to update
-                return;
-            }
+        synchronized (WRITE_LOCK) {
+            int attempts = 0;
+            while (true) {
+                String select = "SELECT HIGHEST_CHAPTER, HIGHEST_SCORE, TRON_LEVEL, KEVIN_LEVEL FROM " + TABLE_NAME + " WHERE ID = ?";
+                try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(select)) {
+                    pstmt.setString(1, userId);
+                    ResultSet rs = pstmt.executeQuery();
+                    int prevChapter = 0; long prevScore = 0; int prevTron = 0; int prevKevin = 0;
+                    if (rs.next()) {
+                        prevChapter = rs.getInt("HIGHEST_CHAPTER");
+                        prevScore = rs.getLong("HIGHEST_SCORE");
+                        prevTron = rs.getInt("TRON_LEVEL");
+                        prevKevin = rs.getInt("KEVIN_LEVEL");
+                    } else {
+                        // No such user; nothing to update
+                        return;
+                    }
 
-            int newChapter = Math.max(prevChapter, chapter);
-            long newScore = Math.max(prevScore, score);
-            int newTron = Math.max(prevTron, tronLevel);
-            int newKevin = Math.max(prevKevin, kevinLevel);
-            String update = "UPDATE " + TABLE_NAME + " SET HIGHEST_CHAPTER = ?, HIGHEST_SCORE = ?, LAST_COMPLETED = ?, TRON_LEVEL = ?, KEVIN_LEVEL = ? WHERE ID = ?";
-            try (PreparedStatement up = conn.prepareStatement(update)) {
-                up.setInt(1, newChapter);
-                up.setLong(2, newScore);
-                up.setString(3, completionDate);
-                up.setInt(4, newTron);
-                up.setInt(5, newKevin);
-                up.setString(6, userId);
-                up.executeUpdate();
-                System.out.println("Updated completion for " + userId + ": chapter=" + newChapter + ", score=" + newScore + ", date=" + completionDate + ", tron=" + newTron + ", kevin=" + newKevin);
+                    int newChapter = Math.max(prevChapter, chapter);
+                    long newScore = Math.max(prevScore, score);
+                    int newTron = Math.max(prevTron, tronLevel);
+                    int newKevin = Math.max(prevKevin, kevinLevel);
+                    String update = "UPDATE " + TABLE_NAME + " SET HIGHEST_CHAPTER = ?, HIGHEST_SCORE = ?, LAST_COMPLETED = ?, TRON_LEVEL = ?, KEVIN_LEVEL = ? WHERE ID = ?";
+                    try (PreparedStatement up = conn.prepareStatement(update)) {
+                        up.setInt(1, newChapter);
+                        up.setLong(2, newScore);
+                        up.setString(3, completionDate);
+                        up.setInt(4, newTron);
+                        up.setInt(5, newKevin);
+                        up.setString(6, userId);
+                        up.executeUpdate();
+                        System.out.println("Updated completion for " + userId + ": chapter=" + newChapter + ", score=" + newScore + ", date=" + completionDate + ", tron=" + newTron + ", kevin=" + newKevin);
+                    }
+                    break;
+                } catch (SQLException e) {
+                    String msg = e.getMessage() != null ? e.getMessage() : "";
+                    if (msg.contains("SQLITE_BUSY") && attempts < 3) {
+                        attempts++;
+                        try { Thread.sleep(100 * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        continue;
+                    }
+                    e.printStackTrace();
+                    break;
+                }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
+
+    // --- NEW: LAST PLAYED PROGRESS (consolidated) ---
+
+
+
+
+    /**
+     * Set the stage for a specific chapter (1..5)
+     */
+    public void setChapterStage(String userId, int chapter, int stage) {
+        if (chapter < 1 || chapter > 5) return; // safety
+        String col = "C" + chapter + "_STAGE";
+        String sql = "UPDATE " + TABLE_NAME + " SET " + col + " = ? WHERE ID = ?";
+        synchronized (WRITE_LOCK) {
+            int attempts = 0;
+            while (true) {
+                try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setInt(1, stage);
+                    pstmt.setString(2, userId);
+                    int updated = pstmt.executeUpdate();
+                    if (updated == 0) {
+                        System.out.println("Warning: setChapterStage - user not found: " + userId);
+                    } else {
+                        System.out.println("[DB] setChapterStage(" + userId + ", C" + chapter + ", " + stage + ")");
+                    }
+                    break;
+                } catch (SQLException e) {
+                    String msg = e.getMessage() != null ? e.getMessage() : "";
+                    if (msg.contains("SQLITE_BUSY") && attempts < 3) {
+                        attempts++;
+                        try { Thread.sleep(100 * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        continue;
+                    }
+                    e.printStackTrace();
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the saved stage for a specific chapter (1..5)
+     */
+    public int getChapterStage(String userId, int chapter) {
+        if (chapter < 1 || chapter > 5) return 0;
+        String col = "C" + chapter + "_STAGE";
+        String sql = "SELECT " + col + " FROM " + TABLE_NAME + " WHERE ID = ?";
+        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return rs.getInt(col);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    // NOTE: Legacy LAST_PLAYED_* columns were removed in favor of per-chapter Cx_STAGE columns.
 
     public int getHighestChapter(String userId) {
         String sql = "SELECT HIGHEST_CHAPTER FROM " + TABLE_NAME + " WHERE ID = ?";
@@ -285,8 +409,13 @@ public class DatabaseManager {
         try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, userId);
             ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) return rs.getLong("TRON_XP");
+            if (rs.next()) {
+                long v = rs.getLong("TRON_XP");
+                System.out.println("[DB READ] getTronXp(user=" + userId + ") = " + v);
+                return v;
+            }
         } catch (SQLException e) { e.printStackTrace(); }
+        System.out.println("[DB READ] getTronXp(user=" + userId + ") = 0 (missing or error)");
         return 0L;
     }
 
@@ -295,27 +424,68 @@ public class DatabaseManager {
         try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, userId);
             ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) return rs.getLong("KEVIN_XP");
+            if (rs.next()) {
+                long v = rs.getLong("KEVIN_XP");
+                System.out.println("[DB READ] getKevinXp(user=" + userId + ") = " + v);
+                return v;
+            }
         } catch (SQLException e) { e.printStackTrace(); }
+        System.out.println("[DB READ] getKevinXp(user=" + userId + ") = 0 (missing or error)");
         return 0L;
     }
 
     public void setTronXp(String userId, long xp) {
         String sql = "UPDATE " + TABLE_NAME + " SET TRON_XP = ? WHERE ID = ?";
-        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, xp);
-            pstmt.setString(2, userId);
-            pstmt.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
+        synchronized (WRITE_LOCK) {
+            int attempts = 0;
+            while (true) {
+                try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setLong(1, xp);
+                    pstmt.setString(2, userId);
+                    int updated = pstmt.executeUpdate();
+                    System.out.println("[DB WRITE] setTronXp(user=" + userId + ", xp=" + xp + ") attempts=" + (attempts + 1) + " rows=" + updated);
+                    break;
+                } catch (SQLException e) {
+                    String msg = e.getMessage() != null ? e.getMessage() : "";
+                    if (msg.contains("SQLITE_BUSY") && attempts < 3) {
+                        attempts++;
+                        System.out.println("[DB WRITE] SQLITE_BUSY on setTronXp(user=" + userId + "), retrying (" + attempts + ")");
+                        try { Thread.sleep(100 * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        continue;
+                    }
+                    System.out.println("[DB WRITE] FAILED setTronXp(user=" + userId + ", xp=" + xp + ") attempts=" + (attempts + 1) + " error=" + e.getMessage());
+                    e.printStackTrace();
+                    break;
+                }
+            }
+        }
     }
 
     public void setKevinXp(String userId, long xp) {
         String sql = "UPDATE " + TABLE_NAME + " SET KEVIN_XP = ? WHERE ID = ?";
-        try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, xp);
-            pstmt.setString(2, userId);
-            pstmt.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
+        synchronized (WRITE_LOCK) {
+            int attempts = 0;
+            while (true) {
+                try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setLong(1, xp);
+                    pstmt.setString(2, userId);
+                    int updated = pstmt.executeUpdate();
+                    System.out.println("[DB WRITE] setKevinXp(user=" + userId + ", xp=" + xp + ") attempts=" + (attempts + 1) + " rows=" + updated);
+                    break;
+                } catch (SQLException e) {
+                    String msg = e.getMessage() != null ? e.getMessage() : "";
+                    if (msg.contains("SQLITE_BUSY") && attempts < 3) {
+                        attempts++;
+                        System.out.println("[DB WRITE] SQLITE_BUSY on setKevinXp(user=" + userId + "), retrying (" + attempts + ")");
+                        try { Thread.sleep(100 * attempts); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                        continue;
+                    }
+                    System.out.println("[DB WRITE] FAILED setKevinXp(user=" + userId + ", xp=" + xp + ") attempts=" + (attempts + 1) + " error=" + e.getMessage());
+                    e.printStackTrace();
+                    break;
+                }
+            }
+        }
     }
     
     // --- UPDATED: GET TOP 10 (FIXED DATE DISPLAY) ---

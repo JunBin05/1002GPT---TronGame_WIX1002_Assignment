@@ -1,3 +1,4 @@
+MUSIC | soft_main.wav | dummy
 c1opening.gif       | SYSTEM | CHAPTER 1: THE RESURRECTION
 SAME       | SYSTEM | The Control Room of Grid 2.0
 c1kevinopening.gif  | Kevin  | Stable. Finally.
@@ -10,6 +11,7 @@ SAME                | Kevin  | It’s powerful. It’s the anchor for Grid 2.0.
 SAME                | Kevin  | It allows the holder to rewrite the base code in real-time. No more corruption. Pure order.
 SAME                | TRON   | That is a dangerous amount of power for one program to hold.
 SAME                | Kevin  | That’s why I’m holding it.
+MUSIC | clu_entrance.wav | dummy
 c1CLUlight.png      | CLU    | "Order." You speak of it, Kevin. But you do not have the stomach to enforce it.
 c1CLUentrance.gif   | TRON   | CLU. Stand down.
 SAME                | CLU    | You built the lock, Creator. But you forgot... I am the key.

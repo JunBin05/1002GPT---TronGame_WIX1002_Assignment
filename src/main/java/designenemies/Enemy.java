@@ -119,6 +119,22 @@ public class Enemy extends Character {
     public double getAggression() { return this.aggression; }
     public void setAggression(double a) { this.aggression = Math.max(0.0, Math.min(1.0, a)); }
 
+    // --- NEW: Time-based scheduling fields for per-enemy delays (Option B) ---
+    // moveDelayMs: desired delay between moves in milliseconds
+    private long moveDelayNs = 0L; // stored internally as nanoseconds
+    private long lastMoveNs = 0L; // last move timestamp
+
+    public void setMoveDelayMs(long ms) {
+        this.moveDelayNs = Math.max(0L, ms) * 1_000_000L;
+        this.lastMoveNs = System.nanoTime();
+    }
+
+    public long getMoveDelayMs() { return this.moveDelayNs / 1_000_000L; }
+    public long getMoveDelayNs() { return this.moveDelayNs; }
+    public long getLastMoveNs() { return this.lastMoveNs; }
+    public void setLastMoveNs(long ns) { this.lastMoveNs = ns; }
+    // ---------------------------------------------------------------------------
+
     // --- STRATEGY 1: SMART (Boss) ---
     private Direction decideMoveSmart() {
         int[] straight = getNextCoords(currentDirection);

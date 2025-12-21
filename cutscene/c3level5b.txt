@@ -1,3 +1,4 @@
+MUSIC |tron_die.wav | dummy
 c3tronderezz.jpg      | SYSTEM | *Tron is defeated and derezzes*
 c3kevinwitness.jpg    | SYSTEM | *Kevin arrives too late*
 SAME   | KEVIN | NO!

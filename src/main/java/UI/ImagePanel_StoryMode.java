@@ -17,6 +17,7 @@ public class ImagePanel_StoryMode extends JPanel {
     private LeftButton leftButton;
 
     private JLabel chapterImageLabel;
+    private JLabel resumeLabel;
     
     // --- NEW: Database and Logic Variables ---
     private DatabaseManager dbManager;
@@ -58,6 +59,13 @@ public class ImagePanel_StoryMode extends JPanel {
         // 4. Setup Label
         chapterImageLabel = new JLabel();
         chapterImageLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Small label to show resume hint (e.g., "Resume: Stage 3")
+        resumeLabel = new JLabel("");
+        resumeLabel.setForeground(Color.WHITE);
+        resumeLabel.setFont(resumeLabel.getFont().deriveFont(Font.BOLD, 16f));
+        resumeLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        add(resumeLabel);
 
         // --- CLICK EVENT: CHECK LOCK STATUS ---
         chapterImageLabel.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -135,6 +143,18 @@ public class ImagePanel_StoryMode extends JPanel {
             // UNLOCKED: Show the normal image from the list
             displayImg = chapterImages.get(currentIndex);
             chapterImageLabel.setCursor(new Cursor(Cursor.HAND_CURSOR)); // Hand cursor
+
+            // Show resume hint if available
+            int savedStage = 0;
+            try { savedStage = dbManager.getChapterStage(username, currentChapterNum); } catch (Exception ignored) {}
+            if (savedStage > 1) {
+                resumeLabel.setText("Resume: Stage " + savedStage);
+                resumeLabel.setVisible(true);
+            } else {
+                resumeLabel.setText("");
+                resumeLabel.setVisible(false);
+            }
+
         } else {
             // LOCKED: Load the specific lock image file
             // Expecting files: chapter2_lock.jpg, chapter3_lock.jpg, etc.
@@ -148,6 +168,8 @@ public class ImagePanel_StoryMode extends JPanel {
             }
             
             chapterImageLabel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR)); // Normal cursor (not clickable)
+            resumeLabel.setText("");
+            resumeLabel.setVisible(false);
         }
 
         // Resize and Set

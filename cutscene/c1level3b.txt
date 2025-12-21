@@ -1,2 +1,12 @@
-addbike.gif 
-NEXT_FILE | c1level4a.txt | dummy
+MUSIC | clu_entrance.wav | dummy
+c1CLUshard.jpg    | Kevin  | CLU! Don't do it, man! That code isn't stable!
+SAME              | CLU | Stability is a constraint of the old world, Flynn. I am building something... efficient.
+SAME              | TRON   | Hand over the Shard, CLU. You’re violating your core programming.
+SAME              | CLU | My programming is to create the perfect system.
+c1CLUinsert.gif   | CLU | And to do that... I need an enforcer who understands absolute obedience.
+SAME              | SYSTEM | *CLU slams the shard into the pedestal*
+c1lightning.gif     | Kevin  | You’re tearing the system apart!
+c1Sarkreborn.gif   | CLU | Sark... reboot.
+SAME              | SARK   | Command... recognized.
+c1ending.png     | CLU | The Grid is mine now.
+c1end.png     | SYSTEM | CHAPTER 1: RESURRECTION END

@@ -1,2 +1,3 @@
+MUSIC | soft_main.wav | dummy
 c1tronbike.jpg    | Kevin | Let’s go after CLU. FAST!
 NEXT_FILE | c1level3a.txt | dummy
