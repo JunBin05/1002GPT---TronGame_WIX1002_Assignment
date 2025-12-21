@@ -13,9 +13,9 @@ public class Kevin extends Character {
         super.levelUp(); // Refills discs, increments level
         
         // Kevin gains handling slowly so it reaches cap around level 90, small speed gain
-        // Calculation: (1.0 - baseHandling) / (90 - 1) ≈ 0.00337 per level
+        // Handling increment unchanged; speed increased to 0.007 per level per request
         handling = Math.min(1.0, handling + 0.00337);
-        speed = Math.min(1.0, speed + 0.003);
+        speed = Math.min(1.0, speed + 0.007);
 
         // Kevin gets +1 disc capacity every 10 levels (in addition to base growth)
         if (level % 10 == 0) {

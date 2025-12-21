@@ -1,3 +1,4 @@
+MUSIC | soft_main.wav | dummy
 c3tronteamspot.jpg  | SYSTEM | *Tron spots the spaceship*
 SAME  | SYSTEM | THERE! We got you now CLU.
 c3tronfight.jpg       | Tron | Looks like they saw us. Don't let CLU get away.

@@ -127,10 +127,108 @@ public class TronRules {
         return progressionScaleCache;
     }
 
-    public static long calculateStageClearXp(int chapter, int stage) {
-        double unscaled = computeUnscaledStageXp(chapter, stage);
+    // -------- Replay diminishing returns configuration --------
+    public static final double STAGE_REPLAY_DECAY_BASE = 0.87; // per-level decay multiplier
+    public static final double STAGE_REPLAY_MIN_FACTOR = 0.05; // floor multiplier when very high level
+
+    // --- FIXED PER-STAGE XP TABLE ---
+    private static final int[] STAGES_PER_CHAPTER = {0, 3, 6, 5, 5, 4};
+    private static final long[][] FIXED_STAGE_XP = new long[6][]; // index by chapter, stage (1-based)
+
+    static {
+        // Initialize with values computed from the existing formula, then scale to ensure guarantees
         double scale = computeProgressionScale();
-        double xp = unscaled * scale;
-        return (long) Math.max(0, Math.round(xp));
+        long total = 0;
+        for (int c = 1; c <= 5; c++) {
+            int stages = STAGES_PER_CHAPTER[c];
+            FIXED_STAGE_XP[c] = new long[stages + 1];
+            for (int s = 1; s <= stages; s++) {
+                double base = computeUnscaledStageXp(c, s);
+                long val = (long) Math.max(0, Math.round(base * scale));
+                FIXED_STAGE_XP[c][s] = val;
+                total += val;
+            }
+        }
+
+        long requiredTotal = getTotalXpForLevel(MAX_LEVEL);
+        if (total < requiredTotal) {
+            // Scale uniformly so full run reaches at least requiredTotal
+            double factor = (double) requiredTotal / (double) Math.max(1, total);
+            long newTotal = 0;
+            for (int c = 1; c <= 5; c++) {
+                for (int s = 1; s <= STAGES_PER_CHAPTER[c]; s++) {
+                    FIXED_STAGE_XP[c][s] = (long) Math.max(0, Math.round(FIXED_STAGE_XP[c][s] * factor));
+                    newTotal += FIXED_STAGE_XP[c][s];
+                }
+            }
+            total = newTotal;
+        }
+
+        // Ensure final stage (C5S4) can be replayed (with decay) to reach the target
+        int finalC = 5, finalS = 4;
+        double decay = STAGE_REPLAY_DECAY_BASE;
+        double obtainableFromFinal = (double) FIXED_STAGE_XP[finalC][finalS] / (1.0 - decay);
+        if (obtainableFromFinal < (double) requiredTotal) {
+            long neededBase = (long) Math.ceil((double) requiredTotal * (1.0 - decay));
+            if (neededBase > FIXED_STAGE_XP[finalC][finalS]) {
+                FIXED_STAGE_XP[finalC][finalS] = neededBase;
+                // Recompute total (not strictly necessary but keep for debug)
+                long newTotal = 0;
+                for (int c = 1; c <= 5; c++) for (int s = 1; s <= STAGES_PER_CHAPTER[c]; s++) newTotal += FIXED_STAGE_XP[c][s];
+                total = newTotal;
+            }
+        }
+
+        System.out.println(String.format("[TronRules] Fixed XP table initialized. Full-run total=%,d required=%,d, C5S4=%d (replay cap %.0f)", total, requiredTotal, FIXED_STAGE_XP[5][4], FIXED_STAGE_XP[5][4] / (1.0 - decay)));
+    }
+
+    public static long calculateStageClearXp(int chapter, int stage) {
+        if (chapter < 1 || chapter > 5) return 0;
+        if (stage < 1 || stage > STAGES_PER_CHAPTER[chapter]) return 0;
+        return FIXED_STAGE_XP[chapter][stage];
+    }
+
+    /**
+     * Compute the expected level a fresh player would have after completing up to
+     * the specified chapter/stage using the current stage XP schedule and scaling.
+     */
+    public static int getExpectedLevelForStage(int chapter, int stage) {
+        // Stages per chapter: 1->3, 2->6, 3->5, 4->5, 5->4
+        int[] stagesPerChapter = {0, 3, 6, 5, 5, 4};
+        long cumulative = 0;
+        for (int c = 1; c <= chapter; c++) {
+            int maxS = (c == chapter) ? stage : stagesPerChapter[c];
+            for (int s = 1; s <= maxS; s++) {
+                cumulative += calculateStageClearXp(c, s);
+            }
+        }
+        int level = 1;
+        while (level < MAX_LEVEL && cumulative >= getTotalXpForLevel(level + 1)) {
+            level++;
+        }
+        return level;
+    }
+
+    /**
+     * Returns number of stages in the given chapter (1..5). Returns 0 if invalid.
+     */
+    public static int getStagesForChapter(int chapter) {
+        if (chapter < 1 || chapter > 5) return 0;
+        int[] stagesPerChapter = {0, 3, 6, 5, 5, 4};
+        return stagesPerChapter[chapter];
+    }
+
+    /**
+     * Calculate the diminishing multiplier for replaying a stage based on how far
+     * above the stage's expected level the player's current level is.
+     * Returns a value in (MIN_FACTOR..1.0]
+     */
+    public static double calculateReplayMultiplier(int playerLevel, int chapter, int stage) {
+        int expected = getExpectedLevelForStage(chapter, stage);
+        int diff = playerLevel - expected;
+        if (diff <= 0) return 1.0;
+        double mult = Math.pow(STAGE_REPLAY_DECAY_BASE, diff);
+        if (mult < STAGE_REPLAY_MIN_FACTOR) mult = STAGE_REPLAY_MIN_FACTOR;
+        return mult;
     }
 }

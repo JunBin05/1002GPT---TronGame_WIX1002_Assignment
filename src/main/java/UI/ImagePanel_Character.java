@@ -17,9 +17,11 @@ public class ImagePanel_Character extends JPanel {
     private TronButton tronButton;
     private PlayArenaButton playArenaButton;
     private int currentChapter;
+    private String username;
 
     public ImagePanel_Character(MainFrame mainFrame, String username, int chapterNumber) {
         this.mainFrame = mainFrame;
+        this.username = username;
         this.backgroundImage = new ImageIcon("images/character_bg.png").getImage();
         this.currentChapter = chapterNumber;
         setLayout(null); 
@@ -72,7 +74,7 @@ public class ImagePanel_Character extends JPanel {
         // 5. Create Play Arena Button (With Validation)
         playArenaButton = new PlayArenaButton("images/playarena_button.png");
         playArenaButton.addActionListener(e -> {
-            
+
             // Check if BOTH are selected (Should be impossible now, but good safety)
             if (kevinButton.isSelected() && tronButton.isSelected()) {
                 JOptionPane.showMessageDialog(null, "Please choose only one character!");
@@ -87,9 +89,27 @@ public class ImagePanel_Character extends JPanel {
                 System.out.println("Starting game with: " + selectedChar);
                 // Inform ArenaLoader which character the player selected (Tron or Kevin)
                 arena.ArenaLoader.setSelectedPlayer(selectedChar);
-                // Set the current chapter and reset to stage 1
+                // Set the current chapter
                 arena.ArenaLoader.currentChapter = currentChapter;
-                arena.ArenaLoader.currentStage = 1;
+
+                // --- RESUME PROMPT: If the user has a saved stage for this chapter, offer to resume ---
+                UI.DatabaseManager db = new UI.DatabaseManager();
+                int savedStage = db.getChapterStage(username, currentChapter);
+                if (savedStage > 1) {
+                    int opt = JOptionPane.showConfirmDialog(null, "You last played up to Stage " + savedStage + " in this chapter. Resume from that stage?", "Resume Progress", JOptionPane.YES_NO_OPTION);
+                    if (opt == JOptionPane.YES_OPTION) {
+                        arena.ArenaLoader.currentStage = savedStage;
+                    } else {
+                        arena.ArenaLoader.currentStage = 1;
+                        // Persist reset to stage 1 for this chapter
+                        new Thread(() -> db.setChapterStage(username, currentChapter, 1)).start();
+                    }
+                } else {
+                    arena.ArenaLoader.currentStage = 1;
+                    // Persist start at stage 1 for this chapter
+                    new Thread(() -> db.setChapterStage(username, currentChapter, 1)).start();
+                }
+
                 // Make the window fullscreen (maximized)
                 mainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
                 // Prepare the arena GamePanel (so cutscene can play inside it)

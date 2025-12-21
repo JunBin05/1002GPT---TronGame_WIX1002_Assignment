@@ -205,6 +205,7 @@ public abstract class Character {
             sb.append("<tr><td colspan='2'><hr></td></tr>");
             sb.append(String.format("<tr><td><b>LEVEL:</b></td><td style='text-align: right; color: yellow;'><b>%d &rarr; %d</b></td></tr>", displayOldLevel, displayNewLevel));
             sb.append(String.format("<tr><td>Speed:</td><td style='text-align: right;'>%.2f &rarr; <span style='color: #00FFCC;'>%.2f</span></td></tr>", displayOldSpeed, displayNewSpeed));
+            sb.append(String.format("<tr><td>Handling:</td><td style='text-align: right;'>%.2f &rarr; <span style='color: #00FFCC;'>%.2f</span></td></tr>", displayOldHandling, displayNewHandling));
 
             // Show Capacity Increase (show new capacity)
             sb.append(String.format("<tr><td>Disc Cap:</td><td style='text-align: right;'>%d</td></tr>", displayNewDiscCap));
@@ -226,8 +227,7 @@ public abstract class Character {
         // Refill immediately on level up
         this.currentDiscCount = this.discCapacity; 
         
-        System.out.println(">>> LEVEL UP! " + name + " is now Level " + level + ". Disc Cap: " + discCapacity);
-
+        // Removed noisy console print to reduce log spam on frequent level-ups
         // Persist XP immediately when leveling up for logged-in users so UI remains consistent
         try {
             if (arena.ArenaLoader.mainFrame instanceof UI.MainFrame) {
@@ -316,12 +316,43 @@ public abstract class Character {
         };
     }
 
-    public void revertPosition(char grid[][], int [][] trailTimer) {
-        switch (this.currentDirection) { case NORTH -> r++; case SOUTH -> r--; case EAST -> c--; case WEST -> c++; }
-        if (r >= 0 && r < 40 && c >= 0 && c < 40) {
-            grid[this.r][this.c] = '.'; 
-            trailTimer[this.r][this.c] = 0;
+    public void revertPosition(char grid[][], int [][] trailTimer, char currentBaseTile) {
+        // Compute the cell behind the player depending on attempted direction
+        int backR = this.r; int backC = this.c;
+        switch (this.currentDirection) {
+            case NORTH -> backR = this.r + 1;
+            case SOUTH -> backR = this.r - 1;
+            case EAST  -> backC = this.c - 1;
+            case WEST  -> backC = this.c + 1;
         }
+
+        // Bounds check
+        if (backR < 0 || backR >= 40 || backC < 0 || backC >= 40) {
+            // Cannot move back; just stun in place and do not alter the map
+            this.isStunned = true;
+            return;
+        }
+
+        char behind = grid[backR][backC];
+        // Only move back if the tile behind is empty or a speed-ramp (do NOT overwrite walls/obstacles)
+        if (behind == '.' || behind == 'S') {
+            // Clear current cell only if it still contains this player's symbol (don't clear walls)
+            if (grid[this.r][this.c] == this.getSymbol()) {
+                // Restore design-time tile under the current cell if present, otherwise clear
+                grid[this.r][this.c] = (currentBaseTile != '\0' && currentBaseTile != '.') ? currentBaseTile : '.';
+                trailTimer[this.r][this.c] = 0;
+            }
+            // Move player back and mark the tile as the player's symbol
+            this.r = backR; this.c = backC;
+            grid[this.r][this.c] = this.getSymbol();
+            // Do not set trailTimer here because GameController manages placement times
+        } else {
+            // Tile behind is blocked (wall, obstacle, disc, enemy, etc.) — do not change the map
+            // Just stun the player in place
+            this.isStunned = true;
+            return;
+        }
+
         this.isStunned = true;
     }
     

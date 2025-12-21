@@ -168,6 +168,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         // If needed later, re-enable specific messages via config or a debug flag.
     }
 
+
+
     @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();

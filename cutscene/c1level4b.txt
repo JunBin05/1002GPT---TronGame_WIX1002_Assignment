@@ -1,3 +1,4 @@
+MUSIC | clu_entrance.wav | dummy
 c1CLUshard.jpg    | Kevin  | CLU! Don't do it, man! That code isn't stable!
 SAME              | CLU | Stability is a constraint of the old world, Flynn. I am building something... efficient.
 SAME              | TRON   | Hand over the Shard, CLU. You’re violating your core programming.

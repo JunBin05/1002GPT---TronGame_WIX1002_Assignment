@@ -18,7 +18,6 @@ public class Main {
 
         GamePanel gamePanel = new GamePanel();
         window.add(gamePanel);
-
         window.pack(); // Resize GamePanel to fit window
         window.setLocationRelativeTo(null);
         window.setVisible(true);

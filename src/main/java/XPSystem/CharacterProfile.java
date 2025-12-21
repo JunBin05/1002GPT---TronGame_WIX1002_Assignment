@@ -24,7 +24,7 @@ public class CharacterProfile {
             level++;
             this.discCount = TronRules.getDiscCount(level);
 
-            System.out.println(">>> LEVEL UP! " + name + " is now Version " + level + ".0! (Discs: " + discCount + ")");
+            // Removed noisy level-up console print to reduce log spam during runs
         }
     }
 

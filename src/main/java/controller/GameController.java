@@ -32,6 +32,8 @@ public class GameController implements KeyListener, Runnable {
     private volatile boolean isRunning = true;
 
     private boolean onSpeedRamp = false;
+    // Multiplier to amplify speed differences (higher => more noticeable)
+    private static final int SPEED_MULTIPLIER = 60; // tuned to make 0.5 vs 0.2 noticeably different
     private final int BASE_DELAY = 100; // Base speed in milliseconds
     private final int FAST_DELAY = 20;
 
@@ -79,13 +81,26 @@ public class GameController implements KeyListener, Runnable {
             movePlayer(grid, trailTimer);
 
             enemyMoveTick++;
+            long nowNs = System.nanoTime();
             for (Character c : cycles) {
                 if (c != playerCycle && c instanceof Enemy) {
                     Enemy enemy = (Enemy) c;
-                    
-                    // Use per-enemy move interval so bosses can be tuned by chapter
-                    int moveInterval = (enemy instanceof designenemies.Enemy) ? ((designenemies.Enemy)enemy).getMoveInterval() : 3;
-                    if (enemyMoveTick % moveInterval != 0) continue;
+
+                    // Time-based scheduling (Option B): check per-enemy delay first
+                    boolean shouldMove = false;
+                    long delayNs = enemy.getMoveDelayNs();
+                    if (delayNs > 0) {
+                        if ((nowNs - enemy.getLastMoveNs()) >= delayNs) {
+                            shouldMove = true;
+                            enemy.setLastMoveNs(nowNs);
+                        }
+                    } else {
+                        // Fallback to tick-based behavior if delay not set
+                        int moveInterval = (enemy instanceof designenemies.Enemy) ? ((designenemies.Enemy)enemy).getMoveInterval() : 3;
+                        if (enemyMoveTick % moveInterval == 0) shouldMove = true;
+                    }
+
+                    if (!shouldMove) continue;
 
                     Direction nextMove = enemy.decideMove();
 
@@ -117,8 +132,37 @@ public class GameController implements KeyListener, Runnable {
 
                             if (!blockedByOtherEnemy) {
                                 char tile = grid[nextR][nextC];
+
+                                // Special-case: enemy attempting to move into the player's cell
+                                if (tile == playerCycle.getSymbol() && playerCycle.getRow() == nextR && playerCycle.getCol() == nextC) {
+                                    System.out.println(String.format("[GameController] Enemy %s attempted to move onto player at (%d,%d)", enemy.getName(), nextR, nextC));
+
+                                    // Damage the player (enemy should not take damage for attempting this move)
+                                    playerCycle.changeLives(-0.5);
+                                    if (playerCycle.getLives() > 0.0) {
+                                        // Try to revert the player (restore base tiles when necessary)
+                                        try { playerCycle.revertPosition(grid, trailTimer, arena.getBaseTile(playerCycle.r, playerCycle.c)); } catch (Exception ignored) {}
+                                        playerCycle.setOppositeDirection();
+                                    }
+
+                                    // Enemy turns around and does NOT take damage
+                                    enemy.setOppositeDirection();
+
+                                    // Skip the rest of the movement processing for this attempt
+                                    continue;
+                                }
+
                                 // Treat Tron and Kevin tails as normal wall hits (no instant kill)
-                                if (tile != '.' && tile != 'S') wallHit = true;
+                                // If this is an enemy trail char (M/C/Y/G/R) consider it occupied so
+                                // enemies will bounce instead of causing damage to each other.
+                                if (tile != '.' && tile != 'S') {
+                                    if (tile == 'M' || tile == 'C' || tile == 'Y' || tile == 'G' || tile == 'R') {
+                                        blockedByOtherEnemy = true;
+                                        wallHit = true;
+                                    } else {
+                                        wallHit = true;
+                                    }
+                                }
                             }
                         }
 
@@ -133,7 +177,15 @@ public class GameController implements KeyListener, Runnable {
                                     awardKillXp(enemy); // STORES XP
                                     deadEnemies.add(enemy);
                                     if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
-                                        grid[enemy.getRow()][enemy.getCol()] = '.';
+                                        int er = enemy.getRow(); int ec = enemy.getCol();
+                                        // Restore the design-time/base tile if present, otherwise clear to '.'
+                                        char base = arena.getBaseTile(er, ec);
+                                        if (base != '.' && base != '\0') {
+                                            grid[er][ec] = base;
+                                            System.out.println(String.format("[GameController] Restored base tile '%c' at (%d,%d) after enemy death: %s", base, er, ec, enemy.getName()));
+                                        } else {
+                                            grid[er][ec] = '.';
+                                        }
                                     }
                                 } else {
                                     // The enemy did not move into the wall, so just turn it around
@@ -187,6 +239,15 @@ public class GameController implements KeyListener, Runnable {
                 long stageXp = TronRules.calculateStageClearXp(ArenaLoader.currentChapter, ArenaLoader.currentStage);
 
                 if (stageXp > 0) {
+                    // Apply replay diminishing returns (Option A) so players far above a stage
+                    // do not get excessive level jumps when replaying earlier content.
+                    double replayMult = XPSystem.TronRules.calculateReplayMultiplier(playerCycle.getLevel(), ArenaLoader.currentChapter, ArenaLoader.currentStage);
+                    long originalXp = stageXp;
+                    if (replayMult < 0.9999) {
+                        stageXp = Math.max(1, (int) Math.round(stageXp * replayMult));
+                        System.out.println("[GameController] Stage XP replay multiplier applied: " + originalXp + " -> " + stageXp + " (mult=" + String.format("%.3f", replayMult) + ")");
+                    }
+
                     playerCycle.addXP(stageXp);
                     System.out.println("[GameController] Stage Clear XP awarded: " + stageXp + " (C" + ArenaLoader.currentChapter + " S" + ArenaLoader.currentStage + ")");
                 }
@@ -224,7 +285,7 @@ public class GameController implements KeyListener, Runnable {
             try {
                 // --- NEW SMOOTHER SPEED FORMULA ---
                 double speedVal = playerCycle.getSpeed();
-                int speedAdjustment = (int)((speedVal - 1.0) * 30); // 30ms reduction per 1.0 speed
+                int speedAdjustment = (int)((speedVal - 1.0) * SPEED_MULTIPLIER); // larger multiplier makes differences more perceptible
                 int dynamicDelay = BASE_DELAY - speedAdjustment;
 
                 if (dynamicDelay < 30) dynamicDelay = 30; // Hard cap so it's never instant
@@ -329,16 +390,42 @@ public class GameController implements KeyListener, Runnable {
                     activeDiscs.remove(picked);
                     element = grid[futureR][futureC];
                 } else {
-                    grid[futureR][futureC] = '.';
-                    element = '.';
+                    // Restore base tile when a disc disappears without a tracked original
+                    char base = arena.getBaseTile(futureR, futureC);
+                    grid[futureR][futureC] = (base != '\0') ? base : '.';
+                    element = grid[futureR][futureC];
                 }
             }
+
+            // Special case: when the destination is a speed ramp 'S' it may still be occupied
+            // by an enemy (enemies do not overwrite 'S' with their trail). Detect occupancy.
+            if (element == 'S') {
+                for (Character other : cycles) {
+                    if (other == playerCycle) continue;
+                    if (other.getRow() == futureR && other.getCol() == futureC) {
+                        collided = true;
+                        break;
+                    }
+                }
+            }
+
             // Allow stepping onto player's own trail/symbol (e.g., 'T' for Tron, 'K' for Kevin)
             if (element != '.' && element != 'S' && element != this.playerCycle.getSymbol()) collided = true;
         }
         if (collided) {
             this.playerCycle.changeLives(-0.5);
-            if (this.playerCycle.getLives() > 0.0) { this.playerCycle.revertPosition(grid, trailTimer); this.playerCycle.setOppositeDirection(); }
+            if (this.playerCycle.getLives() > 0.0) {
+                // Provide the base tile of the current cell when reverting so it can be restored if needed
+                char currentBase = arena.getBaseTile(this.playerCycle.r, this.playerCycle.c);
+                this.playerCycle.revertPosition(grid, trailTimer, currentBase);
+                // After revert, ensure the reverted cell also respects base tiles (e.g., speed ramps)
+                char postBase = arena.getBaseTile(this.playerCycle.r, this.playerCycle.c);
+                if (postBase != '\0' && postBase != '.') {
+                    grid[this.playerCycle.r][this.playerCycle.c] = postBase;
+                    if (postBase == 'S') onSpeedRamp = true;
+                }
+                this.playerCycle.setOppositeDirection();
+            }
         } else {
             if (onSpeedRamp) grid[this.playerCycle.r][this.playerCycle.c] = 'S';
             else { grid[this.playerCycle.r][this.playerCycle.c] = this.playerCycle.getSymbol(); trailTimer[this.playerCycle.r][this.playerCycle.c] = globalStepCounter; }
@@ -355,7 +442,12 @@ public class GameController implements KeyListener, Runnable {
                 if (placementStep > 0) {
                     int playerTrailDuration = TRAIL_DURATION;
                     if (cycles != null && !cycles.isEmpty()) playerTrailDuration = cycles.get(0).getTrailDuration();
-                    if ((globalStepCounter - placementStep) >= playerTrailDuration) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
+                    if ((globalStepCounter - placementStep) >= playerTrailDuration) {
+                        // Restore design-time tile if present, otherwise clear
+                        char base = arena.getBaseTile(r, c);
+                        grid[r][c] = (base != '\0') ? base : '.';
+                        trailTimer[r][c] = 0;
+                    }
                 }
             } else if (currentElement == 'M' || currentElement == 'C' || 
                      currentElement == 'Y' || currentElement == 'G' || 
@@ -379,7 +471,11 @@ public class GameController implements KeyListener, Runnable {
                         // fallback: if any boss exists, prefer boss trail duration
                         if (enemy.isBoss()) trailDuration = Math.max(trailDuration, enemy.getTrailDuration());
                     }
-                    if ((globalStepCounter - placementStep) >= trailDuration) { grid[r][c] = '.'; trailTimer[r][c] = 0; }
+                    if ((globalStepCounter - placementStep) >= trailDuration) {
+                        char base = arena.getBaseTile(r, c);
+                        grid[r][c] = (base != '\0') ? base : '.';
+                        trailTimer[r][c] = 0;
+                    }
                 }
             }
         }}

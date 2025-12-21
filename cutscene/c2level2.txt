@@ -1,3 +1,4 @@
+MUSIC | clu_entrance.wav | dummy
 c2ISOcity.jpg     | SYSTEM | *View of ISO City*
 c2progress.png    | SYSTEM | *CLU's Spaceship...*
 c2spaceship.jpg   | CLU |Chaos. Unregulated algorithms. It ends today.

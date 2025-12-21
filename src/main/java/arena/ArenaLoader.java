@@ -177,7 +177,7 @@ public class ArenaLoader {
         icons.put("kevin_profile", loadAndScale("images" + File.separator + "Kevin.png", 200));
 
         loadCharSet(icons, "tron", "Tron.png", TRUE_CELL_SIZE);
-        loadCharSet(icons, "kevin", "kevin.png", TRUE_CELL_SIZE);
+        loadCharSet(icons, "kevin", "kevin.png", 150);
         loadCharSet(icons, "sark", "Sark (Face).png", FACE_SIZE);
         loadCharSet(icons, "clu", "Clu (Face).png", FACE_SIZE);
         loadCharSet(icons, "rinzler", "Rinzler (Face).png", FACE_SIZE);
@@ -432,32 +432,24 @@ public class ArenaLoader {
         double displayHandling = player.getHandling();
         int displayLevel = player.getLevel();
 
-        if (mainFrame instanceof UI.MainFrame) {
-            String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
-            if (username != null && !username.trim().isEmpty()) {
-                try {
-                    UI.DatabaseManager db = new UI.DatabaseManager();
-                    int savedLevel = (player.name.equals("Tron")) ? db.getTronLevel(username) : db.getKevinLevel(username);
-                    if (savedLevel > 0) {
-                        // Construct a fresh instance and simulate level-ups to compute attributes at saved level
-                        characters.CharacterData base = characters.CharacterLoader.loadCharacterData(player.name);
-                        characters.Character simulated = player.name.equals("Tron") ? new characters.Tron() : new characters.Kevin();
-                        if (base != null) simulated.loadInitialAttributes(base);
-                        while (simulated.getLevel() < savedLevel) simulated.levelUp();
-
-                        displayLevel = simulated.getLevel();
-                        displaySpeed = simulated.getSpeed();
-                        displayHandling = simulated.getHandling();
-                        displayDiscCap = simulated.getDiscCapacity();
-                        displayMaxLives = simulated.getMaxLives();
-
-                        // For current lives, cap it to displayMaxLives (don't change player's actual lives)
-                        if (displayCurrentLives > displayMaxLives) displayCurrentLives = displayMaxLives;
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
+        // Use cached persistent character stats to avoid synchronous DB reads on the EDT.
+        // persistentTron / persistentKevin are loaded at arena start when the user is logged in.
+        if (player.name.equals("Tron") && persistentTron != null) {
+            int savedLevel = persistentTron.getLevel();
+            displayLevel = Math.max(displayLevel, savedLevel);
+            displaySpeed = persistentTron.getSpeed();
+            displayHandling = persistentTron.getHandling();
+            displayDiscCap = persistentTron.getDiscCapacity();
+            displayMaxLives = persistentTron.getMaxLives();
+            if (displayCurrentLives > displayMaxLives) displayCurrentLives = displayMaxLives;
+        } else if (player.name.equals("Kevin") && persistentKevin != null) {
+            int savedLevel = persistentKevin.getLevel();
+            displayLevel = Math.max(displayLevel, savedLevel);
+            displaySpeed = persistentKevin.getSpeed();
+            displayHandling = persistentKevin.getHandling();
+            displayDiscCap = persistentKevin.getDiscCapacity();
+            displayMaxLives = persistentKevin.getMaxLives();
+            if (displayCurrentLives > displayMaxLives) displayCurrentLives = displayMaxLives;
         }
 
         if (hpContainer != null) {
@@ -701,8 +693,21 @@ public class ArenaLoader {
                         if (savedTronLevel > 0) {
                             // Ensure saved XP is at least the min total XP for that saved level
                             long minXpForLevel = XPSystem.TronRules.getTotalXpForLevel(savedTronLevel);
+                            long originalXp = savedTronXp;
                             if (savedTronXp < minXpForLevel) savedTronXp = minXpForLevel;
                             if (persistentTron != null) { persistentTron.setXp(savedTronXp); System.out.println("[ArenaLoader] Reconciled and loaded Tron level/XP for " + user + ": L" + savedTronLevel + ", XP=" + savedTronXp); }
+                            if (originalXp < savedTronXp) {
+                                final long newXp = savedTronXp;
+                                final long oldXp = originalXp;
+                                new Thread(() -> {
+                                    try {
+                                        db.setTronXp(user, newXp);
+                                        System.out.println("[DB FIX] Fixed TRON_XP for user=" + user + ": " + oldXp + " -> " + newXp);
+                                    } catch (Exception e) {
+                                        System.out.println("[DB FIX] Failed to fix TRON_XP for user=" + user + ": " + e.getMessage());
+                                    }
+                                }, "DBFix-TronXp").start();
+                            }
                         } else {
                             long saved = db.getTronXp(user);
                             if (saved > 0 && persistentTron != null) { persistentTron.setXp(saved); System.out.println("[ArenaLoader] Loaded Tron XP for " + user + ": " + saved); }
@@ -712,12 +717,40 @@ public class ArenaLoader {
                         long savedKevinXp = db.getKevinXp(user);
                         if (savedKevinLevel > 0) {
                             long minXpForLevel = XPSystem.TronRules.getTotalXpForLevel(savedKevinLevel);
+                            long originalKevinXp = savedKevinXp;
                             if (savedKevinXp < minXpForLevel) savedKevinXp = minXpForLevel;
                             if (persistentKevin != null) { persistentKevin.setXp(savedKevinXp); System.out.println("[ArenaLoader] Reconciled and loaded Kevin level/XP for " + user + ": L" + savedKevinLevel + ", XP=" + savedKevinXp); }
+                            if (originalKevinXp < savedKevinXp) {
+                                final long newXp = savedKevinXp;
+                                final long oldXp = originalKevinXp;
+                                new Thread(() -> {
+                                    try {
+                                        db.setKevinXp(user, newXp);
+                                        System.out.println("[DB FIX] Fixed KEVIN_XP for user=" + user + ": " + oldXp + " -> " + newXp);
+                                    } catch (Exception e) {
+                                        System.out.println("[DB FIX] Failed to fix KEVIN_XP for user=" + user + ": " + e.getMessage());
+                                    }
+                                }, "DBFix-KevinXp").start();
+                            }
                         } else {
                             long saved = db.getKevinXp(user);
                             if (saved > 0 && persistentKevin != null) { persistentKevin.setXp(saved); System.out.println("[ArenaLoader] Loaded Kevin XP for " + user + ": " + saved); }
                         }
+
+                        // --- PERSIST LAST PLAYED STAGE FOR RESUME FEATURE ---
+                        try {
+                            String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
+                            if (username != null && !username.trim().isEmpty()) {
+                                final int ch = currentChapter;
+                                final int st = currentStage;
+                                new Thread(() -> {
+                                    try {
+                                        UI.DatabaseManager db2 = new UI.DatabaseManager();
+                                        db2.setChapterStage(username, ch, st);
+                                    } catch (Exception e) { e.printStackTrace(); }
+                                }).start();
+                            }
+                        } catch (Exception ignored) {}
                     }
                 }
             } catch (Exception ignored) {}
@@ -866,7 +899,10 @@ public class ArenaLoader {
             if (grid == null) return;
             for (int r = 0; r < grid.length; r++) {
                 for (int c = 0; c < grid[r].length; c++) {
-                    if (grid[r][c] == 'D') grid[r][c] = '.';
+                    if (grid[r][c] == 'D') {
+                        char base = arena.getBaseTile(r, c);
+                        grid[r][c] = (base != '\0') ? base : '.';
+                    }
                 }
             }
         } catch (Exception ex) {
@@ -930,38 +966,93 @@ public class ArenaLoader {
                     new Thread(() -> {
                         try {
                             UI.DatabaseManager db = new UI.DatabaseManager();
-                            db.updateCompletion(username, chapterToSave, totalXp, timeNow, tronLvl, kevinLvl);                            // Persist precise XP as well so level and XP stay consistent after restart
+                            db.updateCompletion(username, chapterToSave, totalXp, timeNow, tronLvl, kevinLvl);
+                            // Persist precise XP as well so level and XP stay consistent after restart
                             if (persistentPlayer != null) {
                                 if ("Tron".equalsIgnoreCase(persistentPlayer.name)) db.setTronXp(username, totalXp);
                                 else if ("Kevin".equalsIgnoreCase(persistentPlayer.name)) db.setKevinXp(username, totalXp);
-                            }                        } catch (Exception e) { e.printStackTrace(); }
+                            }
+
+                            // --- IMPORTANT: Save next stage progress so returning to chapter goes to the next stage ---
+                            try {
+                                int nextStage = currentStage + 1;
+                                int max = XPSystem.TronRules.getStagesForChapter(currentChapter);
+                                if (nextStage <= max) {
+                                    // Only update if it advances the saved stage
+                                    int prev = db.getChapterStage(username, currentChapter);
+                                    if (nextStage > prev) db.setChapterStage(username, currentChapter, nextStage);
+                                } else {
+                                    // Completed final stage -> ensure next chapter is unlocked and set its stage to 1
+                                    int nextChapter = currentChapter + 1;
+                                    if (nextChapter <= 5) {
+                                        int prev = db.getChapterStage(username, nextChapter);
+                                        if (1 > prev) db.setChapterStage(username, nextChapter, 1);
+                                    }
+                                }
+                            } catch (Exception e) { System.out.println("[WARN] Failed to persist next-stage progress: " + e.getMessage()); }
+
+                        } catch (Exception e) { e.printStackTrace(); }
                     }).start();
                 }
             }
         }
 
         String message = String.format(
-            "STAGE CLEARED!\n\nXP Earned: %d\nCurrent Lives: %.1f / %.1f\n\nProceed to next sector?",
+            "STAGE CLEARED!\n\nXP Earned: %d\nCurrent Lives: %.1f / %.1f\n\nWhat would you like to do next?",
             xpReward, currentLives, maxLives
         );
-        int choice = JOptionPane.showOptionDialog(mainFrame, message, "SECTOR SECURE",
-            JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
-            new Object[]{"NEXT STAGE", "EXIT"}, "NEXT STAGE");
 
-        if (choice == JOptionPane.YES_OPTION) {
+        Object[] options = {"NEXT STAGE", "RETURN TO CHAPTER SELECT", "QUIT"};
+        int choice = JOptionPane.showOptionDialog(mainFrame, message, "SECTOR SECURE",
+            JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
+            options, options[0]);
+
+        if (choice == 0) { // NEXT STAGE
             currentStage++;
-            // Basic Progression
-            if (currentStage > 3 && currentChapter == 1) {
-                System.out.println("[ArenaLoader] Chapter 1 completed. Advancing to Chapter 2");
-                currentChapter++; currentStage = 1; showChapterClearDialog(); return;
+
+            // General progression: if we've advanced past the last stage of the chapter,
+            // move to the next chapter (if any) and show chapter complete dialog.
+            int maxStages = XPSystem.TronRules.getStagesForChapter(currentChapter);
+            if (currentStage > maxStages) {
+                int nextChapter = currentChapter + 1;
+                if (nextChapter <= 5) {
+                    System.out.println(String.format("[ArenaLoader] Chapter %d completed. Advancing to Chapter %d", currentChapter, nextChapter));
+                    currentChapter = nextChapter;
+                    currentStage = 1;
+                    showChapterClearDialog();
+                    return;
+                } else {
+                    // Player finished all chapters
+                    System.out.println("[ArenaLoader] All chapters completed. Returning to Chapter Select.");
+                    // Stop any running game thread safely, then return to story mode
+                    try { if (activeController != null) activeController.stopGame(); } catch (Exception ignored) {}
+                    try { if (gameThread != null && gameThread.isAlive()) gameThread.interrupt(); } catch (Exception ignored) {}
+                    if (mainFrame instanceof UI.MainFrame) ((UI.MainFrame) mainFrame).changeToStoryMode();
+                    else JOptionPane.showMessageDialog(mainFrame, "Congratulations — you completed all chapters!");
+                    return;
+                }
             }
-            if (currentStage > 6 && currentChapter == 2) {
-                System.out.println("[ArenaLoader] Chapter 2 completed. Advancing to Chapter 3");
-                currentChapter++; currentStage = 1; showChapterClearDialog(); return;
-            }
-            // ... add other chapter checks here
+
             startLevel();
-        } else {
+
+        } else if (choice == 1) { // RETURN TO CHAPTER SELECT
+            // Safely stop the active game and return to Story Mode
+            try {
+                if (activeController != null) activeController.stopGame();
+            } catch (Exception ignored) {}
+            try {
+                if (gameThread != null && gameThread.isAlive()) {
+                    gameThread.interrupt();
+                }
+            } catch (Exception ignored) {}
+
+            if (mainFrame instanceof UI.MainFrame) {
+                ((UI.MainFrame) mainFrame).changeToStoryMode();
+            } else {
+                JOptionPane.showMessageDialog(mainFrame, "Returning to Chapter Selection.");
+            }
+
+        } else { // QUIT
             System.exit(0);
         }
     }
