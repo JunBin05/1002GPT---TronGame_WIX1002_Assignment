@@ -1,10 +1,10 @@
 package UI;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.util.ArrayList;
 import java.util.List;
 
 public class LeaderBoardPanel extends JPanel {
@@ -12,145 +12,156 @@ public class LeaderBoardPanel extends JPanel {
     private MainFrame mainFrame; 
     private String currentUsername;
     private JPanel headerPanel;
-    private JPanel listPanel;
     private JScrollPane scrollPane;
-    private List<JPanel> rows = new ArrayList<>(); 
-    private List<JLabel> allLabels = new ArrayList<>(); 
-    private LeftButton backBtn;
+    private JTable table; 
     
-    // --- NEW: Background Image Variable ---
+    // --- FIX 1: Use BackButton (Known to work) ---
+    private BackButton backBtn;
+    // ---------------------------------------------
+    
+    private DatabaseManager dbManager; 
     private Image backgroundImage; 
 
     public LeaderBoardPanel(MainFrame mainFrame, String currentUsername) {
         this.mainFrame = mainFrame;
         this.currentUsername = currentUsername;
+        this.dbManager = new DatabaseManager(); 
 
-        // --- 1. LOAD THE IMAGE ---
-        // Make sure you renamed the file to 'leaderboard_bg.jpg'
+        // 1. Load Background Image
         this.backgroundImage = new ImageIcon("images/leaderboard_bg.png").getImage();
 
         setLayout(new BorderLayout());
         
-        // --- 2. HEADER PANEL ---
-        headerPanel = new JPanel(new BorderLayout());
+        // --- HEADER (Back Button) ---
+        headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT)); 
         headerPanel.setOpaque(false);
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 30, 0, 0));
+
+        // --- FIX 2: Initialize Button and Resize Icon ---
+        backBtn = new BackButton("images/back_button.png"); 
+        backBtn.setPreferredSize(new Dimension(160, 160)); 
+        backBtn.resizeIcon(160); 
         
-        backBtn = new LeftButton("images/back_button.png"); 
         backBtn.addActionListener(e -> mainFrame.changeToHome(currentUsername));
-        headerPanel.add(backBtn, BorderLayout.WEST);
-
-
-        headerPanel.add(Box.createRigidArea(new Dimension(50, 50)), BorderLayout.EAST);
+        headerPanel.add(backBtn);
+   
 
         add(headerPanel, BorderLayout.NORTH);
 
-        // --- 3. LIST PANEL ---
-        listPanel = new JPanel();
-        listPanel.setOpaque(false);
-        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        // --- TABLE SETUP ---
+        String[] columnNames = {"RANK", "PLAYER", "HIGHEST_CHAPTER", "TOTAL_SCORE", "DATE_COMPLETED"};
 
-        // Header Row 
-        addRow(listPanel, "RANK", "PLAYER", "LEVEL", new Color(0, 150, 255)); 
-        
-        // User Row 
-        addRow(listPanel, "#1", currentUsername, "0", new Color(255, 215, 0));
+        List<String[]> topPlayers = dbManager.getTop10Scores();
+        String[][] data = new String[10][5];
 
-        // Placeholders
-        for (int i = 2; i <= 10; i++) {
-            Color c = (i == 2) ? Color.LIGHT_GRAY : (i == 3) ? new Color(205, 127, 50) : Color.GRAY;
-            addRow(listPanel, "#" + i, "-", "-", c);
+        for (int i = 0; i < 10; i++) {
+            String rank = "#" + (i + 1);
+            String name = "-";
+            String level = "-";
+            String score = "-";
+            String date = "-";
+
+            if (i < topPlayers.size()) {
+                String[] p = topPlayers.get(i);
+                name = p[0];
+                level = p[1];
+                score = p[2];
+                date = p[3];
+            }
+            
+            data[i][0] = rank;
+            data[i][1] = name;
+            data[i][2] = level;
+            data[i][3] = score;
+            data[i][4] = date;
         }
 
-        scrollPane = new JScrollPane(listPanel);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(null);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER); 
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-
-        add(scrollPane, BorderLayout.CENTER);
-
-        // Resize Listener
-        addComponentListener(new ComponentAdapter() {
+        DefaultTableModel model = new DefaultTableModel(data, columnNames) {
             @Override
-            public void componentResized(ComponentEvent e) {
-                updateLayout();
+            public boolean isCellEditable(int row, int column) {
+                return false; 
+            }
+        };
+
+        table = new JTable(model);
+
+        // --- DISABLE SELECTION ---
+        table.setFocusable(false);
+        table.setRowSelectionAllowed(false);
+        table.setCellSelectionEnabled(false);
+
+        // --- TABLE BODY STYLING ---
+        table.setOpaque(false);
+        table.setBackground(new Color(0, 0, 0, 0));
+        ((DefaultTableCellRenderer)table.getDefaultRenderer(Object.class)).setOpaque(false);
+        
+        // --- FIX 3: Increase Font Size & Row Height ---
+        table.setFont(new Font("Arial", Font.BOLD, 25)); // Bigger Font (Was 15)
+        table.setRowHeight(50);                          // Bigger Rows (Was 40)
+
+        
+        table.setShowGrid(false); 
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setBorder(null);
+
+        // --- TABLE BODY RENDERER ---
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, false, false, row, column);
+                
+                setHorizontalAlignment(SwingConstants.CENTER);
+                setOpaque(false); 
+                
+                String playerName = (String) table.getValueAt(row, 1);
+                
+                if (playerName.equals(currentUsername)) {
+                    setForeground(new Color(0, 255, 100)); // Green for YOU
+                } else if (row == 0) {
+                    setForeground(new Color(255, 215, 0)); // Gold
+                } else if (row == 1) {
+                    setForeground(Color.LIGHT_GRAY);       // Silver
+                } else if (row == 2) {
+                    setForeground(new Color(205, 127, 50)); // Bronze
+                } else {
+                    setForeground(Color.GRAY);
+                }
+                return c;
             }
         });
-    }
 
-    private void addRow(JPanel panel, String r, String n, String s, Color color) {
-        JPanel row = new JPanel(new GridLayout(1, 3));
-        row.setOpaque(false);
-        row.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.WHITE));
+        // --- HEADER STYLING ---
+        JTableHeader header = table.getTableHeader();
+        header.setReorderingAllowed(false);
+        header.setPreferredSize(new Dimension(0, 60)); // Increase header height slightly
+
+        DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer();
+        headerRenderer.setBackground(Color.BLACK);             
+        headerRenderer.setForeground(new Color(0, 150, 255));  
+        headerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        headerRenderer.setFont(new Font("Arial", Font.BOLD, 50)); 
         
-        JLabel l1 = createLabel(r, color);
-        JLabel l2 = createLabel(n, color);
-        JLabel l3 = createLabel(s, color);
-
-        row.add(l1); row.add(l2); row.add(l3);
-        panel.add(row);
-        rows.add(row);
-    }
-
-    private JLabel createLabel(String text, Color color) {
-        JLabel lbl = new JLabel(text, SwingConstants.CENTER);
-        lbl.setForeground(color);
-        allLabels.add(lbl); 
-        return lbl;
-    }
-
-    private void updateLayout() {
-        int w = getWidth();
-        int h = getHeight();
-        if (w == 0 || h == 0) return;
-
-        // --- DYNAMIC SIZING ---
-        // Increase header height slightly so the list starts BELOW your image's banner
-        int headerHeight = (int) (h * 0.22); // Increased to 22% to clear the banner
-        int listHeight   = (int) (h * 0.75); 
-        
-        int btnSize   = (int) (h * 0.18);      
-        int paddingX  = (int) (w * 0.05);      
-        int fontSize  = (int) (h * 0.030);     
-
-        headerPanel.setPreferredSize(new Dimension(w, headerHeight));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, paddingX, 0, paddingX));
-        
-        backBtn.setPreferredSize(new Dimension(btnSize, btnSize));
-        backBtn.resizeIcon(btnSize);
-
-        int totalRows = rows.size(); 
-        int singleRowHeight = (listHeight / totalRows) - 2; 
-
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(0, paddingX, 20, paddingX));
-
-        Font dataFont = new Font("Arial", Font.BOLD, fontSize);
-        
-        for (JPanel row : rows) {
-            Dimension d = new Dimension(w, singleRowHeight);
-            row.setMaximumSize(d);
-            row.setPreferredSize(d);
-            row.setMinimumSize(d);
+        for (int i = 0; i < table.getColumnModel().getColumnCount(); i++) {
+            table.getColumnModel().getColumn(i).setHeaderRenderer(headerRenderer);
         }
 
-        for (JLabel lbl : allLabels) {
-            lbl.setFont(dataFont);
-        }
+        // --- SCROLL PANE ---
+        scrollPane = new JScrollPane(table);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
         
-        revalidate();
-        repaint();
+        scrollPane.setBorder(BorderFactory.createEmptyBorder(50, 50, 20, 50));
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER); 
+
+        add(scrollPane, BorderLayout.CENTER);
     }
 
-    // --- DRAW BACKGROUND IMAGE ---
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         if (backgroundImage != null) {
-            // Draws your new image to fill the entire panel
             g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         } else {
-            // Fallback color if image fails
             g.setColor(new Color(10, 10, 20)); 
             g.fillRect(0, 0, getWidth(), getHeight());
         }
