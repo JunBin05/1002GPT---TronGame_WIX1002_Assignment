@@ -187,6 +187,15 @@ public class GameController implements KeyListener, Runnable {
                 long stageXp = TronRules.calculateStageClearXp(ArenaLoader.currentChapter, ArenaLoader.currentStage);
 
                 if (stageXp > 0) {
+                    // Apply replay diminishing returns (Option A) so players far above a stage
+                    // do not get excessive level jumps when replaying earlier content.
+                    double replayMult = XPSystem.TronRules.calculateReplayMultiplier(playerCycle.getLevel(), ArenaLoader.currentChapter, ArenaLoader.currentStage);
+                    long originalXp = stageXp;
+                    if (replayMult < 0.9999) {
+                        stageXp = Math.max(1, (int) Math.round(stageXp * replayMult));
+                        System.out.println("[GameController] Stage XP replay multiplier applied: " + originalXp + " -> " + stageXp + " (mult=" + String.format("%.3f", replayMult) + ")");
+                    }
+
                     playerCycle.addXP(stageXp);
                     System.out.println("[GameController] Stage Clear XP awarded: " + stageXp + " (C" + ArenaLoader.currentChapter + " S" + ArenaLoader.currentStage + ")");
                 }

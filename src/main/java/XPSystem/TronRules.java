@@ -133,4 +133,43 @@ public class TronRules {
         double xp = unscaled * scale;
         return (long) Math.max(0, Math.round(xp));
     }
+
+    // -------- Replay diminishing returns configuration --------
+    public static final double STAGE_REPLAY_DECAY_BASE = 0.87; // per-level decay multiplier
+    public static final double STAGE_REPLAY_MIN_FACTOR = 0.05; // floor multiplier when very high level
+
+    /**
+     * Compute the expected level a fresh player would have after completing up to
+     * the specified chapter/stage using the current stage XP schedule and scaling.
+     */
+    public static int getExpectedLevelForStage(int chapter, int stage) {
+        // Stages per chapter: 1->3, 2->6, 3->5, 4->5, 5->4
+        int[] stagesPerChapter = {0, 3, 6, 5, 5, 4};
+        long cumulative = 0;
+        for (int c = 1; c <= chapter; c++) {
+            int maxS = (c == chapter) ? stage : stagesPerChapter[c];
+            for (int s = 1; s <= maxS; s++) {
+                cumulative += calculateStageClearXp(c, s);
+            }
+        }
+        int level = 1;
+        while (level < MAX_LEVEL && cumulative >= getTotalXpForLevel(level + 1)) {
+            level++;
+        }
+        return level;
+    }
+
+    /**
+     * Calculate the diminishing multiplier for replaying a stage based on how far
+     * above the stage's expected level the player's current level is.
+     * Returns a value in (MIN_FACTOR..1.0]
+     */
+    public static double calculateReplayMultiplier(int playerLevel, int chapter, int stage) {
+        int expected = getExpectedLevelForStage(chapter, stage);
+        int diff = playerLevel - expected;
+        if (diff <= 0) return 1.0;
+        double mult = Math.pow(STAGE_REPLAY_DECAY_BASE, diff);
+        if (mult < STAGE_REPLAY_MIN_FACTOR) mult = STAGE_REPLAY_MIN_FACTOR;
+        return mult;
+    }
 }
