@@ -607,23 +607,33 @@ public class ArenaLoader {
     }
 
     public static void showGameOverDialog(JFrame parentFrame) {
-        // Present a friendly choice to the player: try the level again or quit
+        // Present a friendly choice to the player: try the level again, return to chapter select, or quit
         JLabel title = new JLabel("::: DEREZZED :::", SwingConstants.CENTER);
         title.setFont(new Font("Monospaced", Font.BOLD, 42));
         title.setForeground(Color.RED);
         title.setBorder(new EmptyBorder(10, 0, 10, 0));
 
-        JLabel message = new JLabel("<html><div style='text-align:center;'>You have lost this stage.<br/>Would you like to try again?</div></html>", SwingConstants.CENTER);
+        JLabel message = new JLabel("<html><div style='text-align:center;'>You have lost this stage.<br/>What would you like to do next?</div></html>", SwingConstants.CENTER);
         message.setFont(new Font("Monospaced", Font.PLAIN, 16));
         message.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        Object[] options = {"Try Again", "Quit"};
+        Object[] options = {"Try Again", "RETURN TO CHAPTER SELECT", "Quit"};
         int choice = JOptionPane.showOptionDialog(parentFrame, new Object[]{title, message}, "Game Over",
-                JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
 
-        if (choice == JOptionPane.YES_OPTION) {
+        if (choice == 0) {
             // Restart the current stage
             startLevel();
+        } else if (choice == 1) {
+            // Return to Story Mode (Chapter Selection). Stop any active game cleanly first.
+            try { if (activeController != null) activeController.stopGame(); } catch (Exception ignored) {}
+            try { if (gameThread != null && gameThread.isAlive()) gameThread.interrupt(); } catch (Exception ignored) {}
+
+            if (mainFrame instanceof UI.MainFrame) {
+                ((UI.MainFrame) mainFrame).changeToStoryMode();
+            } else {
+                JOptionPane.showMessageDialog(parentFrame, "Returning to Chapter Selection.");
+            }
         } else {
             System.exit(0);
         }
