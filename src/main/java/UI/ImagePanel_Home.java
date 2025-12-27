@@ -73,7 +73,7 @@ public class ImagePanel_Home extends JPanel {
 
         questionButton.addActionListener(e -> {
             if (mainFrameRef != null) {
-            mainFrameRef.changeToGameRule(); 
+                mainFrameRef.changeToGameRule(); 
             }
         });
 
@@ -89,8 +89,6 @@ public class ImagePanel_Home extends JPanel {
         //8. Create Exit Button
         exitButton = new ExitButton("images/exit_button.png");
         add(exitButton);
-
-
 
         // Resize Listener (Adjusts positions when window stretches)
         addComponentListener(new ComponentAdapter() {
@@ -118,8 +116,6 @@ public class ImagePanel_Home extends JPanel {
         // Width is roughly 2.5 times the height for a rectangular button
         int playHeight = (int) (h * 0.19);  
         int playWidth = (int) (playHeight * 2.5); 
-        
-       
         int playX = (int) (w * 0.05);
         int playY = ((h / 2) - (playHeight / 2)) - 40;
 
@@ -160,19 +156,19 @@ public class ImagePanel_Home extends JPanel {
 
         //--- G. Setup ID Box (Beside Profile Picture) ---
         int boxWidth = 260;
-        // CHANGE HEIGHT: Reduced from 85 to 50 because we have less text
         int boxHeight = 50; 
         int boxX = (int) (w * 0.73);
         int boxY = (int) (h * 0.10);
+
         profileNameBox.setBounds(boxX, boxY, boxWidth, boxHeight);
 
         // --- H. Setup Exit Button (Top Right Corner) --- (make it beside qna button)
         int exitSize = (int) (h * 0.175); 
         int exitX = w - exitSize - (int) (w * 0.02); 
         int exitY = h - exitSize - 30;
+
         exitButton.setBounds(exitX, exitY, exitSize, exitSize);
         exitButton.resizeIcon(exitSize);
-
     }
 
 

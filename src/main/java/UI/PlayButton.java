@@ -21,9 +21,6 @@ public class PlayButton extends JButton {
         addActionListener(e -> System.out.println("Play Button Clicked!"));
     }
 
-    /**
-     * Helper to resize the icon when window changes size
-     */
     public void resizeIcon(int width, int height) {
         if (width > 0 && height > 0) {
             Image scaled = originalImage.getScaledInstance(width, height, Image.SCALE_SMOOTH);

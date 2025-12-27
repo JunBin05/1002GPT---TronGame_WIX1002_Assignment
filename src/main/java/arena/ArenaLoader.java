@@ -27,8 +27,8 @@ import XPSystem.TronRules; // Math for XP
 
 public class ArenaLoader {
 
-    public static int currentChapter = 2;
-    public static int currentStage = 5;
+    public static int currentChapter = 1;
+    public static int currentStage = 1;
     public static JFrame mainFrame;
     // Track the last pre-stage cutscene that was shown to avoid showing it twice
     private static int lastPreCutsceneChapter = -1;
@@ -103,7 +103,23 @@ public class ArenaLoader {
 
     // --- HELPER METHODS (Images) ---
     private static BufferedImage toBufferedImage(Image img) { if (img instanceof BufferedImage) return (BufferedImage) img; BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB); Graphics2D bGr = bimage.createGraphics(); bGr.drawImage(img, 0, 0, null); bGr.dispose(); return bimage; }
-    private static BufferedImage rotateImage(BufferedImage image, double angleRadians) { double sin = Math.abs(Math.sin(angleRadians)); double cos = Math.abs(Math.cos(angleRadians)); int width = image.getWidth(); int height = image.getHeight(); int newWidth = (int) Math.floor(width * cos + height * sin); int newHeight = (int) Math.floor(height * cos + width * sin); BufferedImage rotatedImage = new BufferedImage(newWidth, newHeight, image.getType()); Graphics2D g2d = rotatedImage.createGraphics(); AffineTransform at = new AffineTransform(); at.translate(newWidth / 2, newHeight / 2); at.rotate(angleRadians); at.translate(-width / 2, -height / 2); g2d.drawImage(image, at, null); g2d.dispose(); return rotatedImage; }
+    private static BufferedImage rotateImage(BufferedImage image, double angleRadians) { 
+        double sin = Math.abs(Math.sin(angleRadians)); 
+        double cos = Math.abs(Math.cos(angleRadians)); 
+        int width = image.getWidth(); 
+        int height = image.getHeight(); 
+        int newWidth = (int) Math.floor(width * cos + height * sin); 
+        int newHeight = (int) Math.floor(height * cos + width * sin); 
+        BufferedImage rotatedImage = new BufferedImage(newWidth, newHeight, image.getType());
+        Graphics2D g2d = rotatedImage.createGraphics(); 
+        AffineTransform at = new AffineTransform(); 
+        at.translate(newWidth / 2, newHeight / 2); 
+        at.rotate(angleRadians); 
+        at.translate(-width / 2, -height / 2); 
+        g2d.drawImage(image, at, null); 
+        g2d.dispose(); 
+        return rotatedImage; 
+    }
 
     private static ImageIcon loadAndScale(String relativePath, int size) { 
         try { File imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath);

@@ -115,38 +115,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             }
             return;
         }
-
-        // --- 2. PLAY MODE ---
-        if (gameState == PLAY_STATE) {
-            
-            // player.update(); <--- Your movement code goes here
-            
-            // CHECK WIN CONDITION (Traffic Controller)
-            if (isLevelFinished()) {
-                levelCompleteTriggered = false; 
-
-                // CASE: Level 1 Finished -> Go to Level 2 (with cutscene?)
-                if (currentLevel == 1) {
-                    gameState = CUTSCENE_STATE; 
-                    cutscene.startScene("c1level2a.txt"); // Change to your real filename
-                    currentLevel = 2; 
-                }
-                
-                // CASE: Level 2 Finished -> Go to Level 3
-                else if (currentLevel == 2) {
-                    // Example: No cutscene here, just straight to next level
-                    currentLevel = 3; 
-                    // player.resetPosition(); // IMPORTANT: Reset player!
-                }
-                
-                // CASE: Level 3 Finished -> Ending
-                else if (currentLevel == 3) {
-                    gameState = CUTSCENE_STATE;
-                    cutscene.startScene("C5_Ending.txt");
-                }
-            }
-        }
-    }
+    } 
 
     public boolean isLevelFinished() {
         return levelCompleteTriggered;
@@ -168,8 +137,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         // If needed later, re-enable specific messages via config or a debug flag.
     }
 
-
-
     @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
@@ -181,16 +148,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             if (key == KeyEvent.VK_SPACE) {
                 cutscene.advance();
                 repaint();
-            }
-        }
-
-        // GAMEPLAY CONTROLS
-        if (gameState == PLAY_STATE) {
-            if (key == KeyEvent.VK_W) System.out.println("Up");
-            
-            // CHEAT KEY TO WIN LEVEL
-            if (key == KeyEvent.VK_ENTER) {
-                levelCompleteTriggered = true;
             }
         }
     }

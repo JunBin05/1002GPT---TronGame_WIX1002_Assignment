@@ -1,22 +1,15 @@
-// src/characters/CharacterLoader.java
-
 package characters;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-
-// NOTE: No need to import CharacterData because it's in the same package (characters)
-
 /**
  * Handles the mandatory File I/O for character initialization.
  * This class adheres to the Single Responsibility Principle (SRP) by focusing only on file reading.
  */
 public class CharacterLoader {
 
-    // --- Replace this with your ABSOLUTE PATH or correct relative path ---
     private static final String FILE_PATH = "data\\characters.txt"; 
-
     /**
      * Reads character stats from characters.txt and returns a CharacterData object.
      */
@@ -26,12 +19,8 @@ public class CharacterLoader {
             String line;
             
             while ((line = reader.readLine()) != null) {
-                // ... (File parsing and error handling) ...
-                
                 String[] parts = line.split(",\\s*");
-                
                 if (parts.length == 6 && parts[0].equalsIgnoreCase(characterName)) {
-                    // ... (Parsing logic) ...
                     try {
                         String name = parts[0];
                         double speed = Double.parseDouble(parts[1]);

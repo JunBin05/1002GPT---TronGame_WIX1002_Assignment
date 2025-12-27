@@ -22,11 +22,7 @@ public class StoryModeButton extends JButton {
             System.out.println("Story Mode Button Clicked!");
         });
     }
-
-    /**
-     * Resizes the icon image to fit a specific size.
-     * Call this from the main panel when the window resizes.
-     */
+    
     public void resizeIcon(int width, int height) {
         if (width > 0 && height > 0) {
             Image scaled = originalImage.getScaledInstance(width, height, Image.SCALE_SMOOTH);

@@ -23,10 +23,6 @@ public class AwardButton extends JButton {
         });
     }
 
-    /**
-     * Resizes the icon image to fit a specific size.
-     * Call this from the main panel when the window resizes.
-     */
     public void resizeIcon(int size) {
         if (size > 0) {
             Image scaled = originalImage.getScaledInstance(size, size, Image.SCALE_SMOOTH);
