@@ -12,16 +12,9 @@ public class Enemy extends Character {
     protected char[][] arenaGrid; 
     protected Random rand = new Random();
 
-    // Stats loaded from enemies.txt
-    protected String difficulty; 
-    protected String intelligence; 
-    protected String speedDesc;
-    protected String handlingDesc;
-    protected String description;
-    
-    // Note: This field is loaded from the file, but your GameController 
-    // now ignores it and uses TronRules instead. That is perfectly fine.
-    protected long xpReward; 
+    // Stats loaded from enemies.txt (legacy descriptor fields removed)
+    // numeric defaults (populated from EnemyLoader) are used instead
+
 
     // --- CONSTRUCTOR ---
     public Enemy(String name, boolean isBoss) {
@@ -34,28 +27,16 @@ public class Enemy extends Character {
         if (stats == null) {
             System.err.println("Warning: Stats missing for " + name + ". Using defaults.");
             // Manual fallback
-            stats = new EnemyLoader.EnemyStats(new String[]{
-                name, isBoss?"Boss":"Minion", "Gray", "Normal", "50", "Normal", "Normal", "Basic", "Fallback"
-            });
+            stats = new EnemyLoader.EnemyStats();
+            stats.name = name;
+            stats.rank = isBoss ? "Boss" : "Minion";
+            stats.color = "Gray";
         }
 
         // 3. Overwrite the placeholder color with the real one from the file
         this.color = stats.color;
 
-        // 4. Set Local Fields from the Text File
-        this.difficulty = stats.difficulty;
-        this.intelligence = stats.intelligenceDesc;
-        this.speedDesc = stats.speedDesc;
-        this.handlingDesc = stats.handlingDesc;
-        this.description = stats.description;
-        this.xpReward = stats.xp; // Stored, even if unused by controller
-
-        // Initialize per-instance numeric attributes from stats base values
-        if (stats != null) {
-            this.speed = stats.baseSpeed;
-            this.handling = stats.baseHandling;
-            this.aggression = stats.baseAggression;
-        }
+        // 4. Initialize per-instance numeric attributes from stats: use defaults here; LevelManager applies per-tier values when spawning.
         
         // 5. Boss Logic (Lives & Behavior flag)
         this.isEnemyBoss = isBoss; 
@@ -219,8 +200,7 @@ public class Enemy extends Character {
     public String getName() { return this.name; }
     public boolean isBoss() { return this.isEnemyBoss; }
     
-    // Kept for compatibility, even if Controller uses Rules instead
-    public long getXp() { return this.xpReward; }
+    // Enemy-specific XP (per-enemy xp field removed; XP is awarded by TronRules)
 
     // Respect the per-instance trail duration set via setTrailDuration()
     @Override

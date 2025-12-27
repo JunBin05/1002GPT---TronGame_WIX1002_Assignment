@@ -43,9 +43,6 @@ public class ImagePanel_GameMode extends JPanel {
             }
         });
 
-
-
-
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {

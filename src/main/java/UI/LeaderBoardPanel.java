@@ -14,11 +14,7 @@ public class LeaderBoardPanel extends JPanel {
     private JPanel headerPanel;
     private JScrollPane scrollPane;
     private JTable table; 
-    
-    // --- FIX 1: Use BackButton (Known to work) ---
     private BackButton backBtn;
-    // ---------------------------------------------
-    
     private DatabaseManager dbManager; 
     private Image backgroundImage; 
 
@@ -44,7 +40,6 @@ public class LeaderBoardPanel extends JPanel {
         
         backBtn.addActionListener(e -> mainFrame.changeToHome(currentUsername));
         headerPanel.add(backBtn);
-   
 
         add(headerPanel, BorderLayout.NORTH);
 
@@ -98,8 +93,6 @@ public class LeaderBoardPanel extends JPanel {
         // --- FIX 3: Increase Font Size & Row Height ---
         table.setFont(new Font("Arial", Font.BOLD, 25)); // Bigger Font (Was 15)
         table.setRowHeight(50);                          // Bigger Rows (Was 40)
-
-        
         table.setShowGrid(false); 
         table.setIntercellSpacing(new Dimension(0, 0));
         table.setBorder(null);

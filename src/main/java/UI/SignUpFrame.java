@@ -110,9 +110,7 @@ public class SignUpFrame extends JFrame {
         return panel;
     }
 
-    // ... (createRegisterPanel and showCard remain exactly the same) ...
     private JPanel createRegisterPanel() {
-        // (Keep your existing code here)
         registerUserIdField = new JTextField(15);
         registerPasswordField = new JPasswordField(15);
         JPanel inputPanel = new JPanel(new GridLayout(2, 2, 10, 10));
@@ -132,12 +130,11 @@ public class SignUpFrame extends JFrame {
                 String password = new String(registerPasswordField.getPassword()); 
 
                 if (userId.trim().isEmpty() || password.trim().isEmpty()) {
-                JOptionPane.showMessageDialog(SignUpFrame.this, 
-                    "Username and Password cannot be empty!", 
-                    "Input Error", 
-                    JOptionPane.ERROR_MESSAGE);
-                
-                return; 
+                    JOptionPane.showMessageDialog(SignUpFrame.this, 
+                        "Username and Password cannot be empty!", 
+                        "Input Error", 
+                        JOptionPane.ERROR_MESSAGE);
+                    return; 
                 }
                 boolean success = dbManager.registerUser(userId, password);
                 if (success) {

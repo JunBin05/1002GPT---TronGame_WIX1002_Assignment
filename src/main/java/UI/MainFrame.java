@@ -21,18 +21,12 @@ public class MainFrame extends JFrame {
         // Ensure the initial panel fills available space immediately
         backgroundPanel.setPreferredSize(getSize());
         
-        // --- NEW CODE START ---
-        // Pass 'this' (the MainFrame itself) to the panel
         backgroundPanel.setParentFrame(this); 
-        // --- NEW CODE END ---
-
         add(backgroundPanel, BorderLayout.CENTER); 
     }
 
     /**
-     * --- NEW METHOD ---
-     * This replaces the Login content with the Home content
-     * instantly, without closing the window.
+     This replaces the Login content with the Home content instantly, without closing the window.
      */
     public void changeToHome(String username) {
         // Create the Home Panel (Just the image, no buttons)
@@ -51,7 +45,6 @@ public class MainFrame extends JFrame {
  
 
     public void changeToGameMode() {
- 
         ImagePanel_GameMode gameModePanel = new ImagePanel_GameMode("images/tron_3.png", this, currentUsername);
     
         setContentPane(gameModePanel);
@@ -98,13 +91,13 @@ public class MainFrame extends JFrame {
         revalidate();
         repaint();
     }
+    
     public void changeToGameRule() {
         ImagePanel_GameRule gameRulePanel = new ImagePanel_GameRule(this);
         setContentPane(gameRulePanel);
         revalidate();
         repaint();
     }
-    
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -112,7 +105,6 @@ public class MainFrame extends JFrame {
             gui.setVisible(true);
         });
     }
-
 
     public String getCurrentUsername() {
         return this.currentUsername;

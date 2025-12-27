@@ -14,102 +14,71 @@ public class EnemyLoader {
         public String name;
         public String rank; // "Boss" or "Minion"
         public String color;
-        public String difficulty;
-        public int xp;
-        // Legacy descriptive fields (kept for compatibility)
-        public String speedDesc;
-        public String handlingDesc;
-        public String intelligenceDesc;
-        public String description;
 
-        // Base numeric defaults (derived from descriptors if explicit per-tier not provided)
-        public double baseSpeed = 0.4;
-        public double baseHandling = 0.7;
-        public double baseAggression = 0.2;
+        // NOTE: No per-row base numeric fields; the loader uses explicit per-tier columns (T1/T2/T3) with defaults defined below.
 
         // Per-tier values: index 0 => chapters 1-2, 1 => chapters 3-4, 2 => chapter 5
-        public double[] tierHp = new double[] {1.0, 1.5, 2.0};
-        public double[] tierSpeed = new double[] {0.33, 0.66, 1.0};
-        public double[] tierHandling = new double[] {0.70, 0.75, 0.80};
-        public double[] tierAggression = new double[] {0.20, 0.35, 0.50};
-        public int[]    tierTrail = new int[] {7, 9, 11};
+        // Arrays are left empty and populated from file when available; getters provide safe defaults.
+        public double[] tierHp = new double[3];
+        public double[] tierSpeed = new double[3];
+        public double[] tierHandling = new double[3];
+        public double[] tierAggression = new double[3];
+        public int[] tierTrail = new int[3];
 
-        public EnemyStats(String[] parts) {
-            // Parses the CSV line; first 9 fields are compatible with older format
-            // Name,Rank,Color,Difficulty,XP,Speed,Handling,Intelligence,Description
-            this.name = parts[0].trim();
-            this.rank = parts[1].trim();
-            this.color = parts[2].trim();
-            this.difficulty = parts[3].trim();
-            try { this.xp = Integer.parseInt(parts[4].trim()); } catch (Exception e) { this.xp = 50; }
-            this.speedDesc = parts.length>5?parts[5].trim():"Normal";
-            this.handlingDesc = parts.length>6?parts[6].trim():"Standard";
-            this.intelligenceDesc = parts.length>7?parts[7].trim():"Basic";
-            this.description = parts.length>8?parts[8].trim():"";
+        // Default constructor to create reasonable defaults
+        public EnemyStats() {
+            this.name = "Unknown";
+            this.rank = "Minion";
+            this.color = "Gray";
+            // defaults already initialized in field declarations
+        }
 
-            // Derive base numeric values from descriptors
-            this.baseSpeed = descriptorToSpeed(this.speedDesc);
-            this.baseHandling = descriptorToHandling(this.handlingDesc);
-            this.baseAggression = descriptorToAggression(this.intelligenceDesc);
+        // Header-aware constructor: reads columns by header name (tolerant)
+        public EnemyStats(java.util.Map<String,Integer> idx, String[] parts) {
+            this();
 
-            // Parse optional per-tier numeric columns if present (order expected as T1_HP,T1_Speed,T1_Handling,T1_AggRESSION,T1_Trail, ...)
-            try {
-                int idx = 9;
-                if (parts.length > idx+4) {
-                    tierHp[0] = Double.parseDouble(parts[idx+0].trim());
-                    tierSpeed[0] = Double.parseDouble(parts[idx+1].trim());
-                    tierHandling[0] = Double.parseDouble(parts[idx+2].trim());
-                    tierAggression[0] = Double.parseDouble(parts[idx+3].trim());
-                    tierTrail[0] = Integer.parseInt(parts[idx+4].trim());
-                }
-                if (parts.length > idx+9) {
-                    tierHp[1] = Double.parseDouble(parts[idx+5].trim());
-                    tierSpeed[1] = Double.parseDouble(parts[idx+6].trim());
-                    tierHandling[1] = Double.parseDouble(parts[idx+7].trim());
-                    tierAggression[1] = Double.parseDouble(parts[idx+8].trim());
-                    tierTrail[1] = Integer.parseInt(parts[idx+9].trim());
-                }
-                if (parts.length > idx+14) {
-                    tierHp[2] = Double.parseDouble(parts[idx+10].trim());
-                    tierSpeed[2] = Double.parseDouble(parts[idx+11].trim());
-                    tierHandling[2] = Double.parseDouble(parts[idx+12].trim());
-                    tierAggression[2] = Double.parseDouble(parts[idx+13].trim());
-                    tierTrail[2] = Integer.parseInt(parts[idx+14].trim());
-                }
-            } catch (Exception e) {
-                // If parsing fails, leave defaults
+            this.name = getString(parts, idx, "Name", this.name);
+            this.rank = getString(parts, idx, "Rank", this.rank);
+            this.color = getString(parts, idx, "Color", this.color);
+
+            // No per-row base numeric columns expected — per-tier T1/T2/T3 columns are used instead (defaults set above).
+
+            // Parse per-tier columns if present; otherwise keep defaults
+            for (int t = 1; t <= 3; t++) {
+                tierHp[t-1] = getDouble(parts, idx, "T" + t + "_HP", tierHp[t-1]);
+                tierSpeed[t-1] = getDouble(parts, idx, "T" + t + "_Speed", tierSpeed[t-1]);
+                tierHandling[t-1] = getDouble(parts, idx, "T" + t + "_Handling", tierHandling[t-1]);
+                tierAggression[t-1] = getDouble(parts, idx, "T" + t + "_AggRESSION", tierAggression[t-1]);
+                tierTrail[t-1] = getInt(parts, idx, "T" + t + "_Trail", tierTrail[t-1]);
             }
         }
 
-        private double descriptorToSpeed(String d) {
-            String s = d.toLowerCase();
-            if (s.contains("very high") || s.contains("very_high")) return 0.9;
-            if (s.contains("high")) return 0.7;
-            if (s.contains("medium") || s.contains("med")) return 0.45;
-            if (s.contains("low")) return 0.25;
-            return 0.4; // normal
+        // Helper accessors for header-based parsing
+        private static String getString(String[] parts, java.util.Map<String,Integer> idx, String key, String def) {
+            Integer i = idx.get(key);
+            if (i == null || i >= parts.length) return def;
+            String v = parts[i].trim();
+            return v.isEmpty() ? def : v;
         }
-        private double descriptorToHandling(String d) {
-            String s = d.toLowerCase();
-            if (s.contains("sharp") || s.contains("excellent")) return 0.9;
-            if (s.contains("standard") || s.contains("std")) return 0.7;
-            if (s.contains("erratic")) return 0.5;
-            return 0.7;
+        private static int getInt(String[] parts, java.util.Map<String,Integer> idx, String key, int def) {
+            String s = getString(parts, idx, key, null);
+            if (s == null) return def;
+            try { return Integer.parseInt(s); } catch (Exception e) { try { return (int)Double.parseDouble(s); } catch (Exception ex) { return def; } }
         }
-        private double descriptorToAggression(String d) {
-            String s = d.toLowerCase();
-            if (s.contains("brilliant") || s.contains("aggressive") || s.contains("clever")) return 0.7;
-            if (s.contains("moderate") || s.contains("predictable")) return 0.45;
-            if (s.contains("low") || s.contains("weak")) return 0.25;
-            return 0.2;
+        private static double getDouble(String[] parts, java.util.Map<String,Integer> idx, String key, double def) {
+            String s = getString(parts, idx, key, null);
+            if (s == null) return def;
+            try { return Double.parseDouble(s); } catch (Exception e) { return def; }
         }
+
+        // Legacy descriptor helpers removed: loader now uses explicit per-tier numeric columns (header-aware).
 
         // Accessors for tier-specific values (0=chapters1-2,1=3-4,2=5)
         public double getTierHp(int tier) { return tierHp[Math.max(0, Math.min(2, tier))]; }
         public double getTierSpeed(int tier) { return tierSpeed[Math.max(0, Math.min(2, tier))]; }
         public double getTierHandling(int tier) { return tierHandling[Math.max(0, Math.min(2, tier))]; }
         public double getTierAggression(int tier) { return tierAggression[Math.max(0, Math.min(2, tier))]; }
-        public int    getTierTrail(int tier) { return tierTrail[Math.max(0, Math.min(2, tier))]; }
+        public int getTierTrail(int tier) { return tierTrail[Math.max(0, Math.min(2, tier))]; }
     }
 
     // Stores data. Key = "Name_Rank" (e.g., "Clu_Minion")
@@ -118,7 +87,6 @@ public class EnemyLoader {
 
     public static void loadData() {
         if (isLoaded) return; 
-
         
         File file = new File("data/enemies.txt"); 
         if (!file.exists()) {
@@ -127,18 +95,26 @@ public class EnemyLoader {
         }
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            // Read header line and build index map (skip comments and blank lines)
+            String headerLine = null;
+            while ((headerLine = br.readLine()) != null) {
+                if (headerLine.trim().isEmpty()) continue;
+                if (headerLine.trim().startsWith("#")) continue;
+                break;
+            }
+            if (headerLine == null) return;
+            String[] headers = headerLine.split(",");
+            java.util.Map<String,Integer> idx = new java.util.HashMap<>();
+            for (int i = 0; i < headers.length; i++) idx.put(headers[i].trim(), i);
+
             String line;
-            boolean firstLine = true;
             while ((line = br.readLine()) != null) {
-                if (firstLine) { firstLine = false; continue; } // Skip header
                 if (line.trim().isEmpty()) continue;
 
                 String[] parts = line.split(",");
-                if (parts.length >= 9) {
-                    EnemyStats stats = new EnemyStats(parts);
-                    String key = stats.name + "_" + stats.rank;
-                    database.put(key, stats);
-                }
+                EnemyStats stats = new EnemyStats(idx, parts);
+                String key = stats.name + "_" + stats.rank;
+                database.put(key, stats);
             }
             isLoaded = true;
             System.out.println("Enemy Database loaded successfully. Entries: " + database.size());

@@ -167,9 +167,6 @@ public class ImagePanel_Ac extends JPanel {
         }
     }
 
-    
-
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);

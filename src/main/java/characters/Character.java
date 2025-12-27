@@ -83,7 +83,8 @@ public abstract class Character {
         this.maxLives = data.lives;
         
         // Initial Capacity Check
-        this.discCapacity = 1 + (this.level / 15);
+        this.discCapacity = data.discsOwned + (this.level / 15);
+        this.discsOwned=data.discsOwned;
         this.currentDiscCount = this.discCapacity; 
         
         this.experiencePoints = data.experiencePoints; 
@@ -93,7 +94,7 @@ public abstract class Character {
     // Called by GameController Constructor to ensure Stage 2 starts fresh
     public void prepareForNextStage() {
         // Recalculate capacity just in case
-        this.discCapacity = 1 + (this.level / 15);
+        this.discCapacity = this.discsOwned + (this.level / 15);
         
         this.currentDiscCount = this.discCapacity; // Refill Ammo
         this.lives = this.maxLives;                // Heal to Full
@@ -222,7 +223,7 @@ public abstract class Character {
         level++;
         
         // --- NEW RULE: 1 Disc + 1 extra every 15 levels ---
-        this.discCapacity = 1 + (this.level / 15);
+        this.discCapacity = this.discsOwned + (this.level / 15);
         
         // Refill immediately on level up
         this.currentDiscCount = this.discCapacity; 
