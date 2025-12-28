@@ -155,7 +155,10 @@ public abstract class Character {
         int newLevel = level;
         int displayNewLevel = Math.max(savedMaxLevel, newLevel);
 
-        // Build display stats for OLD and NEW using simulated leveling from base stats so attributes match sidebar
+        // Build display stats for OLD and NEW using in-memory values.
+        // We intentionally avoid simulating base attributes from CharacterData here to keep the UI
+        // method lightweight and reduce failure surface; saved max-level (from DB) is still respected
+        // via `displayOldLevel`/`displayNewLevel` computed earlier.
         double displayOldSpeed = oldSpeed;
         double displayNewSpeed = this.speed;
         double displayOldHandling = this.handling;
@@ -165,34 +168,6 @@ public abstract class Character {
         double displayOldMaxLives = this.maxLives;
         double displayNewMaxLives = this.maxLives;
 
-        try {
-            // Load base attributes from file and simulate to displayOldLevel and displayNewLevel
-            characters.CharacterData base = characters.CharacterLoader.loadCharacterData(this.name);
-            characters.Character sim = (this.name.equals("Tron")) ? new characters.Tron() : new characters.Kevin();
-            if (base != null) sim.loadInitialAttributes(base);
-
-            // Simulate to old
-            while (sim.getLevel() < displayOldLevel) sim.levelUp();
-            displayOldSpeed = sim.getSpeed();
-            displayOldHandling = sim.getHandling();
-            displayOldDiscCap = sim.getDiscCapacity();
-            displayOldMaxLives = sim.getMaxLives();
-
-            // Simulate to new
-            while (sim.getLevel() < displayNewLevel) sim.levelUp();
-            displayNewSpeed = sim.getSpeed();
-            displayNewHandling = sim.getHandling();
-            displayNewDiscCap = sim.getDiscCapacity();
-            displayNewMaxLives = sim.getMaxLives();
-        } catch (Exception e) {
-            // If anything fails, fall back to in-memory values we already captured
-            displayOldSpeed = oldSpeed;
-            displayNewSpeed = this.speed;
-            displayOldDiscCap = this.discCapacity;
-            displayNewDiscCap = this.discCapacity;
-            displayOldMaxLives = this.maxLives;
-            displayNewMaxLives = this.maxLives;
-        }
 
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body style='width: 300px; background-color: #222; color: #00FFCC; font-family: Sans-serif; padding: 10px;'>");

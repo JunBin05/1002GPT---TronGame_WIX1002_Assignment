@@ -37,39 +37,6 @@ public class TronRules {
         return (long) (BASE_XP * Math.pow(level, EXPONENT));
     }
 
-    public static int getDiscCount(int level) {
-        return Math.min(1 + (level / 10), MAX_DISCS);
-    }
-
-
-    // 5. STAGE REWARD (UPDATED FOR LEVEL 50 PACING)
-    public static long calculateStageReward(int currentLevel, StageType type) {
-        long currentTotal = getTotalXpForLevel(currentLevel);
-        long nextTotal = getTotalXpForLevel(currentLevel + 1);
-        long gap = nextTotal - currentTotal;
-
-        double multiplier = 0;
-        switch (type) {
-            case TUTORIAL:
-                multiplier = 1.0;
-                break; // Start Lvl 2 (Was 2.0)
-            case NORMAL:
-                multiplier = 1.2;
-                break; // +1.2 Levels (Was 3.5)
-            case BOSS_KILL:
-                multiplier = 2.5;
-                break; // +2.5 Levels (Was 5.0)
-            case BOSS_SURVIVE:
-                multiplier = 3.0;
-                break; // +3.0 Levels (Was 6.0)
-            case STORY_CLIMAX:
-                multiplier = 4.0;
-                break; // +4.0 Levels (Was 8.0)
-        }
-
-        return (long) (gap * multiplier);
-    }
-
     /**
      * Stage-clear XP helper (stage-only XP mode). Calculates XP based on chapter & stage
      * and ignores the level "gap" curve so XP cannot be farmed by repeated kills.
