@@ -19,8 +19,8 @@ public class ArenaOne extends Arena {
         }
 
         // Obstacles (O) arranged like circuit nodes
-        for (int i = 8; i < 32; i += 8) {
-            for (int j = 8; j < 32; j += 8) {
+        for (int i = 8; i <= 32; i += 8) {
+            for (int j = 8; j <= 32; j += 8) {
                 grid[i][j] = 'O';
             }
         }

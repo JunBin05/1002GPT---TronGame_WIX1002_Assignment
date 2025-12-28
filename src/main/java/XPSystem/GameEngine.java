@@ -75,9 +75,8 @@ public class GameEngine {
     }
 
     public void enemyKilled(TronRules.EnemyType type) {
-        long xp = TronRules.calculateEnemyXp(activeCharacter.getLevel(), type);
-        activeCharacter.addXp(xp);
-        System.out.println(activeCharacter.getName() + " killed " + type + " (+" + xp + " XP)");
+        // Per-kill XP disabled: no XP is granted when killing individual enemies.
+        System.out.println(activeCharacter.getName() + " killed " + type + " (per-kill XP disabled)");
     }
 
     public CharacterProfile getActiveCharacter() {
