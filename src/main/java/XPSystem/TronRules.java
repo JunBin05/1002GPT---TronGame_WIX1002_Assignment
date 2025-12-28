@@ -41,34 +41,6 @@ public class TronRules {
         return Math.min(1 + (level / 10), MAX_DISCS);
     }
 
-    // 4. ENEMY XP (UPDATED FOR LEVEL 50 PACING)
-    public static long calculateEnemyXp(int currentLevel, EnemyType enemy) {
-        // Calculate the "Gap"
-        long currentTotal = getTotalXpForLevel(currentLevel);
-        long nextTotal = getTotalXpForLevel(currentLevel + 1);
-        long gap = nextTotal - currentTotal;
-
-        double multiplier = 0;
-        switch (enemy) {
-            case MINION:
-                multiplier = 0.15;
-                break; // 15% (Was 40%)
-            case KOURA:
-                multiplier = 1.00;
-                break; // +1 Level (Was 3.0)
-            case SARK:
-                multiplier = 1.50;
-                break; // +1.5 Levels (Was 4.0)
-            case RINZLER:
-                multiplier = 2.00;
-                break; // +2 Levels (Was 5.0)
-            case CLU:
-                multiplier = 3.00;
-                break; // +3 Levels (Was 8.0)
-        }
-
-        return (long) (gap * multiplier);
-    }
 
     // 5. STAGE REWARD (UPDATED FOR LEVEL 50 PACING)
     public static long calculateStageReward(int currentLevel, StageType type) {

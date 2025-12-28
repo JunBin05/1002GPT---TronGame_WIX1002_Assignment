@@ -50,7 +50,8 @@ public class GameController implements KeyListener, Runnable {
         this.icons = icons;
         this.arenaPanel = arenaPanel;
         this.hudPanel = hudPanel;
-        this.playerCycle = cycles.get(0);        this.gameFrame.addKeyListener(this);
+        this.playerCycle = cycles.get(0);        
+        this.gameFrame.addKeyListener(this);
         this.gameFrame.setFocusable(true);
     }
 
@@ -137,16 +138,27 @@ public class GameController implements KeyListener, Runnable {
                                 if (tile == playerCycle.getSymbol() && playerCycle.getRow() == nextR && playerCycle.getCol() == nextC) {
                                     System.out.println(String.format("[GameController] Enemy %s attempted to move onto player at (%d,%d)", enemy.getName(), nextR, nextC));
 
-                                    // Damage the player (enemy should not take damage for attempting this move)
-                                    playerCycle.changeLives(-0.5);
-                                    if (playerCycle.getLives() > 0.0) {
-                                        // Try to revert the player (restore base tiles when necessary)
-                                        try { playerCycle.revertPosition(grid, trailTimer, arena.getBaseTile(playerCycle.r, playerCycle.c)); } catch (Exception ignored) {}
-                                        playerCycle.setOppositeDirection();
-                                    }
+                                    // Minimal behavior change: enemy takes damage when attempting to move into the player
+                                    enemy.changeLives(-0.5);
+                                    if (enemy.getLives() <= 0) {
+                                        // Enemy died: mark for removal (per-kill XP removed)
+                                        deadEnemies.add(enemy);
 
-                                    // Enemy turns around and does NOT take damage
-                                    enemy.setOppositeDirection();
+                                        // Restore the design-time/base tile at enemy's position (if any)
+                                        if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
+                                            int er = enemy.getRow(); int ec = enemy.getCol();
+                                            char base = arena.getBaseTile(er, ec);
+                                            if (base != '.' && base != '\0') {
+                                                grid[er][ec] = base;
+                                                System.out.println(String.format("[GameController] Restored base tile '%c' at (%d,%d) after enemy death: %s", base, er, ec, enemy.getName()));
+                                            } else {
+                                                grid[er][ec] = '.';
+                                            }
+                                        }
+                                    } else {
+                                        // Enemy survived: turn it around
+                                        enemy.setOppositeDirection();
+                                    }
 
                                     // Skip the rest of the movement processing for this attempt
                                     continue;
@@ -174,7 +186,7 @@ public class GameController implements KeyListener, Runnable {
                             } else {
                                 enemy.changeLives(-0.5);
                                 if (enemy.getLives() <= 0) {
-                                    awardKillXp(enemy); // STORES XP
+                                    // Enemy died: mark for removal (per-kill XP removed)
                                     deadEnemies.add(enemy);
                                     if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
                                         int er = enemy.getRow(); int ec = enemy.getCol();
@@ -200,16 +212,16 @@ public class GameController implements KeyListener, Runnable {
                             int eCol = enemy.getCol();
                             if (eRow >= 0 && eRow < 40 && eCol >= 0 && eCol < 40) {
                                 if (grid[eRow][eCol] == '.') {
-                                char trailChar = 'M'; // Default minion trail
+                                    char trailChar = 'M'; // Default minion trail
                                     String name = enemy.getName();
 
-                                if (name.contains("Clu"))        trailChar = 'C'; // Gold
-                                else if (name.contains("Sark"))  trailChar = 'Y'; // Yellow
-                                else if (name.contains("Koura")) trailChar = 'G'; // Green
-                                else if (name.contains("Rinzler")) trailChar = 'R'; // Red
-                                
-                                grid[eRow][eCol] = trailChar;
-                                trailTimer[eRow][eCol] = globalStepCounter;
+                                    if (name.contains("Clu"))        trailChar = 'C'; // Gold
+                                    else if (name.contains("Sark"))  trailChar = 'Y'; // Yellow
+                                    else if (name.contains("Koura")) trailChar = 'G'; // Green
+                                    else if (name.contains("Rinzler")) trailChar = 'R'; // Red
+                                    
+                                    grid[eRow][eCol] = trailChar;
+                                    trailTimer[eRow][eCol] = globalStepCounter;
                                 }
                             }
                         }
@@ -298,23 +310,6 @@ public class GameController implements KeyListener, Runnable {
         }
     }
 
-    private void awardKillXp(Enemy enemy) {
-        TronRules.EnemyType type = TronRules.EnemyType.MINION;
-        if (enemy.name.contains("Sark")) type = TronRules.EnemyType.SARK;
-        else if (enemy.name.contains("Clu")) type = TronRules.EnemyType.CLU;
-        else if (enemy.name.contains("Rinzler")) type = TronRules.EnemyType.RINZLER;
-        else if (enemy.name.contains("Koura")) type = TronRules.EnemyType.KOURA;
-
-        long reward = TronRules.calculateEnemyXp(playerCycle.getLevel(), type);
-
-        if (!TronRules.STAGE_ONLY_XP) {
-            // Only add per-kill XP when stage-only mode is disabled
-            playerCycle.addXP(reward);
-        } else {
-            // Stage-only mode: skip awarding XP on kills to prevent farming
-            // (Optional: show visual feedback or small score increment)
-        }
-    }
 
     private void moveDiscs(char[][] grid) {
     for (int i = activeDiscs.size() - 1; i >= 0; i--) {

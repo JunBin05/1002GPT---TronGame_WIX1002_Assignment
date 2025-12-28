@@ -523,7 +523,8 @@ public class ArenaLoader {
         int playerC = cycles.get(0).getCol();
         boolean playerBoosting = playerR >= 0 && playerR < 40 && playerC >= 0 && playerC < 40 && grid[playerR][playerC] == 'S';
 
-        for (int r = 0; r < 40; r++) { for (int c = 0; c < 40; c++) {
+        for (int r = 0; r < 40; r++) { 
+            for (int c = 0; c < 40; c++) {
                 JPanel cellPanel = new JPanel(new BorderLayout());
                 cellPanel.setOpaque(true); cellPanel.setBackground(NEON_BG);
                 cellPanel.setBorder(BorderFactory.createLineBorder(GRID_LINE, 1));

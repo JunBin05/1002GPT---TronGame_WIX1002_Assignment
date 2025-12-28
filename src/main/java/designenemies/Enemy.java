@@ -40,6 +40,10 @@ public class Enemy extends Character {
         
         // 5. Boss Logic (Lives & Behavior flag)
         this.isEnemyBoss = isBoss; 
+        // Initialize role-based defaults here because field initializers run before the constructor.
+        // This prevents the earlier bug where `isEnemyBoss` was false during field initialization.
+        this.moveInterval = this.isEnemyBoss ? 2 : 3;
+
         if (isBoss) {
             this.lives = 3;
             this.maxLives = 3;
@@ -50,6 +54,17 @@ public class Enemy extends Character {
             this.maxLives = 1;
             // Default minion trail duration
             this.setTrailDuration(7);
+        }
+
+        // Safe fallbacks: initialize numeric attributes from stats (tier 0) so we don't hardcode
+        // concrete values inline in the class. LevelManager will typically override these with
+        // the appropriate tier values when spawning the enemy.
+        int defaultTier = 0;
+        if (stats != null) {
+            this.speed = stats.getTierSpeed(defaultTier);
+            this.handling = stats.getTierHandling(defaultTier);
+            this.aggression = stats.getTierAggression(defaultTier);
+            // Note: Per-spawn values (for the current level/tier) are applied in LevelManager.loadStage
         }
     }
 
@@ -69,12 +84,14 @@ public class Enemy extends Character {
     }
 
     // Behavior tuning
-    private int moveInterval = isEnemyBoss ? 2 : 3; // number of ticks between moves (lower => faster)
+    private int moveInterval; // number of ticks between moves (lower => faster) - set in constructor
 
     // New numeric attributes (per-instance)
-    private double speed = 0.4;      // affects moveInterval
-    private double handling = 0.7;   // 0..1, higher = more likely to keep straight at corners
-    private double aggression = 0.2; // 0..1, higher = bosses are more likely to use smart moves
+    // Values are sourced from `EnemyLoader` at spawn time (per-tier). We leave them unset here
+    // to avoid hardcoding and let `LevelManager` apply per-tier tuning; constructor sets safe fallbacks.
+    private double speed;
+    private double handling;
+    private double aggression;
 
     // --- DECISION LOGIC ---
     public Direction decideMove() {
