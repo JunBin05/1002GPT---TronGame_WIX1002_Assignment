@@ -73,32 +73,28 @@ public class GameController implements KeyListener, Runnable {
         int[][] trailTimer = arena.getTrailTimer();
 
         List<Character> deadEnemies = new ArrayList<>();
-        int enemyMoveTick = 0;
 
         while (isRunning) {
 
             moveDiscs(grid);
             moveDiscs(grid);
             movePlayer(grid, trailTimer);
-
-            enemyMoveTick++;
             long nowNs = System.nanoTime();
             for (Character c : cycles) {
                 if (c != playerCycle && c instanceof Enemy) {
                     Enemy enemy = (Enemy) c;
 
-                    // Time-based scheduling (Option B): check per-enemy delay first
+                    // Time-based scheduling: use configured per-enemy delay if provided, otherwise use a
+                    // default delay so enemies remain independent from the game loop speed (e.g., player FPS).
                     boolean shouldMove = false;
-                    long delayNs = enemy.getMoveDelayNs();
-                    if (delayNs > 0) {
-                        if ((nowNs - enemy.getLastMoveNs()) >= delayNs) {
-                            shouldMove = true;
-                            enemy.setLastMoveNs(nowNs);
-                        }
-                    } else {
-                        // Fallback to tick-based behavior if delay not set
-                        int moveInterval = (enemy instanceof designenemies.Enemy) ? ((designenemies.Enemy)enemy).getMoveInterval() : 3;
-                        if (enemyMoveTick % moveInterval == 0) shouldMove = true;
+                    final long defaultEnemyDelay = 250_000_000L; // 250 ms in nanoseconds
+                    long configuredDelay = enemy.getMoveDelayNs() > 0 ? enemy.getMoveDelayNs() : defaultEnemyDelay;
+                    // Guard: if lastMoveNs is zero, initialize it so enemies don't all burst on first tick
+                    if (enemy.getLastMoveNs() == 0L) {
+                        enemy.setLastMoveNs(nowNs);
+                    } else if ((nowNs - enemy.getLastMoveNs()) >= configuredDelay) {
+                        shouldMove = true;
+                        enemy.setLastMoveNs(nowNs);
                     }
 
                     if (!shouldMove) continue;
@@ -142,7 +138,6 @@ public class GameController implements KeyListener, Runnable {
                                     enemy.changeLives(-0.5);
                                     if (enemy.getLives() <= 0) {
                                         // Enemy died: award XP and mark for removal
-                                        awardKillXp(enemy);
                                         deadEnemies.add(enemy);
 
                                         // Restore the design-time/base tile at enemy's position (if any)
@@ -187,7 +182,6 @@ public class GameController implements KeyListener, Runnable {
                             } else {
                                 enemy.changeLives(-0.5);
                                 if (enemy.getLives() <= 0) {
-                                    awardKillXp(enemy); // STORES XP
                                     deadEnemies.add(enemy);
                                     if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
                                         int er = enemy.getRow(); int ec = enemy.getCol();
@@ -308,24 +302,6 @@ public class GameController implements KeyListener, Runnable {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-        }
-    }
-
-    private void awardKillXp(Enemy enemy) {
-        TronRules.EnemyType type = TronRules.EnemyType.MINION;
-        if (enemy.name.contains("Sark")) type = TronRules.EnemyType.SARK;
-        else if (enemy.name.contains("Clu")) type = TronRules.EnemyType.CLU;
-        else if (enemy.name.contains("Rinzler")) type = TronRules.EnemyType.RINZLER;
-        else if (enemy.name.contains("Koura")) type = TronRules.EnemyType.KOURA;
-
-        long reward = TronRules.calculateEnemyXp(playerCycle.getLevel(), type);
-
-        if (!TronRules.STAGE_ONLY_XP) {
-            // Only add per-kill XP when stage-only mode is disabled
-            playerCycle.addXP(reward);
-        } else {
-            // Stage-only mode: skip awarding XP on kills to prevent farming
-            // (Optional: show visual feedback or small score increment)
         }
     }
 
