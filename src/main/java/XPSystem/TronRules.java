@@ -36,12 +36,7 @@ public class TronRules {
             return 0;
         return (long) (BASE_XP * Math.pow(level, EXPONENT));
     }
-
-    public static int getDiscCount(int level) {
-        return Math.min(1 + (level / 10), MAX_DISCS);
-    }
-
-
+    
     // 5. STAGE REWARD (UPDATED FOR LEVEL 50 PACING)
     public static long calculateStageReward(int currentLevel, StageType type) {
         long currentTotal = getTotalXpForLevel(currentLevel);

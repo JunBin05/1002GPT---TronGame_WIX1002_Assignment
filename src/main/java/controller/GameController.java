@@ -141,7 +141,8 @@ public class GameController implements KeyListener, Runnable {
                                     // Minimal behavior change: enemy takes damage when attempting to move into the player
                                     enemy.changeLives(-0.5);
                                     if (enemy.getLives() <= 0) {
-                                        // Enemy died: mark for removal (per-kill XP removed)
+                                        // Enemy died: award XP and mark for removal
+                                        awardKillXp(enemy);
                                         deadEnemies.add(enemy);
 
                                         // Restore the design-time/base tile at enemy's position (if any)
@@ -186,7 +187,7 @@ public class GameController implements KeyListener, Runnable {
                             } else {
                                 enemy.changeLives(-0.5);
                                 if (enemy.getLives() <= 0) {
-                                    // Enemy died: mark for removal (per-kill XP removed)
+                                    awardKillXp(enemy); // STORES XP
                                     deadEnemies.add(enemy);
                                     if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
                                         int er = enemy.getRow(); int ec = enemy.getCol();
@@ -310,6 +311,23 @@ public class GameController implements KeyListener, Runnable {
         }
     }
 
+    private void awardKillXp(Enemy enemy) {
+        TronRules.EnemyType type = TronRules.EnemyType.MINION;
+        if (enemy.name.contains("Sark")) type = TronRules.EnemyType.SARK;
+        else if (enemy.name.contains("Clu")) type = TronRules.EnemyType.CLU;
+        else if (enemy.name.contains("Rinzler")) type = TronRules.EnemyType.RINZLER;
+        else if (enemy.name.contains("Koura")) type = TronRules.EnemyType.KOURA;
+
+        long reward = TronRules.calculateEnemyXp(playerCycle.getLevel(), type);
+
+        if (!TronRules.STAGE_ONLY_XP) {
+            // Only add per-kill XP when stage-only mode is disabled
+            playerCycle.addXP(reward);
+        } else {
+            // Stage-only mode: skip awarding XP on kills to prevent farming
+            // (Optional: show visual feedback or small score increment)
+        }
+    }
 
     private void moveDiscs(char[][] grid) {
     for (int i = activeDiscs.size() - 1; i >= 0; i--) {
