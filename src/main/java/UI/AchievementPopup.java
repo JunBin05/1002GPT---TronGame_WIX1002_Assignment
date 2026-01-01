@@ -43,7 +43,7 @@ public class AchievementPopup extends JPanel {
         // 4. Fixed Size
         setSize(600, 150);
         
-        // 5. Hand Cursor (Let user know it's clickable)
+        // 5. Hand Cursor
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
@@ -53,10 +53,16 @@ public class AchievementPopup extends JPanel {
 
         AchievementPopup popup = new AchievementPopup(title, description);
         
-        // Center Logic
+        // --- POSITION LOGIC ---
+        // X: Centered Horizontally
         int x = (frame.getWidth() - popup.getWidth()) / 2;
-        int y = (frame.getHeight() - popup.getHeight()) / 2;
+        
+        // Y: Top Center (Fixed 50px from top)
+        // This puts it "on top of the center" area
+        int y = 50; 
+        
         popup.setLocation(x, y);
+        // ----------------------
 
         JLayeredPane layeredPane = frame.getLayeredPane();
         layeredPane.add(popup, JLayeredPane.POPUP_LAYER);
@@ -72,30 +78,27 @@ public class AchievementPopup extends JPanel {
         timer.setRepeats(false);
         timer.start();
 
-        // --- NEW: CLICK TO CLOSE ---
+        // --- CLICK TO CLOSE ---
         MouseAdapter closeAction = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                timer.stop(); // Stop the auto-timer so it doesn't fire later
+                timer.stop(); 
                 if (popup.getParent() != null) {
                     layeredPane.remove(popup);
-                    layeredPane.repaint(); // Refresh screen to remove artifact
+                    layeredPane.repaint(); 
                     System.out.println("Achievement popup closed by user.");
                 }
             }
         };
 
-        // Add the listener to the POPUP and ALL its children components
-        // (This ensures clicking the text or icon also closes it)
         popup.addMouseListener(closeAction);
         addListenersRecursively(popup, closeAction);
     }
 
-    // Helper to add click listener to everything (Icon, Text, Panel)
     private static void addListenersRecursively(Container container, MouseAdapter listener) {
         for (Component c : container.getComponents()) {
             c.addMouseListener(listener);
-            c.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)); // Make text show hand cursor too
+            c.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)); 
             if (c instanceof Container) {
                 addListenersRecursively((Container) c, listener);
             }

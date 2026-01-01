@@ -981,6 +981,10 @@ public class ArenaLoader {
             currentLives = player.getLives();
             maxLives = player.getMaxLives();
 
+            if (currentLives >= maxLives) {
+                unlockAchievement(2, "FLAWLESS VICTORY", "Complete a level without losing any life.");
+            }
+
             // Persist the player's progress (non-blocking)
             if (mainFrame instanceof UI.MainFrame) {
                 String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
