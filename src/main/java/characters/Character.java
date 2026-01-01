@@ -21,6 +21,7 @@ public abstract class Character {
     protected String color;      
     protected char symbol = 'P'; 
     public boolean isStunned = false;
+    public boolean isBoss = false;
 
     // Attributes
     protected int experiencePoints; 
@@ -254,9 +255,49 @@ public abstract class Character {
     public void setStunned(boolean stunned) { this.isStunned = stunned; }
 
     public void changeLives(double amount) {
+        double oldLives = this.lives; 
+        
         this.lives += amount;
         if (this.lives > this.maxLives) this.lives = this.maxLives;
+
+        // --- DEATH DETECTION ---
+        if (this.lives <= 0 && oldLives > 0) {
+            
+            // CASE A: PLAYER DIED (Tron or Kevin)
+            if (this.name.equals("Tron") || this.name.equals("Kevin")) {
+                // [Icon 3] Learning the Hard Way
+                arena.ArenaLoader.unlockAchievement(3, "LEARNING THE HARD WAY", "Experience your first dead.");
+                
+                System.out.println("Player died! Triggering achievement...");
+
+                // Calculate where the player was facing when they died
+                int nextR = this.r;
+                int nextC = this.c;
+                switch (this.currentDirection) { 
+                    case NORTH -> nextR--; 
+                    case SOUTH -> nextR++; 
+                    case WEST -> nextC--; 
+                    case EAST -> nextC++; 
+                }
+
+                // If that destination is OUT OF BOUNDS, they fell into the void!
+                if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
+                     arena.ArenaLoader.unlockAchievement(5, "INTO THE VOID", "Fall Outside the map.");
+                     System.out.println(">> ACHIEVEMENT: Fell into the void!");
+                }
+                // =========================================================
+            } 
+            
+            // CASE B: ENEMY DIED (Clu, Sark, etc.)
+            else {}
+                arena.ArenaLoader.unlockAchievement(1, "FIRST BLOOD", "Defeat your very first enemy.");
+
+                if (this.isBoss) {
+                     arena.ArenaLoader.unlockAchievement(4, "BOSS SLAYER", "Defeat a boss for the first time.");
+                }
+            }
     }
+    
 
     // Public setters so callers (e.g., LevelManager) can tune health values per-stage
     public void setMaxLives(double max) {

@@ -981,6 +981,11 @@ public class ArenaLoader {
             currentLives = player.getLives();
             maxLives = player.getMaxLives();
 
+            if (currentLives >= maxLives) {
+                unlockAchievement(2, "FLAWLESS VICTORY", "Complete a level without losing any life.");
+            }
+            unlockAchievement(6, "GAME CONQUEROR", "Complete the first game.");
+
             // Persist the player's progress (non-blocking)
             if (mainFrame instanceof UI.MainFrame) {
                 String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
@@ -1133,6 +1138,45 @@ public class ArenaLoader {
         } else {
             // Exit the game
             System.exit(0);
+        }  
+    }
+
+    public static void unlockAchievement(int achIndex, String title, String desc) {
+        // 1. Check if we have a valid main frame reference
+        if (mainFrame instanceof UI.MainFrame) {
+            
+            // 2. Get the current logged-in user
+            String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
+            
+            if (username != null && !username.trim().isEmpty()) {
+                
+                // 3. Run database operations in a background thread (so game doesn't lag)
+                new Thread(() -> {
+                    UI.DatabaseManager db = new UI.DatabaseManager();
+                    
+                    // 4. Get list of achievements (True/False)
+                    java.util.List<Boolean> achievements = db.getAchievements(username);
+                    
+                    // 5. Check if this specific one is already unlocked
+                    // Note: achIndex is 1-6, but list is 0-5. So we use (achIndex - 1)
+                    int listIndex = achIndex - 1;
+
+                    if (listIndex >= 0 && listIndex < achievements.size()) {
+                        if (!achievements.get(listIndex)) {
+                            // It is currently LOCKED (False). So we unlock it!
+                            
+                            // A. Update Database
+                            db.unlockAchievement(username, achIndex);
+                            
+                            // B. Show the Neon Popup on the main screen
+                            SwingUtilities.invokeLater(() -> {
+                                UI.AchievementPopup.show(mainFrame, title, desc);
+                                System.out.println("ACHIEVEMENT UNLOCKED: " + title);
+                            });
+                        }
+                    }
+                }).start();
+            }
         }
     }
 
