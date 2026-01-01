@@ -50,7 +50,8 @@ public class GameController implements KeyListener, Runnable {
         this.icons = icons;
         this.arenaPanel = arenaPanel;
         this.hudPanel = hudPanel;
-        this.playerCycle = cycles.get(0);        
+        this.playerCycle = cycles.get(0);  
+        this.playerCycle.isPlayer = true;      
         this.gameFrame.addKeyListener(this);
         this.gameFrame.setFocusable(true);
     }
