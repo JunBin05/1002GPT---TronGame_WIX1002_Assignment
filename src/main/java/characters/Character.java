@@ -269,18 +269,35 @@ public abstract class Character {
                 arena.ArenaLoader.unlockAchievement(3, "LEARNING THE HARD WAY", "Experience your first dead.");
                 
                 System.out.println("Player died! Triggering achievement...");
+
+                // Calculate where the player was facing when they died
+                int nextR = this.r;
+                int nextC = this.c;
+                switch (this.currentDirection) { 
+                    case NORTH -> nextR--; 
+                    case SOUTH -> nextR++; 
+                    case WEST -> nextC--; 
+                    case EAST -> nextC++; 
+                }
+
+                // If that destination is OUT OF BOUNDS, they fell into the void!
+                if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
+                     arena.ArenaLoader.unlockAchievement(5, "INTO THE VOID", "Fall Outside the map.");
+                     System.out.println(">> ACHIEVEMENT: Fell into the void!");
+                }
+                // =========================================================
             } 
             
             // CASE B: ENEMY DIED (Clu, Sark, etc.)
-            else {
+            else {}
                 arena.ArenaLoader.unlockAchievement(1, "FIRST BLOOD", "Defeat your very first enemy.");
 
                 if (this.isBoss) {
                      arena.ArenaLoader.unlockAchievement(4, "BOSS SLAYER", "Defeat a boss for the first time.");
                 }
             }
-        }
     }
+    
 
     // Public setters so callers (e.g., LevelManager) can tune health values per-stage
     public void setMaxLives(double max) {
