@@ -4,27 +4,30 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import javax.sound.sampled.*;
+import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 
 public class AchievementPopup extends JPanel {
 
+    // --- 1. MEMORY TO PREVENT DUPLICATES ---
+    private static Set<String> shownAchievements = new HashSet<>();
+
     public AchievementPopup(String title, String description) {
-        // 1. Neon Box Style
         setLayout(new BorderLayout());
-        setBackground(new Color(0, 0, 0)); // Black Background
+        setBackground(new Color(0, 0, 0)); 
         
-        // Thicker Border
         setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(Color.CYAN, 4), 
             BorderFactory.createEmptyBorder(20, 20, 20, 20)
         ));
         
-        // 2. Icon (Big Trophy)
         JLabel iconLabel = new JLabel("🏆"); 
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 60)); 
         iconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 20)); 
         add(iconLabel, BorderLayout.WEST);
 
-        // 3. Text Panel
         JPanel textPanel = new JPanel(new GridLayout(2, 1));
         textPanel.setOpaque(false);
         
@@ -40,35 +43,32 @@ public class AchievementPopup extends JPanel {
         textPanel.add(descLabel);
         add(textPanel, BorderLayout.CENTER);
         
-        // 4. Fixed Size
         setSize(600, 150);
-        
-        // 5. Hand Cursor
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    // Static helper to show it
     public static void show(JFrame frame, String title, String description) {
         if (frame == null) return;
 
+        // --- 2. CHECK DUPLICATES ---
+        if (shownAchievements.contains(title)) {
+            return; 
+        }
+        shownAchievements.add(title);
+
         AchievementPopup popup = new AchievementPopup(title, description);
         
-        // --- POSITION LOGIC ---
-        // X: Centered Horizontally
         int x = (frame.getWidth() - popup.getWidth()) / 2;
-        
-        // Y: Top Center (Fixed 50px from top)
-        // This puts it "on top of the center" area
         int y = 50; 
-        
         popup.setLocation(x, y);
-        // ----------------------
 
         JLayeredPane layeredPane = frame.getLayeredPane();
         layeredPane.add(popup, JLayeredPane.POPUP_LAYER);
         layeredPane.moveToFront(popup);
 
-        // --- TIMER (Auto Close) ---
+        // --- 3. PLAY SOUND ---
+        playSuccessSound();
+
         Timer timer = new Timer(4000, e -> {
             if (popup.getParent() != null) {
                 layeredPane.remove(popup);
@@ -78,7 +78,6 @@ public class AchievementPopup extends JPanel {
         timer.setRepeats(false);
         timer.start();
 
-        // --- CLICK TO CLOSE ---
         MouseAdapter closeAction = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -86,13 +85,39 @@ public class AchievementPopup extends JPanel {
                 if (popup.getParent() != null) {
                     layeredPane.remove(popup);
                     layeredPane.repaint(); 
-                    System.out.println("Achievement popup closed by user.");
                 }
             }
         };
 
         popup.addMouseListener(closeAction);
         addListenersRecursively(popup, closeAction);
+    }
+
+    // --- UPDATED SOUND METHOD FOR YOUR FOLDER STRUCTURE ---
+    private static void playSuccessSound() {
+        try {
+            // 1. Look for the file in the project root "audio" folder
+            File soundFile = new File("audio/sound_award.wav");
+
+            if (soundFile.exists()) {
+                AudioInputStream audioIn = AudioSystem.getAudioInputStream(soundFile);
+                Clip clip = AudioSystem.getClip();
+                clip.open(audioIn);
+                
+                // Close memory when done
+                clip.addLineListener(event -> {
+                    if (event.getType() == LineEvent.Type.STOP) {
+                        clip.close();
+                    }
+                });
+                
+                clip.start();
+            } else {
+                System.err.println("Error: File not found at " + soundFile.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static void addListenersRecursively(Container container, MouseAdapter listener) {
@@ -103,5 +128,9 @@ public class AchievementPopup extends JPanel {
                 addListenersRecursively((Container) c, listener);
             }
         }
+    }
+    
+    public static void resetHistory() {
+        shownAchievements.clear();
     }
 }
