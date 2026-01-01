@@ -40,7 +40,9 @@ public class Enemy extends Character {
         
         // 5. Boss Logic (Lives & Behavior flag)
         this.isEnemyBoss = isBoss; 
-        // Initialize role-based defaults here because field initializers run before the constructor.
+
+        this.isBoss = isBoss; //Updates the Parent (Character.java)
+        // Initialize role-based defaults he re because field initializers run before the constructor.
         // This prevents the earlier bug where `isEnemyBoss` was false during field initialization.
         this.moveInterval = this.isEnemyBoss ? 2 : 3;
 

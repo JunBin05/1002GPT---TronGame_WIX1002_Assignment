@@ -21,6 +21,7 @@ public abstract class Character {
     protected String color;      
     protected char symbol = 'P'; 
     public boolean isStunned = false;
+    public boolean isBoss = false;
 
     // Attributes
     protected int experiencePoints; 
@@ -273,6 +274,10 @@ public abstract class Character {
             // CASE B: ENEMY DIED (Clu, Sark, etc.)
             else {
                 arena.ArenaLoader.unlockAchievement(1, "FIRST BLOOD", "Defeat your very first enemy.");
+
+                if (this.isBoss) {
+                     arena.ArenaLoader.unlockAchievement(4, "BOSS SLAYER", "Defeat a boss for the first time.");
+                }
             }
         }
     }
