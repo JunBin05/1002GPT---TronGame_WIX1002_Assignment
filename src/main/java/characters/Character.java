@@ -22,6 +22,7 @@ public abstract class Character {
     protected char symbol = 'P'; 
     public boolean isStunned = false;
     public boolean isBoss = false;
+    public boolean isPlayer = false;
 
     // Attributes
     protected int experiencePoints; 
@@ -263,8 +264,8 @@ public abstract class Character {
         // --- DEATH DETECTION ---
         if (this.lives <= 0 && oldLives > 0) {
             
-            // CASE A: PLAYER DIED (Tron or Kevin)
-            if (this.name.equals("Tron") || this.name.equals("Kevin")) {
+            // CASE A: PLAYER DIED 
+            if (this.isPlayer) {
                 // [Icon 3] Learning the Hard Way
                 arena.ArenaLoader.unlockAchievement(3, "LEARNING THE HARD WAY", "Experience your first dead.");
                 
@@ -289,13 +290,14 @@ public abstract class Character {
             } 
             
             // CASE B: ENEMY DIED (Clu, Sark, etc.)
-            else {}
+            else {
                 arena.ArenaLoader.unlockAchievement(1, "FIRST BLOOD", "Defeat your very first enemy.");
 
                 if (this.isBoss) {
                      arena.ArenaLoader.unlockAchievement(4, "BOSS SLAYER", "Defeat a boss for the first time.");
                 }
             }
+        }
     }
     
 
