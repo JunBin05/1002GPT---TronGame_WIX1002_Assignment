@@ -254,8 +254,26 @@ public abstract class Character {
     public void setStunned(boolean stunned) { this.isStunned = stunned; }
 
     public void changeLives(double amount) {
+        double oldLives = this.lives; // 1. Remember old health
+        
         this.lives += amount;
         if (this.lives > this.maxLives) this.lives = this.maxLives;
+
+        // --- NEW: CHECK DEATH FOR ACHIEVEMENT ---
+        // If the character just died (went from >0 to <=0)
+        if (this.lives <= 0 && oldLives > 0) {
+            
+            // 2. Check if this is an ENEMY (We don't get an award for dying ourselves!)
+            if (!this.name.equals("Tron") && !this.name.equals("Kevin")) {
+                
+                // 3. Trigger AC1 "First Blood" via ArenaLoader
+                // This checks the DB, saves it if new, and shows the ASCII popup
+                arena.ArenaLoader.unlockAchievement(1, "FIRST BLOOD", "Defeat your very first enemy.");
+                
+                System.out.println("Enemy derezzed! Checking achievement...");
+            }
+        }
+        
     }
 
     // Public setters so callers (e.g., LevelManager) can tune health values per-stage
