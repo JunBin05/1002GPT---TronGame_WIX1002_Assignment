@@ -355,6 +355,86 @@ public class ArenaLoader {
         sidebar.add(discsSection);
         sidebar.add(Box.createVerticalGlue()); // Push everything to top
 
+// ========== SECTION 5: EVENT LOG (Closable) ==========
+        JPanel logSection = new JPanel();
+        logSection.setOpaque(false);
+        logSection.setLayout(new BoxLayout(logSection, BoxLayout.Y_AXIS));
+        logSection.setBorder(new EmptyBorder(10, 15, 15, 15));
+        logSection.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logSection.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+
+        // 1. Create a Header with Title and Close Button
+        JPanel logHeader = new JPanel(new BorderLayout());
+        logHeader.setOpaque(false);
+        logHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20)); // Thin header
+
+        JLabel logTitle = new JLabel("SYSTEM LOG");
+        logTitle.setForeground(new Color(100, 100, 120)); 
+        logTitle.setFont(new Font("Monospaced", Font.BOLD, 12));
+
+        // The Toggle Button [X]
+        JButton toggleBtn = new JButton("[X]");
+        toggleBtn.setFont(new Font("Monospaced", Font.BOLD, 12));
+        toggleBtn.setForeground(new Color(255, 50, 50)); // Red for close
+        toggleBtn.setContentAreaFilled(false);
+        toggleBtn.setBorderPainted(false);
+        toggleBtn.setFocusPainted(false);
+        toggleBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        // Remove padding to make it tight
+        toggleBtn.setMargin(new Insets(0,0,0,0)); 
+
+        logHeader.add(logTitle, BorderLayout.WEST);
+        logHeader.add(toggleBtn, BorderLayout.EAST);
+
+        // 2. The Scrollable Log Box
+        JTextArea logArea = new JTextArea();
+        logArea.setName("ArenaLogArea");
+        logArea.setEditable(false);
+        logArea.setLineWrap(true);
+        logArea.setWrapStyleWord(true);
+        logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        logArea.setForeground(new Color(200, 255, 255)); // Cyan text
+        logArea.setBackground(new Color(0, 0, 0, 100)); // Transparent black
+        logArea.setBorder(new EmptyBorder(5, 5, 5, 5));
+
+        JScrollPane logScroll = new JScrollPane(logArea);
+        logScroll.setName("ArenaLogScroll");
+        logScroll.setPreferredSize(new Dimension(0, 120));
+        logScroll.setBorder(BorderFactory.createLineBorder(new Color(30, 40, 50), 1));
+        logScroll.setOpaque(false);
+        logScroll.getViewport().setOpaque(false);
+        logScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        // Hide scrollbars visually
+        logScroll.getVerticalScrollBar().setPreferredSize(new Dimension(0, 0));
+        logScroll.getHorizontalScrollBar().setPreferredSize(new Dimension(0, 0));
+
+        // 3. Add Logic to Close/Open
+        toggleBtn.addActionListener(e -> {
+            boolean isVisible = logScroll.isVisible();
+            if (isVisible) {
+                // CLOSE IT
+                logScroll.setVisible(false);
+                toggleBtn.setText("[+]"); // Change icon to expand
+                toggleBtn.setForeground(Color.GRAY);
+            } else {
+                // OPEN IT
+                logScroll.setVisible(true);
+                toggleBtn.setText("[X]"); // Change icon to close
+                toggleBtn.setForeground(new Color(255, 50, 50));
+            }
+            // Refresh layout to remove/add the gap
+            sidebar.revalidate();
+            sidebar.repaint();
+        });
+
+        logSection.add(logHeader);
+        logSection.add(Box.createVerticalStrut(5)); // Gap
+        logSection.add(logScroll);
+
+        sidebar.add(logSection);
+
         return sidebar;
     }
 
