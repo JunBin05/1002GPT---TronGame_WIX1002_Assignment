@@ -23,11 +23,5 @@ public class Kevin extends Character {
             this.currentDiscCount = this.discCapacity;
             System.out.println(">> Kevin bonus: disc capacity increased to " + this.discCapacity);
         }
-        
-        if (level % 10 == 0) {
-            this.maxLives += 1.0; 
-            this.lives = this.maxLives; // Heal to the new max immediately
-            System.out.println(">> MAX LIVES INCREASED! New Max: " + this.maxLives);
-        }
     }
 }
