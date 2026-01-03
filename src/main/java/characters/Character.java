@@ -204,6 +204,12 @@ public abstract class Character {
         
         // Refill immediately on level up
         this.currentDiscCount = this.discCapacity; 
+
+        if (level % 10 == 0) {
+            this.maxLives += 1.0; 
+            this.lives = this.maxLives; // Heal to the new max immediately
+            System.out.println(">> MAX LIVES INCREASED! New Max: " + this.maxLives);
+        }
         
         // Removed noisy console print to reduce log spam on frequent level-ups
         // Persist XP immediately when leveling up for logged-in users so UI remains consistent
