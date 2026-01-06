@@ -1058,10 +1058,8 @@ public class ArenaLoader {
             Character player = activeController.getPlayer();
             // Use stage-clear-only XP (no per-kill farming). The award is applied in GameController
             xpReward = TronRules.calculateStageClearXp(currentChapter, currentStage);
-            currentLives = player.getLives();
-            maxLives = player.getMaxLives();
 
-            if (currentLives >= maxLives) {
+            if (!player.tookDamage) {
                 unlockAchievement(2, "FLAWLESS VICTORY", "Complete a level without losing any life.");
             }
             unlockAchievement(6, "GAME CONQUEROR", "Complete the first game.");
@@ -1115,6 +1113,7 @@ public class ArenaLoader {
         );
 
         Object[] options = {"NEXT STAGE", "RETURN TO CHAPTER SELECT", "QUIT"};
+        Timer delayTimer = new Timer(2000, e -> {
         int choice = JOptionPane.showOptionDialog(mainFrame, message, "SECTOR SECURE",
             JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
             options, options[0]);
@@ -1167,7 +1166,11 @@ public class ArenaLoader {
         } else { // QUIT
             System.exit(0);
         }
+    });
+        delayTimer.setRepeats(false);
+        delayTimer.start();
     }
+    
 
     private static void showChapterClearDialog() {
         Object[] options = {"Next Chapter", "Chapter Select", "Exit"};

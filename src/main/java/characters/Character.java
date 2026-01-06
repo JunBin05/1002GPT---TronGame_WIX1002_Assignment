@@ -22,6 +22,7 @@ public abstract class Character {
     protected char symbol = 'P'; 
     public boolean isStunned = false;
     public boolean isBoss = false;
+    public boolean tookDamage = false;
     public boolean isPlayer = false;
 
     // Attributes
@@ -101,6 +102,7 @@ public abstract class Character {
         this.currentDiscCount = this.discCapacity; // Refill Ammo
         this.lives = this.maxLives;                // Heal to Full
         this.isStunned = false;
+        this.tookDamage = false;
         
         System.out.println(name + " Ready for Stage. Discs: " + currentDiscCount + "/" + discCapacity + " HP: " + lives);
     }
@@ -263,6 +265,10 @@ public abstract class Character {
 
     public void changeLives(double amount) {
         double oldLives = this.lives; 
+
+        if (amount < 0) {
+        this.tookDamage = true;
+    }
         
         this.lives += amount;
         if (this.lives > this.maxLives) this.lives = this.maxLives;
@@ -386,3 +392,4 @@ public abstract class Character {
         switch (this.currentDirection) { case NORTH -> r--; case SOUTH -> r++; case WEST -> c--; case EAST -> c++; }
     }
 }
+
