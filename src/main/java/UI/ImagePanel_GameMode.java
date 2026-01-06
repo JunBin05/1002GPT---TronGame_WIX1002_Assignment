@@ -1,14 +1,11 @@
 package UI;
 
-import javax.swing.*;
-import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
-public class ImagePanel_GameMode extends JPanel {
+public class ImagePanel_GameMode extends BaseImagePanel {
 
-    private Image backgroundImage;
-    private HomeButton homeButton; //declare home button
+    private HomeButton homeButton; // declare home button
     private StoryModeButton storyButton; // declare story mode button
     private MainFrame mainFrameRef;
     private String username;
@@ -21,7 +18,7 @@ public class ImagePanel_GameMode extends JPanel {
         
         setLayout(null); 
 
-        this.backgroundImage = new ImageIcon(imagePath).getImage();
+        setBackgroundImage(imagePath);
 
         //1.Create Home Button
         homeButton = new HomeButton("images/home_button.png",this.mainFrameRef, this.username);
@@ -74,12 +71,4 @@ public class ImagePanel_GameMode extends JPanel {
 
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        // Draw image to fill the screen
-        if (backgroundImage != null) {
-            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
-        }
-    }
 }

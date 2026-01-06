@@ -23,12 +23,11 @@ public class ProfileName extends JComponent {
         // 1. Set Text Color
         g2.setColor(Color.WHITE);
         
-        // 2. Set Font (You can make it bigger here if you want)
+        // 2. Set Font 
         g2.setFont(new Font("Times New Roman", Font.BOLD, 25));
 
         // 3. Draw the Text
         // "Id : [username]"
-        // Coordinates (x, y) - adjust 'y' to move text up/down
         g2.drawString("Id : " + username, 10, 30);
     }
 }

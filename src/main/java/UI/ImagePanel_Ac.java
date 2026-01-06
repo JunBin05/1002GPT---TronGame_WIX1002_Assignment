@@ -7,11 +7,8 @@ import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImagePanel_Ac extends JPanel {
-
-    private Image backgroundImage;
+public class ImagePanel_Ac extends BaseImagePanel {
     private MainFrame mainFrame; 
-    private BackButton backButton;
     private List<JButton> achievementIcons; 
     private DatabaseManager dbManager; 
     private List<Boolean> unlockedStatus; 
@@ -21,15 +18,11 @@ public class ImagePanel_Ac extends JPanel {
         this.dbManager = new DatabaseManager(); 
 
         // 1. Load Background
-        this.backgroundImage = new ImageIcon("images/ac_bg.png").getImage();
+        setBackgroundImage("images/ac_bg.png");
         setLayout(null); 
 
         // 2. Create Back Button
-        backButton = new BackButton("images/back_button.png");
-        backButton.addActionListener(e -> {
-            mainFrame.changeToHome(mainFrame.getCurrentUsername()); 
-        });
-        add(backButton);
+        setupBackButton(() -> mainFrame.changeToHome(mainFrame.getCurrentUsername()));
 
         // 3. FETCH DATA: Get the list of True/False from Database
         String currentUser = mainFrame.getCurrentUsername();
@@ -126,9 +119,7 @@ public class ImagePanel_Ac extends JPanel {
         if (w == 0 || h == 0) return;
 
         // A. Back Button
-        int btnSize = (int) (h * 0.18); 
-        backButton.setBounds(30, 30, btnSize, btnSize);
-        backButton.resizeIcon(btnSize);
+        positionBackButton(h);
 
         // B. Icons Grid
         int iconSize = (int) (h * 0.28); 
@@ -164,17 +155,6 @@ public class ImagePanel_Ac extends JPanel {
                 ImageIcon scaledIcon = new ImageIcon(scaled);
                 btn.setIcon(scaledIcon);
             }
-        }
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        if (backgroundImage != null) {
-            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
-        } else {
-            g.setColor(Color.BLACK);
-            g.fillRect(0, 0, getWidth(), getHeight());
         }
     }
 }

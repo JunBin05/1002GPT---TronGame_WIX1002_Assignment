@@ -5,11 +5,9 @@ import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
-public class ImagePanel_GameRule extends JPanel {
+public class ImagePanel_GameRule extends BaseImagePanel {
 
-    private Image backgroundImage;
     private MainFrame mainFrame;
-    private BackButton backButton;
     
     // Navigation Buttons
     private JButton leftButton, rightButton;
@@ -24,7 +22,11 @@ public class ImagePanel_GameRule extends JPanel {
         updateImage();
 
         // 2. Create Buttons
-        createBackButton();
+        setupBackButton(() -> {
+            if (mainFrame != null) {
+                mainFrame.changeToHome(mainFrame.getCurrentUsername()); 
+            }
+        });
         createNavButtons(); // Creates the visible LEFT/RIGHT buttons
 
         // 3. Add Resize Listener
@@ -40,22 +42,12 @@ public class ImagePanel_GameRule extends JPanel {
         String imagePath = "images/gamerule" + currentRuleIndex + ".png";
         ImageIcon icon = new ImageIcon(imagePath);
         
-        if (icon.getImageLoadStatus() == MediaTracker.COMPLETE) {
-             this.backgroundImage = icon.getImage();
-        } else {
+           if (icon.getImageLoadStatus() == MediaTracker.COMPLETE) {
+               setBackgroundImage(icon.getImage());
+           } else {
              System.out.println("Could not load: " + imagePath);
         }
         repaint(); 
-    }
-
-    private void createBackButton() {
-        backButton = new BackButton("images/back_button.png");
-        backButton.addActionListener(e -> {
-            if (mainFrame != null) {
-                mainFrame.changeToHome(mainFrame.getCurrentUsername()); 
-            }
-        });
-        add(backButton);
     }
 
     private void createNavButtons() {
@@ -94,9 +86,7 @@ public class ImagePanel_GameRule extends JPanel {
         if (w == 0 || h == 0) return;
 
         // 1. Back Button
-        int backSize = (int) (h * 0.18); 
-        backButton.setBounds(30, 30, backSize, backSize);
-        backButton.resizeIcon(backSize);
+        positionBackButton(h);
         
         // 2. Nav Buttons (Left & Right)
         int navSize = (int) (h * 0.18); 
@@ -118,17 +108,6 @@ public class ImagePanel_GameRule extends JPanel {
         if (icon != null && icon.getImage() != null) {
              Image img = icon.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
              btn.setIcon(new ImageIcon(img));
-        }
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        if (backgroundImage != null) {
-            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
-        } else {
-            g.setColor(Color.BLACK);
-            g.fillRect(0, 0, getWidth(), getHeight());
         }
     }
 }
