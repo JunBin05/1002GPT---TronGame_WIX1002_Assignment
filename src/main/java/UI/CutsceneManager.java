@@ -227,6 +227,42 @@ public class CutsceneManager {
         return isActive;
     }
 
+    /**
+     * Utility: check if a cutscene file exists for chapter/stage/suffix. Skips any path containing "random".
+     */
+    public static boolean cutsceneExists(int chapter, int stage, String suffix) {
+        String[] candidates = {
+            String.format("cutscene/c%dlevel%d%s.txt", chapter, stage, suffix),
+            String.format("cutscene/c%dlevel%d.txt", chapter, stage)
+        };
+        for (String path : candidates) {
+            if (path.contains("random")) continue;
+            File file = new File(path);
+            if (file.exists() && file.length() > 0) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Utility: if a cutscene file exists, start it on the provided GamePanel overlay.
+     */
+    public static boolean showCutsceneIfExists(int chapter, int stage, String suffix, UI.GamePanel panel, boolean allowChain) {
+        if (panel == null) return false;
+        String[] candidates = {
+            String.format("c%dlevel%d%s.txt", chapter, stage, suffix),
+            String.format("c%dlevel%d.txt", chapter, stage)
+        };
+        for (String path : candidates) {
+            if (path.contains("random")) continue;
+            File file = new File("cutscene/" + path);
+            if (file.exists() && file.length() > 0) {
+                panel.startCutscene(path, allowChain);
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void playMusic(String filename) {
         String path = "cutscene/sounds/" + filename;
         File soundFile = new File(path);

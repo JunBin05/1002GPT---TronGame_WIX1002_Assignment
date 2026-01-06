@@ -123,7 +123,7 @@ public class ImagePanel_Character extends BaseImagePanel {
                 gamePanel.startGameThread(mainFrame);
 
                 // Show the pre-stage cutscene for the selected chapter/stage (no NEXT_FILE chaining)
-                arena.CutsceneUtil.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", mainFrame, gamePanel, false);
+                UI.CutsceneManager.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", gamePanel, false);
                 // Record that we've shown the pre-stage cutscene so ArenaLoader won't show it again.
                 arena.ArenaLoader.markPreCutsceneShown(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage);
 

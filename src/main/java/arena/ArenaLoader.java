@@ -21,6 +21,7 @@ import characters.CharacterData;
 import characters.Direction;
 import controller.GameController;
 import UI.StartGameMenu;
+import UI.GamePanel;
 import XPSystem.TronRules; // Math for XP
 
 public class ArenaLoader {
@@ -34,6 +35,8 @@ public class ArenaLoader {
     public static int currentChapter = 1;
     public static int currentStage = 1;
     public static JFrame mainFrame;
+    // Active GamePanel used for cutscene overlay reuse
+    public static GamePanel activeGamePanel;
 
     // Arena log area (set during sidebar creation)
     private static JTextArea arenaLogArea = null;
@@ -1015,6 +1018,8 @@ public class ArenaLoader {
 
             // --- CREATE GAME PANEL (for cutscene integration) ---
             UI.GamePanel gamePanel = new UI.GamePanel();
+            // keep reference so post-stage cutscenes can reuse the same overlay
+            activeGamePanel = gamePanel;
             JPanel arenaPanel = new JPanel(new GridLayout(40, 40));
             arenaPanel.setBackground(new Color(10, 10, 20));
 
@@ -1036,11 +1041,11 @@ public class ArenaLoader {
             // Start the internal game loop and attach KeyListener to the frame
             gamePanel.startGameThread(mainFrame);
 
-            // Show pre-stage cutscene (suffix "a") if available, using CutsceneUtil and the real GamePanel
+            // Show pre-stage cutscene (suffix "a") if available, using the real GamePanel overlay
             // Avoid showing it again if it was already shown earlier (e.g., after character selection)
             if (!(lastPreCutsceneChapter == currentChapter && lastPreCutsceneStage == currentStage)) {
                 // Play the per-stage pre-cutscene WITHOUT following NEXT_FILE links so it doesn't chain to other stages
-                CutsceneUtil.showCutsceneIfExists(currentChapter, currentStage, "a", mainFrame, gamePanel, false);
+                UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "a", gamePanel, false);
                 // Record that we showed it
                 lastPreCutsceneChapter = currentChapter;
                 lastPreCutsceneStage = currentStage;
@@ -1134,33 +1139,17 @@ public class ArenaLoader {
     }
 
     public static void showLevelCompleteDialog() {
-        // Show post-stage cutscene (suffix "b") if available. Use a temporary modal GamePanel
-        // so we can play the cutscene even when the regular GamePanel is not present.
-        if (CutsceneUtil.cutsceneExists(currentChapter, currentStage, "b")) {
-            JDialog dlg = new JDialog(mainFrame, "Cutscene", Dialog.ModalityType.APPLICATION_MODAL);
-            dlg.setUndecorated(true);
-            // Fullscreen bounds to match the main frame
-            if (mainFrame != null) dlg.setBounds(mainFrame.getBounds()); else dlg.setSize(800, 600);
-            dlg.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-            UI.GamePanel temp = new UI.GamePanel();
-            temp.setPreferredSize(dlg.getSize());
-            dlg.getContentPane().add(temp);
-            dlg.pack();
-            dlg.setLocationRelativeTo(mainFrame);
-            temp.setFocusable(true);
-            SwingUtilities.invokeLater(() -> temp.requestFocusInWindow());
-            temp.startGameThread(mainFrame);
-            temp.startCutscene(String.format("c%dlevel%d%s.txt", currentChapter, currentStage, "b"), false);
-
+        // Show post-stage cutscene (suffix "b") if available, reuse the active GamePanel overlay.
+        if (UI.CutsceneManager.cutsceneExists(currentChapter, currentStage, "b") && activeGamePanel != null) {
+            UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "b", activeGamePanel, false);
+            // wait in background for overlay to finish before continuing
             Thread waiter = new Thread(() -> {
                 try {
-                    while (temp.cutscene.isActive() || temp.cutscene.isFadingOut()) Thread.sleep(50);
+                    while (activeGamePanel.cutscene.isActive() || activeGamePanel.cutscene.isFadingOut()) Thread.sleep(50);
                 } catch (InterruptedException ignored) {}
-                SwingUtilities.invokeLater(() -> { try { temp.cutscene.forceStop(); } catch (Exception ignored) {} try { temp.stopGameThread(); } catch (Exception ignored) {} dlg.dispose(); });
             });
             waiter.setDaemon(true);
             waiter.start();
-            dlg.setVisible(true);
         }
 
         long xpReward = 0;
