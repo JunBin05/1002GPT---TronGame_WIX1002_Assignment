@@ -8,6 +8,8 @@ public abstract class Character {
     public String name;  
     public String imageBaseName; 
     public int currentDiscCount = 0;    
+    // Per-entity disc cooldown end timestamp (ns) so player and enemies share logic
+    protected long nextDiscReadyNs = 0L;
     public Direction currentDirection; 
     
     protected double lives;
@@ -103,6 +105,9 @@ public abstract class Character {
         this.isStunned = false;
         
         System.out.println(name + " Ready for Stage. Discs: " + currentDiscCount + "/" + discCapacity + " HP: " + lives);
+        if (this.isPlayer) {
+            arena.ArenaLoader.appendGameplayLog("Ready for Stage. Discs: " + currentDiscCount + "/" + discCapacity + " HP: " + lives);
+        }
     }
 
     public void addXP(long amount) {
@@ -125,7 +130,6 @@ public abstract class Character {
     public String commitPendingXP(String username) {
         if (pendingXp == 0) return "No XP Gained.";
 
-        long oldXp = currentXp;
         int oldLevel = level;
         double oldSpeed = speed;
 
@@ -165,9 +169,7 @@ public abstract class Character {
         double displayNewSpeed = this.speed;
         double displayOldHandling = this.handling;
         double displayNewHandling = this.handling;
-        int displayOldDiscCap = this.discCapacity;
         int displayNewDiscCap = this.discCapacity;
-        double displayOldMaxLives = this.maxLives;
         double displayNewMaxLives = this.maxLives;
 
 
@@ -238,12 +240,18 @@ public abstract class Character {
     public void throwDisc() {
         if (currentDiscCount > 0) {
             currentDiscCount--;
+            if (this.isPlayer) {
+                arena.ArenaLoader.appendGameplayLog("Used a disc (Discs: " + currentDiscCount + "/" + discCapacity + ")");
+            }
         }
     }
 
     public void pickupDisc() {
         if (currentDiscCount < discCapacity) {
             currentDiscCount++;
+            if (this.isPlayer) {
+                arena.ArenaLoader.appendGameplayLog("Picked up a disc (Discs: " + currentDiscCount + "/" + discCapacity + ")");
+            }
         }
     }
 
@@ -258,6 +266,12 @@ public abstract class Character {
     public double getSpeed() { return this.speed; }
     public double getHandling() { return this.handling; }
     public int getDiscCapacity() { return this.discCapacity; }
+    public void setDiscCapacity(int cap) {
+        this.discCapacity = Math.max(0, cap);
+        if (this.currentDiscCount > this.discCapacity) this.currentDiscCount = this.discCapacity;
+    }
+    public long getNextDiscReadyNs() { return this.nextDiscReadyNs; }
+    public void setNextDiscReadyNs(long ns) { this.nextDiscReadyNs = ns; }
 
     public void setStunned(boolean stunned) { this.isStunned = stunned; }
 
@@ -267,6 +281,11 @@ public abstract class Character {
         this.lives += amount;
         if (this.lives > this.maxLives) this.lives = this.maxLives;
 
+        // Append gameplay log for damage/heal
+        if (amount < 0) {
+            arena.ArenaLoader.appendGameplayLog(this.name + " took " + String.format("%.1f", -amount) + " damage (HP: " + String.format("%.1f", this.lives) + "/" + String.format("%.1f", this.maxLives) + ")");
+        } 
+
         // --- DEATH DETECTION ---
         if (this.lives <= 0 && oldLives > 0) {
             
@@ -274,8 +293,7 @@ public abstract class Character {
             if (this.isPlayer) {
                 // [Icon 3] Learning the Hard Way
                 arena.ArenaLoader.unlockAchievement(3, "LEARNING THE HARD WAY", "Experience your first dead.");
-                
-                System.out.println("Player died! Triggering achievement...");
+                arena.ArenaLoader.appendGameplayLog("Player died! Nooooo...");
 
                 // Calculate where the player was facing when they died
                 int nextR = this.r;
@@ -291,6 +309,7 @@ public abstract class Character {
                 if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
                      arena.ArenaLoader.unlockAchievement(5, "INTO THE VOID", "Fall Outside the map.");
                      System.out.println(">> ACHIEVEMENT: Fell into the void!");
+                     arena.ArenaLoader.appendGameplayLog("Fell into the void!");
                 }
                 // =========================================================
             } 
@@ -298,6 +317,7 @@ public abstract class Character {
             // CASE B: ENEMY DIED (Clu, Sark, etc.)
             else {
                 arena.ArenaLoader.unlockAchievement(1, "FIRST BLOOD", "Defeat your very first enemy.");
+                arena.ArenaLoader.appendGameplayLog(this.name + " defeated.");
 
                 if (this.isBoss) {
                      arena.ArenaLoader.unlockAchievement(4, "BOSS SLAYER", "Defeat a boss for the first time.");

@@ -197,7 +197,7 @@ public class Enemy extends Character {
         if (r < 0 || r >= arenaGrid.length || c < 0 || c >= arenaGrid[0].length) return false; 
         char cell = arenaGrid[r][c];
         // Minion walks into Player Tails ('T') but avoids walls
-        if (cell == '#' || cell == 'O' || cell == 'D' || cell == 'M') {
+        if (cell == '#' || cell == 'O' || cell == 'M') {
             return false;
         }
         return true; 

@@ -5,7 +5,6 @@ import java.awt.image.ImageObserver;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import javax.sound.sampled.*; 
 import javax.swing.ImageIcon;
 import javax.swing.SwingUtilities;
 
@@ -35,11 +34,11 @@ public class CutsceneManager {
     private boolean allowChaining = true;
     private Component repaintTarget = null;
     
-    // AUDIO
-    private Clip musicClip; 
+    // AUDIO handled by AudioManager
 
     // IMAGES
     private Image pKevin, pKevinReal, pTron, pClu, pQuorra, pQuorraEvil, pSark, pSam;
+
 
     // Auto-advance helper: for short (single-line) cutscenes, automatically advance after a short delay
     private volatile Thread autoAdvanceThread = null;
@@ -136,7 +135,7 @@ public class CutsceneManager {
             return;
         }
         if (current.imagePath.equalsIgnoreCase("STOP_MUSIC")) {
-            stopMusic();
+            // Ignored: no explicit stop, music continues
             advance();
             return;
         }
@@ -170,12 +169,10 @@ public class CutsceneManager {
                 if (allowChaining) {
                     startScene(lastLine.name);
                 } else {
-                    stopMusic();
                     System.out.println("[CUTSCENE] Scene finished. Starting fade-out...");
                     startFadeOut();
                 }
             } else {
-                stopMusic();
                 System.out.println("[CUTSCENE] Scene finished. Starting fade-out...");
                 startFadeOut();
             }
@@ -231,41 +228,14 @@ public class CutsceneManager {
     }
 
     public void playMusic(String filename) {
-        try {
-            File soundFile = new File("cutscene/sounds/" + filename);
-            if (!soundFile.exists()) {
-                System.out.println("Sound not found: " + soundFile.getAbsolutePath());
-                return;
-            }
-
-            AudioInputStream audioInput = AudioSystem.getAudioInputStream(soundFile);
-            
-            if (musicClip != null && musicClip.isRunning()) {
-                musicClip.stop();
-            }
-
-            musicClip = AudioSystem.getClip();
-            musicClip.open(audioInput);
-
-            // VOLUME CONTROL (-10dB)
-            try {
-                FloatControl gainControl = (FloatControl) musicClip.getControl(FloatControl.Type.MASTER_GAIN);
-                gainControl.setValue(-10.0f); 
-            } catch (Exception e) {}
-
-            musicClip.start();
-            musicClip.loop(Clip.LOOP_CONTINUOUSLY);
-
-        } catch (Exception e) {
-            System.out.println("Error playing sound: " + e.getMessage());
+        String path = "cutscene/sounds/" + filename;
+        File soundFile = new File(path);
+        if (!soundFile.exists()) {
+            System.out.println("Sound not found: " + soundFile.getAbsolutePath());
+            return;
         }
-    }
-
-    public void stopMusic() {
-        if (musicClip != null) {
-            musicClip.stop();
-            musicClip.close();
-        }
+        // Delegate playback to AudioManager so it can handle switching tracks globally
+        UI.AudioManager.playMusic(path);
     }
 
     /**
@@ -277,8 +247,8 @@ public class CutsceneManager {
     }
 
     public void draw(Graphics g, int screenWidth, int screenHeight, ImageObserver observer) {
-        // If nothing to draw, exit early
-        if (lines.isEmpty() || currentImage == null) return;
+        // If no lines, nothing to show
+        if (lines.isEmpty()) return;
 
         // remember repaint target so fade thread can trigger repaints
         if (observer instanceof Component) repaintTarget = (Component) observer;

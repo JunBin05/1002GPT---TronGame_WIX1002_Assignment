@@ -59,10 +59,14 @@ public class CutsceneUtil {
                 // Ensure key events are received by attaching listener and starting the thread
                 cutscenePanel.setFocusable(true);
                 SwingUtilities.invokeLater(() -> cutscenePanel.requestFocusInWindow());
-                cutscenePanel.startGameThread(parent);
 
-                // Start the requested scene (no chaining if allowChain==false)
+                // Start the requested scene first so gameState is CUTSCENE before the thread ticks
                 cutscenePanel.startCutscene(path, allowChain);
+
+                cutscenePanel.startGameThread(parent);
+                // Force repaints during cutscene in case the game thread is delayed
+                final javax.swing.Timer repaintTimer = new javax.swing.Timer(50, e -> cutscenePanel.repaint());
+                repaintTimer.start();
 
                 // Wait in background for cutscene to finish then dispose dialog on EDT
                 Thread waiter = new Thread(() -> {

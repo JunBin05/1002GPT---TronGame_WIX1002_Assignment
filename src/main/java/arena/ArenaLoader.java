@@ -2,6 +2,7 @@ package arena;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.SwingUtilities;
 import java.awt.*;
 import java.io.File;
 import java.util.Map;
@@ -20,16 +21,80 @@ import characters.CharacterData;
 import characters.Direction;
 import controller.GameController;
 import UI.StartGameMenu;
-import UI.CutsceneManager;
-import arena.CutsceneUtil;
-import designenemies.*;
 import XPSystem.TronRules; // Math for XP
 
 public class ArenaLoader {
+    // Tracks the disc cooldown end timestamp (nanoseconds) for HUD visualization
+    private static volatile long discCooldownEndNs = 0L;
+
+    public static void setDiscCooldownEnd(long endNs) {
+        discCooldownEndNs = endNs;
+    }
 
     public static int currentChapter = 1;
     public static int currentStage = 1;
     public static JFrame mainFrame;
+
+    // Arena log area (set during sidebar creation)
+    private static JTextArea arenaLogArea = null;
+    private static JPanel arenaLogPanel = null;
+    private static javax.swing.Timer logClearTimer = null;
+    private static javax.swing.Timer logPulseTimer = null;
+    private static Color logBgDefault = null;
+    private static Color logPanelBgDefault = null;
+
+    public static void setLogArea(JTextArea area) {
+        arenaLogArea = area;
+        if (logBgDefault == null && area != null) logBgDefault = area.getBackground();
+    }
+
+    public static void setLogPanel(JPanel panel) {
+        arenaLogPanel = panel;
+        if (logPanelBgDefault == null && panel != null) logPanelBgDefault = panel.getBackground();
+    }
+
+    public static void appendGameplayLog(String msg) {
+        if (arenaLogArea == null) return;
+        String line = String.format("[GAMEPLAY] %s", msg);
+        SwingUtilities.invokeLater(() -> {
+            // Clear previous timer if it exists
+            if (logClearTimer != null && logClearTimer.isRunning()) {
+                logClearTimer.stop();
+            }
+            
+            // Set the new message (replace all text)
+            arenaLogArea.setText(line);
+            pulseLog(null); // subtle highlight on every log
+            
+            // Schedule auto-clear after 5 seconds (5000 ms)
+            logClearTimer = new javax.swing.Timer(5000, e -> {
+                arenaLogArea.setText("");
+            });
+            logClearTimer.setRepeats(false);
+            logClearTimer.start();
+        });
+    }
+
+    // Briefly highlight the log area; if color is null, use a bright cyan pulse. Always restores defaults.
+    public static void pulseLog(Color color) {
+        if (arenaLogArea == null || arenaLogPanel == null) return;
+        if (logBgDefault == null) logBgDefault = arenaLogArea.getBackground();
+        if (logPanelBgDefault == null) logPanelBgDefault = arenaLogPanel.getBackground();
+
+        if (logPulseTimer != null && logPulseTimer.isRunning()) logPulseTimer.stop();
+
+        Color pulse = (color != null) ? color : new Color(0, 130, 200);
+        arenaLogArea.setBackground(pulse);
+        arenaLogPanel.setBackground(pulse.darker());
+
+        logPulseTimer = new javax.swing.Timer(180, e -> {
+            arenaLogArea.setBackground(logBgDefault);
+            arenaLogPanel.setBackground(logPanelBgDefault);
+        });
+        logPulseTimer.setRepeats(false);
+        logPulseTimer.start();
+    }
+
     // Track the last pre-stage cutscene that was shown to avoid showing it twice
     private static int lastPreCutsceneChapter = -1;
     private static int lastPreCutsceneStage = -1;
@@ -186,14 +251,15 @@ public class ArenaLoader {
         icons.put("speed", loadAndScale("images" + File.separator + "Speed.png", TRUE_CELL_SIZE));
         icons.put("disc", loadAndScale("images" + File.separator + "disc.png", 25));
         icons.put("disc_inventory", loadAndScale("images" + File.separator + "disc.png", DISC_INVENTORY_SIZE));
+        icons.put("disc_enemy", loadAndScale("images" + File.separator + "disc_enemy.jpg", 25));
         icons.put("heart_full", loadAndScale("images" + File.separator + "heart_full.png", HUD_ICON_SIZE));
         icons.put("heart_half", loadAndScale("images" + File.separator + "heart_half.png", HUD_ICON_SIZE));
         icons.put("heart_empty", loadAndScale("images" + File.separator + "heart_empty.png", HUD_ICON_SIZE));
-        icons.put("tron_profile", loadAndScale("images" + File.separator + "Tron.png", 200));
-        icons.put("kevin_profile", loadAndScale("images" + File.separator + "Kevin.png", 200));
+        icons.put("tron_profile", loadAndScale("images" + File.separator + "Tron.png", 120));
+        icons.put("kevin_profile", loadAndScale("images" + File.separator + "Kevin.png", 80));
 
         loadCharSet(icons, "tron", "Tron.png", TRUE_CELL_SIZE);
-        loadCharSet(icons, "kevin", "kevin.png", 150);
+        loadCharSet(icons, "kevin", "kevin_display.png", 150);
         loadCharSet(icons, "sark", "Sark (Face).png", FACE_SIZE);
         loadCharSet(icons, "clu", "Clu (Face).png", FACE_SIZE);
         loadCharSet(icons, "rinzler", "Rinzler (Face).png", FACE_SIZE);
@@ -219,12 +285,16 @@ public class ArenaLoader {
         sidebar.setBackground(new Color(5, 10, 20));
         sidebar.setPreferredSize(new Dimension(350, 0));
         sidebar.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(0, 255, 255)));
+        sidebar.add(Box.createVerticalStrut(15)); // push profile a bit lower from the top
 
         // ========== SECTION 1: PROFILE ==========
         JPanel profilePanel = new JPanel(new GridBagLayout());
         profilePanel.setOpaque(false);
         profilePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        profilePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+        Dimension profileSectionSize = new Dimension(350, 210);
+        profilePanel.setMaximumSize(profileSectionSize);
+        profilePanel.setPreferredSize(profileSectionSize);
+        profilePanel.setMinimumSize(profileSectionSize);
         profilePanel.setBorder(new EmptyBorder(15, 15, 15, 15));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0; gbc.gridy = 0;
@@ -278,7 +348,7 @@ public class ArenaLoader {
         profilePanel.add(handlingLabel, gbc);
         
         sidebar.add(profilePanel);
-        sidebar.add(Box.createVerticalStrut(10));
+        sidebar.add(Box.createVerticalStrut(5));
 
         // ========== SECTION 2: CHAPTER & STAGE ==========
         JPanel statsPanel = new JPanel();
@@ -286,7 +356,10 @@ public class ArenaLoader {
         statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
         statsPanel.setBorder(new EmptyBorder(10, 15, 10, 15));
         statsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        statsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+        Dimension statsSectionSize = new Dimension(350, 75);
+        statsPanel.setMaximumSize(statsSectionSize);
+        statsPanel.setPreferredSize(statsSectionSize);
+        statsPanel.setMinimumSize(statsSectionSize);
 
         JLabel chLabel = new JLabel("CHAPTER: " + currentChapter);
         chLabel.setForeground(Color.YELLOW);
@@ -303,7 +376,7 @@ public class ArenaLoader {
         statsPanel.add(stgLabel);
         
         sidebar.add(statsPanel);
-        sidebar.add(Box.createVerticalStrut(10));
+        sidebar.add(Box.createVerticalStrut(5));
 
         // ========== SECTION 3: LIFE POWER (HEARTS) ==========
         JPanel heartsSection = new JPanel();
@@ -311,7 +384,10 @@ public class ArenaLoader {
         heartsSection.setLayout(new BoxLayout(heartsSection, BoxLayout.Y_AXIS));
         heartsSection.setBorder(new EmptyBorder(10, 15, 10, 15));
         heartsSection.setAlignmentX(Component.LEFT_ALIGNMENT);
-        heartsSection.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        Dimension heartsSectionSize = new Dimension(350, 160);
+        heartsSection.setMaximumSize(heartsSectionSize);
+        heartsSection.setPreferredSize(heartsSectionSize);
+        heartsSection.setMinimumSize(heartsSectionSize);
         
         JLabel hpTitle = new JLabel("LIFE POWER");
         hpTitle.setForeground(new Color(255, 100, 100));
@@ -336,58 +412,68 @@ public class ArenaLoader {
         discsSection.setLayout(new BoxLayout(discsSection, BoxLayout.Y_AXIS));
         discsSection.setBorder(new EmptyBorder(10, 15, 10, 15));
         discsSection.setAlignmentX(Component.LEFT_ALIGNMENT);
-        discsSection.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        Dimension discsSectionSize = new Dimension(350, 180);
+        discsSection.setMaximumSize(discsSectionSize);
+        discsSection.setPreferredSize(discsSectionSize);
+        discsSection.setMinimumSize(discsSectionSize);
         
         JLabel discTitle = new JLabel("DISC INVENTORY");
         discTitle.setForeground(new Color(0, 200, 255));
         discTitle.setFont(new Font("Monospaced", Font.BOLD, 16));
         discTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
         
-        JPanel discSlotsContainer = new JPanel(new GridLayout(0, 4, 8, 8));
+        JPanel discSlotsContainer = new JPanel(new GridLayout(2, 5, 6, 6));
         discSlotsContainer.setName("DiscSlotsContainer");
         discSlotsContainer.setOpaque(false);
         discSlotsContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
+        Dimension discSlotsSize = new Dimension(330, 120);
+        discSlotsContainer.setPreferredSize(discSlotsSize);
+        discSlotsContainer.setMaximumSize(discSlotsSize);
+        discSlotsContainer.setMinimumSize(discSlotsSize);
         
         discsSection.add(discTitle);
         discsSection.add(Box.createVerticalStrut(8));
         discsSection.add(discSlotsContainer);
+        discsSection.add(Box.createVerticalStrut(6));
+
+        // Cooldown progress bar for disc throws
+        JProgressBar discCooldownBar = new JProgressBar(0, 100);
+        discCooldownBar.setName("DiscCooldownBar");
+        discCooldownBar.setStringPainted(true);
+        discCooldownBar.setString("Ready");
+        discCooldownBar.setForeground(new Color(220, 70, 70));
+        discCooldownBar.setBackground(new Color(20, 20, 30));
+        Dimension cdBarSize = new Dimension(330, 14);
+        discCooldownBar.setPreferredSize(cdBarSize);
+        discCooldownBar.setMaximumSize(cdBarSize);
+        discCooldownBar.setMinimumSize(cdBarSize);
+        discCooldownBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+        discCooldownBar.setVisible(false);
+        discsSection.add(discCooldownBar);
         
         sidebar.add(discsSection);
-        sidebar.add(Box.createVerticalGlue()); // Push everything to top
+        sidebar.add(Box.createVerticalStrut(2)); // minimal gap before log
 
-// ========== SECTION 5: EVENT LOG (Closable) ==========
+// ========== SECTION 5: SYSTEM LOG (Fixed Height) ==========
         JPanel logSection = new JPanel();
         logSection.setOpaque(false);
         logSection.setLayout(new BoxLayout(logSection, BoxLayout.Y_AXIS));
         logSection.setBorder(new EmptyBorder(10, 15, 15, 15));
         logSection.setAlignmentX(Component.LEFT_ALIGNMENT);
-        logSection.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+        // Lock log section to fixed height (header ~20px + gap ~5px + log ~80-90px)
+        Dimension logSectionSize = new Dimension(350, 115); // tighter to avoid covering discs
+        logSection.setMaximumSize(logSectionSize);
+        logSection.setPreferredSize(logSectionSize);
+        logSection.setMinimumSize(logSectionSize);
 
-        // 1. Create a Header with Title and Close Button
-        JPanel logHeader = new JPanel(new BorderLayout());
-        logHeader.setOpaque(false);
-        logHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
-        logHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20)); // Thin header
-
+        // 1. Header with Title (no close button)
         JLabel logTitle = new JLabel("SYSTEM LOG");
-        logTitle.setForeground(new Color(100, 100, 120)); 
-        logTitle.setFont(new Font("Monospaced", Font.BOLD, 12));
+        logTitle.setForeground(new Color(120, 200, 255));
+        logTitle.setFont(new Font("Monospaced", Font.BOLD, 14));
+        logTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logTitle.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
-        // The Toggle Button [X]
-        JButton toggleBtn = new JButton("[X]");
-        toggleBtn.setFont(new Font("Monospaced", Font.BOLD, 12));
-        toggleBtn.setForeground(new Color(255, 50, 50)); // Red for close
-        toggleBtn.setContentAreaFilled(false);
-        toggleBtn.setBorderPainted(false);
-        toggleBtn.setFocusPainted(false);
-        toggleBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        // Remove padding to make it tight
-        toggleBtn.setMargin(new Insets(0,0,0,0)); 
-
-        logHeader.add(logTitle, BorderLayout.WEST);
-        logHeader.add(toggleBtn, BorderLayout.EAST);
-
-        // 2. The Scrollable Log Box
+        // 2. The Log Display (No Scrolling - Auto-Clear after 5s)
         JTextArea logArea = new JTextArea();
         logArea.setName("ArenaLogArea");
         logArea.setEditable(false);
@@ -395,43 +481,34 @@ public class ArenaLoader {
         logArea.setWrapStyleWord(true);
         logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         logArea.setForeground(new Color(200, 255, 255)); // Cyan text
-        logArea.setBackground(new Color(0, 0, 0, 100)); // Transparent black
+        logArea.setBackground(new Color(0, 0, 0)); // Fully opaque dark background
+        logArea.setOpaque(true);
         logArea.setBorder(new EmptyBorder(5, 5, 5, 5));
-
-        JScrollPane logScroll = new JScrollPane(logArea);
-        logScroll.setName("ArenaLogScroll");
-        logScroll.setPreferredSize(new Dimension(0, 120));
-        logScroll.setBorder(BorderFactory.createLineBorder(new Color(30, 40, 50), 1));
-        logScroll.setOpaque(false);
-        logScroll.getViewport().setOpaque(false);
-        logScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logArea.setRows(3);
+        Dimension logAreaSize = new Dimension(330, 85);
+        logArea.setPreferredSize(logAreaSize);
+        logArea.setMaximumSize(logAreaSize);
+        logArea.setMinimumSize(logAreaSize);
         
-        // Hide scrollbars visually
-        logScroll.getVerticalScrollBar().setPreferredSize(new Dimension(0, 0));
-        logScroll.getHorizontalScrollBar().setPreferredSize(new Dimension(0, 0));
+        // Border to frame the log area
+        JPanel logAreaPanel = new JPanel(new BorderLayout());
+        logAreaPanel.setOpaque(true);
+        logAreaPanel.setBackground(new Color(0, 0, 0)); // Fully opaque to avoid transparency
+        logAreaPanel.setBorder(BorderFactory.createLineBorder(new Color(30, 40, 50), 1));
+        logAreaPanel.add(logArea, BorderLayout.CENTER);
+        Dimension logAreaPanelSize = new Dimension(350, 90);
+        logAreaPanel.setPreferredSize(logAreaPanelSize);
+        logAreaPanel.setMaximumSize(logAreaPanelSize);
+        logAreaPanel.setMinimumSize(logAreaPanelSize);
+        logAreaPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        // Register this area so gameplay events can be appended and highlighted
+        setLogArea(logArea);
+        setLogPanel(logAreaPanel);
 
-        // 3. Add Logic to Close/Open
-        toggleBtn.addActionListener(e -> {
-            boolean isVisible = logScroll.isVisible();
-            if (isVisible) {
-                // CLOSE IT
-                logScroll.setVisible(false);
-                toggleBtn.setText("[+]"); // Change icon to expand
-                toggleBtn.setForeground(Color.GRAY);
-            } else {
-                // OPEN IT
-                logScroll.setVisible(true);
-                toggleBtn.setText("[X]"); // Change icon to close
-                toggleBtn.setForeground(new Color(255, 50, 50));
-            }
-            // Refresh layout to remove/add the gap
-            sidebar.revalidate();
-            sidebar.repaint();
-        });
-
-        logSection.add(logHeader);
+        logSection.add(logTitle);
         logSection.add(Box.createVerticalStrut(5)); // Gap
-        logSection.add(logScroll);
+        logSection.add(logAreaPanel);
 
         sidebar.add(logSection);
 
@@ -442,6 +519,7 @@ public class ArenaLoader {
     public static void updateHUD(JPanel sidebar, Character player, Map<String, ImageIcon> icons) {
         JPanel hpContainer = null;
         JPanel discSlotsContainer = null;
+        JProgressBar discCooldownBar = null;
         JLabel levelLabel = null;
         JLabel xpLabel = null;
         JLabel discLabel = null;
@@ -480,6 +558,10 @@ public class ArenaLoader {
                         if ("SpeedLabel".equals(subLabel.getName())) speedLabel = subLabel;
                         if ("HandlingLabel".equals(subLabel.getName())) handlingLabel = subLabel;
                     }
+                    if (sub instanceof JProgressBar) {
+                        JProgressBar bar = (JProgressBar) sub;
+                        if ("DiscCooldownBar".equals(bar.getName())) discCooldownBar = bar;
+                    }
                 }
             }
         }
@@ -495,7 +577,10 @@ public class ArenaLoader {
                 slot.setHorizontalAlignment(JLabel.CENTER);
                 slot.setVerticalAlignment(JLabel.CENTER);
                 slot.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 120), 2));
-                slot.setPreferredSize(new Dimension(60, 60));
+                Dimension slotSize = new Dimension(52, 52);
+                slot.setPreferredSize(slotSize);
+                slot.setMaximumSize(slotSize);
+                slot.setMinimumSize(slotSize);
                 slot.setOpaque(true);
                 slot.setBackground(new Color(30, 30, 50));
                 
@@ -590,6 +675,35 @@ public class ArenaLoader {
         if (discLabel != null) {
             discLabel.setText("DISCS: " + displayDiscCap);
         }
+
+        // 6. UPDATE DISC COOLDOWN BAR
+        if (discCooldownBar != null) {
+            // Dynamic player cooldown: base 5s, -0.5s per 10 levels, floor at 1s
+            double totalSeconds = 5.0;
+            if (player != null && player.isPlayer) {
+                int steps = Math.max(0, player.getLevel() / 10);
+                totalSeconds = Math.max(1.0, 5.0 - (steps * 0.5));
+            }
+
+            long endNs = discCooldownEndNs;
+            double remaining = 0.0;
+            if (endNs > 0L) {
+                long delta = endNs - System.nanoTime();
+                if (delta > 0L) {
+                    remaining = delta / 1_000_000_000.0;
+                }
+            }
+            if (remaining > 0.0) {
+                double progress = Math.min(1.0, Math.max(0.0, (totalSeconds - remaining) / totalSeconds));
+                discCooldownBar.setVisible(true);
+                discCooldownBar.setValue((int) Math.round(progress * 100));
+                discCooldownBar.setString(String.format("CD: %.1fs", remaining));
+            } else {
+                discCooldownBar.setVisible(false);
+                discCooldownBar.setValue(0);
+                discCooldownBar.setString("Ready");
+            }
+        }
     }
 
     public static void redrawArena(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons, JPanel arenaPanel, JPanel sidebar) {
@@ -656,6 +770,7 @@ public class ArenaLoader {
                         case 'O': cellPanel.setBackground(NEON_BG); if (icons.get("obstacle") != null) iconLabel.setIcon(icons.get("obstacle")); else cellPanel.setBackground(new Color(255, 140, 0)); break;
                         case 'S': cellPanel.setBackground(NEON_BG); if (icons.get("speed") != null) iconLabel.setIcon(icons.get("speed")); else cellPanel.setBackground(Color.CYAN); break;
                         case 'D': cellPanel.setBackground(new Color(0, 30, 50)); if (icons.get("disc") != null) iconLabel.setIcon(icons.get("disc")); else { iconLabel.setText("O"); iconLabel.setForeground(Color.CYAN); } cellPanel.setBorder(BorderFactory.createLineBorder(Color.CYAN, 1)); break;
+                        case 'E': cellPanel.setBackground(new Color(30, 0, 20)); if (icons.get("disc_enemy") != null) iconLabel.setIcon(icons.get("disc_enemy")); else { iconLabel.setText("O"); iconLabel.setForeground(Color.RED); } cellPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 1)); break;
                         case 'T': 
                             // BOOSTER EFFECT: Tron tail glows bright when boosting
                             if (playerBoosting) {
@@ -784,7 +899,7 @@ public class ArenaLoader {
             // --- PERSISTENCE LOGIC ---
             // Ensure we have a selected persistent player (default to Tron)
             if (persistentPlayer == null) {
-                setSelectedPlayer("Tron");
+                setSelectedPlayer("kevin");
             }
 
             // If the user is logged-in, ensure we load saved XP (in case setSelectedPlayer was called
@@ -995,7 +1110,7 @@ public class ArenaLoader {
 
     /**
      * Minimal, non-invasive fix:
-     * Clear any leftover 'D' characters from the grid so new discs spawned in the new stage
+    * Clear any leftover 'D' or 'E' characters from the grid so new discs spawned in the new stage
      * are not immediately considered "occupi.
      *
      * We intentionally only touch 'D' here to avoid changing any trail/wall logic.
@@ -1006,7 +1121,7 @@ public class ArenaLoader {
             if (grid == null) return;
             for (int r = 0; r < grid.length; r++) {
                 for (int c = 0; c < grid[r].length; c++) {
-                    if (grid[r][c] == 'D') {
+                    if (grid[r][c] == 'D' || grid[r][c] == 'E') {
                         char base = arena.getBaseTile(r, c);
                         grid[r][c] = (base != '\0') ? base : '.';
                     }
@@ -1047,8 +1162,6 @@ public class ArenaLoader {
             waiter.start();
             dlg.setVisible(true);
         }
-        TronRules.StageType type = TronRules.StageType.NORMAL;
-        if (currentStage == 1 && currentChapter == 1) type = TronRules.StageType.TUTORIAL;
 
         long xpReward = 0;
         double currentLives = 0;

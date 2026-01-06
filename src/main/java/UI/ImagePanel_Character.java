@@ -170,10 +170,10 @@ public class ImagePanel_Character extends JPanel {
         backButton.resizeIcon(btnSize);
 
         // B. Chapter Image
-        int imgW = (int) (w * 0.40); 
+        int imgW = (int) (w * 0.28); // slightly smaller so it doesn't overlap character cards
         int imgH = (int) (imgW * 0.60); 
         int imgX = (w / 2) - (imgW / 2); 
-        int imgY = -15; 
+        int imgY = 10; // drop a bit lower for nicer spacing
         chapterTitleLabel.setBounds(imgX, imgY, imgW, imgH);
         
         String titlePath = "images/c" + currentChapter + "_image.png";

@@ -22,7 +22,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     // Convenience API for other packages to start cutscenes without accessing the field
     public void startCutscene(String filename) {
         if (cutscene != null) {
-            // Ensure the panel is in cutscene state so draw() will render the scene
             this.gameState = CUTSCENE_STATE;
             cutscene.startScene(filename);
         }

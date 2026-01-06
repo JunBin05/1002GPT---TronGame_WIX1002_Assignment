@@ -1,11 +1,11 @@
 package controller;
 
 import javax.swing.*;
+import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList; // <- added
 
@@ -36,11 +36,14 @@ public class GameController implements KeyListener, Runnable {
     private static final int SPEED_MULTIPLIER = 60; // tuned to make 0.5 vs 0.2 noticeably different
     private final int BASE_DELAY = 100; // Base speed in milliseconds
     private final int FAST_DELAY = 20;
+    private static final long DISC_COOLDOWN_NS = 5_000_000_000L;
+    private static final double COOLDOWN_BASE_S = 5.0;
+    private static final double COOLDOWN_STEP_S = 0.5; // reduce 0.5s every LEVEL_STEP levels
+    private static final int COOLDOWN_LEVEL_STEP = 10;
 
     private int globalStepCounter = 1;
     private static final int TRAIL_DURATION = 7;
-    private static final int BOSS_TRAIL_DURATION = 14; // Boss trails last 2x longer
-    private static final int DISC_THROW_DISTANCE = 6;
+    private static final int DISC_THROW_DISTANCE = 5;
 
     public GameController(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons,
                           JPanel arenaPanel, JPanel hudPanel) {
@@ -54,6 +57,15 @@ public class GameController implements KeyListener, Runnable {
         this.playerCycle.isPlayer = true;      
         this.gameFrame.addKeyListener(this);
         this.gameFrame.setFocusable(true);
+
+        // Set enemy disc capacity based on chapter (c1=1, c2=2, ...)
+        int enemyDiscCap = 1;
+        for (Character ch : cycles) {
+            if (ch instanceof Enemy enemy) {
+                enemy.setDiscCapacity(enemyDiscCap);
+                enemy.currentDiscCount = enemyDiscCap;
+            }
+        }
     }
 
     public Character getPlayer() { return this.playerCycle; }
@@ -85,11 +97,20 @@ public class GameController implements KeyListener, Runnable {
                 if (c != playerCycle && c instanceof Enemy) {
                     Enemy enemy = (Enemy) c;
 
+                    // Enemy disc throw: line-of-sight to player within throw distance and not on cooldown
+                    tryEnemyThrow(enemy, grid);
+
                     // Time-based scheduling: use configured per-enemy delay if provided, otherwise use a
                     // default delay so enemies remain independent from the game loop speed (e.g., player FPS).
                     boolean shouldMove = false;
                     final long defaultEnemyDelay = 250_000_000L; // 250 ms in nanoseconds
                     long configuredDelay = enemy.getMoveDelayNs() > 0 ? enemy.getMoveDelayNs() : defaultEnemyDelay;
+                    // Speed ramp boost for enemies: halve delay when standing on 'S'
+                    if (enemy.getRow() >= 0 && enemy.getRow() < 40 && enemy.getCol() >= 0 && enemy.getCol() < 40) {
+                        if (grid[enemy.getRow()][enemy.getCol()] == 'S') {
+                            configuredDelay = FAST_DELAY; // floor at 50ms
+                        }
+                    }
                     // Guard: if lastMoveNs is zero, initialize it so enemies don't all burst on first tick
                     if (enemy.getLastMoveNs() == 0L) {
                         enemy.setLastMoveNs(nowNs);
@@ -110,6 +131,8 @@ public class GameController implements KeyListener, Runnable {
                     }
 
                         boolean wallHit = false;
+                        boolean hitDisc = false;
+                        Disc discAtTarget = null;
 
                         boolean blockedByOtherEnemy = false;
                         if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) { 
@@ -130,6 +153,13 @@ public class GameController implements KeyListener, Runnable {
 
                             if (!blockedByOtherEnemy) {
                                 char tile = grid[nextR][nextC];
+                                if (tile == 'D' || tile == 'E') discAtTarget = findDiscAt(nextR, nextC);
+
+                                // Disc collision: only player discs hurt enemies; enemy discs can be picked up
+                                if ((tile == 'D' || tile == 'E') && discAtTarget != null && discAtTarget.owner != null && discAtTarget.owner.isPlayer) {
+                                    wallHit = true;
+                                    hitDisc = true;
+                                }
 
                                 // Special-case: enemy attempting to move into the player's cell
                                 if (tile == playerCycle.getSymbol() && playerCycle.getRow() == nextR && playerCycle.getCol() == nextC) {
@@ -164,13 +194,19 @@ public class GameController implements KeyListener, Runnable {
                                 // Treat Tron and Kevin tails as normal wall hits (no instant kill)
                                 // If this is an enemy trail char (M/C/Y/G/R) consider it occupied so
                                 // enemies will bounce instead of causing damage to each other.
-                                if (tile != '.' && tile != 'S') {
+                                if (tile != '.' && tile != 'S' && tile != 'D' && tile != 'E') {
                                     if (tile == 'M' || tile == 'C' || tile == 'Y' || tile == 'G' || tile == 'R') {
                                         blockedByOtherEnemy = true;
                                         wallHit = true;
                                     } else {
                                         wallHit = true;
                                     }
+                                }
+
+                                // Enemy/team disc pickup (only if not wallHit yet)
+                                if (!wallHit && (tile == 'D' || tile == 'E') && discAtTarget != null && discAtTarget.owner != null && !discAtTarget.owner.isPlayer) {
+                                    pickupDiscForEnemy(enemy, discAtTarget, grid);
+                                    tile = grid[nextR][nextC];
                                 }
                             }
                         }
@@ -181,7 +217,8 @@ public class GameController implements KeyListener, Runnable {
                                 enemy.setOppositeDirection();
                                 // Do not call revertPosition here because the enemy has not moved yet
                             } else {
-                                enemy.changeLives(-0.5);
+                                double dmg = hitDisc ? -1.0 : -0.5;
+                                enemy.changeLives(dmg);
                                 if (enemy.getLives() <= 0) {
                                     deadEnemies.add(enemy);
                                     if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
@@ -207,6 +244,10 @@ public class GameController implements KeyListener, Runnable {
                             int eRow = enemy.getRow();
                             int eCol = enemy.getCol();
                             if (eRow >= 0 && eRow < 40 && eCol >= 0 && eCol < 40) {
+                                boolean nowOnRamp = (grid[eRow][eCol] == 'S');
+                                if (nowOnRamp) {
+                                    ArenaLoader.appendGameplayLog("Enemy " + enemy.getName() + " hit speed ramp");
+                                }
                                 if (grid[eRow][eCol] == '.') {
                                     char trailChar = 'M'; // Default minion trail
                                     String name = enemy.getName();
@@ -312,7 +353,7 @@ public class GameController implements KeyListener, Runnable {
 
         // Restore the tile the disc was previously occupying
         if (disc.r >= 0 && disc.r < 40 && disc.c >= 0 && disc.c < 40) {
-            if (grid[disc.r][disc.c] == 'D') {
+            if (grid[disc.r][disc.c] == 'D' || grid[disc.r][disc.c] == 'E') {
                 grid[disc.r][disc.c] = disc.getOriginalTile();
             }
         }
@@ -352,11 +393,48 @@ public class GameController implements KeyListener, Runnable {
             }
         }
 
-        // Always show disc as 'D' while it's active (whether flying or stopped)
-        grid[disc.r][disc.c] = 'D';
+        // Always show disc as 'D' (player) or 'E' (enemy) while it's active (whether flying or stopped)
+        char discChar = (disc.owner != null && !disc.owner.isPlayer) ? 'E' : 'D';
+        grid[disc.r][disc.c] = discChar;
     }
 }
 
+
+    private Disc findDiscAt(int r, int c) {
+        for (Disc d : activeDiscs) {
+            if (d.r == r && d.c == c) return d;
+        }
+        return null;
+    }
+
+    private void pickupDiscForEnemy(Enemy picker, Disc disc, char[][] grid) {
+        // Restore underlying tile
+        if (grid[disc.r][disc.c] == 'D' || grid[disc.r][disc.c] == 'E') {
+            grid[disc.r][disc.c] = disc.getOriginalTile();
+        }
+        activeDiscs.remove(disc);
+
+        // Choose recipient: prefer self if space, else first teammate with space
+        Enemy recipient = null;
+        if (picker.currentDiscCount < picker.getDiscCapacity()) {
+            recipient = picker;
+        } else {
+            for (Character ch : cycles) {
+                if (ch instanceof Enemy teammate) {
+                    if (teammate.currentDiscCount < teammate.getDiscCapacity()) {
+                        recipient = teammate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (recipient != null) {
+            recipient.pickupDisc();
+            ArenaLoader.appendGameplayLog("Enemy " + picker.getName() + " picked up a disc" +
+                    (recipient != picker ? " for " + recipient.getName() : ""));
+        }
+    }
 
     private void movePlayer(char[][] grid, int[][] trailTimer) {
         // Try to apply any pending player direction (handling-dependent)
@@ -364,26 +442,33 @@ public class GameController implements KeyListener, Runnable {
 
         int futureR = this.playerCycle.r; int futureC = this.playerCycle.c;
         switch (this.playerCycle.currentDirection) { case NORTH -> futureR--; case SOUTH -> futureR++; case EAST -> futureC++; case WEST -> futureC--; }
-        char element = ' '; boolean collided = false;
+        char element = ' '; boolean collided = false; boolean hitEnemyDisc = false;
         if (futureR < 0 || futureR >= 40 || futureC < 0 || futureC >= 40) { this.playerCycle.changeLives(-this.playerCycle.getLives()); collided = true; }
         else {
             element = grid[futureR][futureC];
-            if (element == 'D') {
-                // Pickup: restore the tile underneath the disc instead of blindly writing '.'
-                Disc picked = null;
-                for (Disc d : activeDiscs) {
-                    if (d.r == futureR && d.c == futureC) { picked = d; break; }
-                }
-                this.playerCycle.pickupDisc();
-                if (picked != null) {
-                    grid[futureR][futureC] = picked.getOriginalTile();
-                    activeDiscs.remove(picked);
-                    element = grid[futureR][futureC];
+            if (element == 'D' || element == 'E') {
+                Disc picked = findDiscAt(futureR, futureC);
+                if (picked != null && picked.owner != null && !picked.owner.isPlayer) {
+                    // Enemy disc damages player on contact, disc stays in place
+                    this.playerCycle.changeLives(-1.0);
+                    ArenaLoader.pulseLog(new Color(0, 180, 255));
+                    this.playerCycle.setStunned(true);
+                    hitEnemyDisc = true;
+                    collided = true;
+                    element = 'E';
                 } else {
-                    // Restore base tile when a disc disappears without a tracked original
-                    char base = arena.getBaseTile(futureR, futureC);
-                    grid[futureR][futureC] = (base != '\0') ? base : '.';
-                    element = grid[futureR][futureC];
+                    // Player disc or unknown disc: pick up
+                    this.playerCycle.pickupDisc();
+                    if (picked != null) {
+                        grid[futureR][futureC] = picked.getOriginalTile();
+                        activeDiscs.remove(picked);
+                        element = grid[futureR][futureC];
+                    } else {
+                        // Restore base tile when a disc disappears without a tracked original
+                        char base = arena.getBaseTile(futureR, futureC);
+                        grid[futureR][futureC] = (base != '\0') ? base : '.';
+                        element = grid[futureR][futureC];
+                    }
                 }
             }
 
@@ -400,28 +485,114 @@ public class GameController implements KeyListener, Runnable {
             }
 
             // Allow stepping onto player's own trail/symbol (e.g., 'T' for Tron, 'K' for Kevin)
-            if (element != '.' && element != 'S' && element != this.playerCycle.getSymbol()) collided = true;
+            if (!hitEnemyDisc && element != '.' && element != 'S' && element != this.playerCycle.getSymbol()) collided = true;
         }
         if (collided) {
-            this.playerCycle.changeLives(-0.5);
-            if (this.playerCycle.getLives() > 0.0) {
-                // Provide the base tile of the current cell when reverting so it can be restored if needed
-                char currentBase = arena.getBaseTile(this.playerCycle.r, this.playerCycle.c);
-                this.playerCycle.revertPosition(grid, trailTimer, currentBase);
-                // After revert, ensure the reverted cell also respects base tiles (e.g., speed ramps)
-                char postBase = arena.getBaseTile(this.playerCycle.r, this.playerCycle.c);
-                if (postBase != '\0' && postBase != '.') {
-                    grid[this.playerCycle.r][this.playerCycle.c] = postBase;
-                    if (postBase == 'S') onSpeedRamp = true;
-                }
+            if (hitEnemyDisc) {
+                // Already applied enemy disc damage; stop movement without extra penalty
                 this.playerCycle.setOppositeDirection();
+            } else {
+                this.playerCycle.changeLives(-0.5);
+                if (this.playerCycle.getLives() > 0.0) {
+                    // Provide the base tile of the current cell when reverting so it can be restored if needed
+                    char currentBase = arena.getBaseTile(this.playerCycle.r, this.playerCycle.c);
+                    this.playerCycle.revertPosition(grid, trailTimer, currentBase);
+                    // After revert, ensure the reverted cell also respects base tiles (e.g., speed ramps)
+                    char postBase = arena.getBaseTile(this.playerCycle.r, this.playerCycle.c);
+                    if (postBase != '\0' && postBase != '.') {
+                        grid[this.playerCycle.r][this.playerCycle.c] = postBase;
+                        onSpeedRamp = (postBase == 'S');
+                        if (onSpeedRamp) {
+                            if (playerCycle.isPlayer) ArenaLoader.appendGameplayLog("Entered speed ramp (SPD: " + String.format("%.2f", playerCycle.getSpeed()) + ")");
+                        }
+                    }
+                    this.playerCycle.setOppositeDirection();
+                }
             }
         } else {
             if (onSpeedRamp) grid[this.playerCycle.r][this.playerCycle.c] = 'S';
             else { grid[this.playerCycle.r][this.playerCycle.c] = this.playerCycle.getSymbol(); trailTimer[this.playerCycle.r][this.playerCycle.c] = globalStepCounter; }
-            if (element == 'S') onSpeedRamp = true; else onSpeedRamp = false;
+            onSpeedRamp = (element == 'S');
+            if (onSpeedRamp && playerCycle.isPlayer) {
+                ArenaLoader.appendGameplayLog("Entered speed ramp (SPD: " + String.format("%.2f", playerCycle.getSpeed()) + ")");
+            }
             this.globalStepCounter++; this.playerCycle.advancePosition(grid);
         }
+    }
+
+    private boolean hasLineOfSight(Character enemy, Character target, char[][] grid) {
+        if (enemy.getRow() == target.getRow()) {
+            int row = enemy.getRow();
+            int start = Math.min(enemy.getCol(), target.getCol()) + 1;
+            int end = Math.max(enemy.getCol(), target.getCol()) - 1;
+            int distance = Math.abs(enemy.getCol() - target.getCol());
+            if (distance > DISC_THROW_DISTANCE) return false;
+            for (int c = start; c <= end; c++) {
+                char cell = grid[row][c];
+                if (cell == '#' || cell == 'O') return false;
+            }
+            return true;
+        }
+        if (enemy.getCol() == target.getCol()) {
+            int col = enemy.getCol();
+            int start = Math.min(enemy.getRow(), target.getRow()) + 1;
+            int end = Math.max(enemy.getRow(), target.getRow()) - 1;
+            int distance = Math.abs(enemy.getRow() - target.getRow());
+            if (distance > DISC_THROW_DISTANCE) return false;
+            for (int r = start; r <= end; r++) {
+                char cell = grid[r][col];
+                if (cell == '#' || cell == 'O') return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private void tryEnemyThrow(Enemy enemy, char[][] grid) {
+        if (!enemy.hasDisc()) return;
+        long now = System.nanoTime();
+        if (now < enemy.getNextDiscReadyNs()) return;
+        if (!hasLineOfSight(enemy, playerCycle, grid)) return;
+        attemptThrowDisc(enemy);
+    }
+
+    private long computePlayerCooldownNs(Character thrower) {
+        if (thrower == null || !thrower.isPlayer) return DISC_COOLDOWN_NS;
+        int level = thrower.getLevel();
+        int steps = Math.max(0, level / COOLDOWN_LEVEL_STEP);
+        double cooldownSeconds = COOLDOWN_BASE_S - (steps * COOLDOWN_STEP_S);
+        return (long) (cooldownSeconds * 1_000_000_000L);
+    }
+
+    private void attemptThrowDisc(Character thrower) {
+        long now = System.nanoTime();
+        if (now < thrower.getNextDiscReadyNs()) {
+            if (thrower.isPlayer) ArenaLoader.setDiscCooldownEnd(thrower.getNextDiscReadyNs());
+            return;
+        }
+        if (!thrower.hasDisc()) return;
+
+        long cooldownNs = thrower.isPlayer ? computePlayerCooldownNs(thrower) : DISC_COOLDOWN_NS;
+        thrower.setNextDiscReadyNs(now + cooldownNs);
+        if (thrower.isPlayer) ArenaLoader.setDiscCooldownEnd(thrower.getNextDiscReadyNs());
+
+        thrower.throwDisc();
+        Disc newDisc = new Disc(thrower, thrower.r, thrower.c, thrower.currentDirection, DISC_THROW_DISTANCE);
+        try {
+            char[][] gridRef = arena.getGrid();
+            if (thrower.r >= 0 && thrower.r < 40 && thrower.c >= 0 && thrower.c < 40) {
+                newDisc.setOriginalTile(gridRef[thrower.r][thrower.c]);
+                char discTile = (thrower instanceof Enemy) ? 'E' : 'D';
+                gridRef[thrower.r][thrower.c] = discTile;
+            }
+        } catch (Exception ex) {
+            // ignore
+        }
+        activeDiscs.add(newDisc);
+        if (thrower instanceof Enemy enemyThrower) {
+            ArenaLoader.appendGameplayLog("Enemy " + enemyThrower.getName() + " threw a disc");
+        }
+        SwingUtilities.invokeLater(() -> { ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, arenaPanel, hudPanel); });
     }
 
     private void handleTrailDecay(char[][] grid, int[][] trailTimer) {
@@ -472,23 +643,7 @@ public class GameController implements KeyListener, Runnable {
     }
 
     private void throwDiscAction() {
-        if (!this.playerCycle.hasDisc()) {
-            return;
-        }
-        this.playerCycle.throwDisc();
-        Disc newDisc = new Disc(this.playerCycle.r, this.playerCycle.c, this.playerCycle.currentDirection, DISC_THROW_DISTANCE);
-        // Remember what tile is under the disc at spawn
-        try {
-            char[][] grid = arena.getGrid();
-            if (this.playerCycle.r >= 0 && this.playerCycle.r < 40 && this.playerCycle.c >= 0 && this.playerCycle.c < 40) {
-                newDisc.setOriginalTile(grid[this.playerCycle.r][this.playerCycle.c]);
-                grid[this.playerCycle.r][this.playerCycle.c] = 'D';
-            }
-        } catch (Exception ex) {
-            // ignore
-        }
-        activeDiscs.add(newDisc);
-        SwingUtilities.invokeLater(() -> { ArenaLoader.redrawArena(this.gameFrame, this.arena, this.cycles, this.icons, arenaPanel, hudPanel); });
+        attemptThrowDisc(this.playerCycle);
     }
 
     @Override public void keyTyped(KeyEvent e) {}
