@@ -93,9 +93,13 @@ public class GameController implements KeyListener, Runnable {
 
         while (isRunning) {
 
-            moveDiscs(grid);
-            moveDiscs(grid);
+            moveDiscs(grid, deadEnemies);
+            moveDiscs(grid, deadEnemies);
             movePlayer(grid, trailTimer);
+
+            // Snapshot the grid for this tick so all enemies read a consistent view (pre-commit)
+            char[][] readGrid = copyGrid(grid);
+
             long nowNs = System.nanoTime();
             for (Character c : cycles) {
                 if (c != playerCycle && c instanceof Enemy) {
@@ -104,164 +108,7 @@ public class GameController implements KeyListener, Runnable {
                     // Enemy disc throw: line-of-sight to player within throw distance and not on cooldown
                     tryEnemyThrow(enemy, grid);
 
-                    // Time-based scheduling: use configured per-enemy delay if provided, otherwise use a
-                    // default delay so enemies remain independent from the game loop speed (e.g., player FPS).
-                    boolean shouldMove = false;
-                    final long defaultEnemyDelay = 250_000_000L; // 250 ms in nanoseconds
-                    long configuredDelay = enemy.getMoveDelayNs() > 0 ? enemy.getMoveDelayNs() : defaultEnemyDelay;
-                    // Speed ramp boost for enemies: halve delay when standing on 'S'
-                    if (enemy.getRow() >= 0 && enemy.getRow() < 40 && enemy.getCol() >= 0 && enemy.getCol() < 40) {
-                        if (grid[enemy.getRow()][enemy.getCol()] == 'S') {
-                            configuredDelay = FAST_DELAY; // floor at 50ms
-                        }
-                    }
-                    // Guard: if lastMoveNs is zero, initialize it so enemies don't all burst on first tick
-                    if (enemy.getLastMoveNs() == 0L) {
-                        enemy.setLastMoveNs(nowNs);
-                    } else if ((nowNs - enemy.getLastMoveNs()) >= configuredDelay) {
-                        shouldMove = true;
-                        // Note: we now update lastMoveNs only on successful movement to avoid long stalls after blocked moves
-                    }
-
-                    if (!shouldMove) continue;
-
-                    Direction nextMove = enemy.decideMove();
-
-                    int nextR = enemy.getRow();
-                    int nextC = enemy.getCol();
-                    switch (nextMove) {
-                        case NORTH -> nextR--; case SOUTH -> nextR++;
-                        case EAST -> nextC++; case WEST -> nextC--;
-                    }
-
-                        boolean wallHit = false;
-                        boolean hitDisc = false;
-                        Disc discAtTarget = null;
-
-                        boolean blockedByOtherEnemy = false;
-                        if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) { 
-                            wallHit = true; 
-                        }
-                        else {
-                            // If any other enemy is currently at the target cell, mark as blocked but do NOT damage
-                            for (Character other : cycles) {
-                                if (other == enemy) continue;
-                                if (other instanceof Enemy) {
-                                    if (other.getRow() == nextR && other.getCol() == nextC) {
-                                        blockedByOtherEnemy = true;
-                                        wallHit = true;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (!blockedByOtherEnemy) {
-                                char tile = grid[nextR][nextC];
-                                if (tile == 'D' || tile == 'E') discAtTarget = findDiscAt(nextR, nextC);
-
-                                // Disc collision: only player discs hurt enemies; enemy discs can be picked up
-                                if ((tile == 'D' || tile == 'E') && discAtTarget != null && discAtTarget.owner != null && discAtTarget.owner.isPlayer) {
-                                    wallHit = true;
-                                    hitDisc = true;
-                                }
-
-                                // Special-case: enemy attempting to move into the player's cell
-                                if (tile == playerCycle.getSymbol() && playerCycle.getRow() == nextR && playerCycle.getCol() == nextC) {
-                                    System.out.println(String.format("[GameController] Enemy %s attempted to move onto player at (%d,%d)", enemy.getName(), nextR, nextC));
-
-                                    // Apply player i-frames to avoid rapid repeated damage
-                                    long now = System.nanoTime();
-                                    if (now >= playerInvulnerableUntilNs) {
-                                        this.playerCycle.changeLives(-0.5);
-                                        playerInvulnerableUntilNs = now + PLAYER_IFRAME_NS;
-                                        this.playerCycle.isStunned = true;
-                                    }
-
-                                    // Minimal behavior change: enemy takes damage when attempting to move into the player
-                                    enemy.changeLives(-0.5);
-                                    if (enemy.getLives() <= 0) {
-                                        deadEnemies.add(enemy);
-                                        if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
-                                            int er = enemy.getRow(); int ec = enemy.getCol();
-                                            char base = arena.getBaseTile(er, ec);
-                                            grid[er][ec] = (base != '.' && base != '\0') ? base : '.';
-                                        }
-                                    } else {
-                                        enemy.setOppositeDirection();
-                                    }
-
-                                    continue;
-                                }
-
-                                // Treat Tron and Kevin tails as normal wall hits (no instant kill)
-                                // Allow an enemy to move through its own trail, but block other enemy trails
-                                if (tile != '.' && tile != 'S' && tile != 'D' && tile != 'E') {
-                                    char ownTrail = enemy.getTrailSymbol();
-                                    if (tile == ownTrail) {
-                                        // Permit moving over own trail; treat as empty
-                                    } else if (tile == 'M' || tile == 'C' || tile == 'Y' || tile == 'G' || tile == 'R') {
-                                        blockedByOtherEnemy = true;
-                                        wallHit = true;
-                                    } else {
-                                        wallHit = true;
-                                    }
-                                }
-
-                                // Enemy/team disc pickup (only if not wallHit yet)
-                                if (!wallHit && (tile == 'D' || tile == 'E') && discAtTarget != null && discAtTarget.owner != null && !discAtTarget.owner.isPlayer) {
-                                    pickupDiscForEnemy(enemy, discAtTarget, grid);
-                                    tile = grid[nextR][nextC];
-                                }
-                            }
-                        }
-
-                        if (wallHit) {
-                            if (blockedByOtherEnemy) {
-                                // Other enemy occupies the cell: avoid damaging either side, just turn around
-                                enemy.setOppositeDirection();
-                            } else {
-                                double dmg = hitDisc ? -1.0 : -0.5;
-                                enemy.changeLives(dmg);
-                                if (enemy.getLives() <= 0) {
-                                    deadEnemies.add(enemy);
-                                    if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
-                                        int er = enemy.getRow(); int ec = enemy.getCol();
-                                        // Restore the design-time/base tile if present, otherwise clear to '.'
-                                        char base = arena.getBaseTile(er, ec);
-                                        if (base != '.' && base != '\0') {
-                                            grid[er][ec] = base;
-                                            System.out.println(String.format("[GameController] Restored base tile '%c' at (%d,%d) after enemy death: %s", base, er, ec, enemy.getName()));
-                                        } else {
-                                            grid[er][ec] = '.';
-                                        }
-                                    }
-                                } else {
-                                    // The enemy did not move into the wall, so just turn it around
-                                    enemy.setOppositeDirection();
-                                }
-                            }
-                            // Bounce quickly after a blocked move: schedule next move soon instead of full delay
-                            final long bounceNs = 80_000_000L; // 80 ms
-                            enemy.setLastMoveNs(nowNs - configuredDelay + bounceNs);
-                        } else {
-                            // Movement allowed: commit the new direction and advance
-                            enemy.currentDirection = nextMove;
-                            enemy.advancePosition(grid);
-                            // Only here do we commit the movement timestamp to avoid long pauses after blocked attempts
-                            enemy.setLastMoveNs(nowNs);
-                            int eRow = enemy.getRow();
-                            int eCol = enemy.getCol();
-                            if (eRow >= 0 && eRow < 40 && eCol >= 0 && eCol < 40) {
-                                boolean nowOnRamp = (grid[eRow][eCol] == 'S');
-                                if (nowOnRamp) {
-                                    ArenaLoader.appendGameplayLog("Enemy " + enemy.getName() + " hit speed ramp");
-                                }
-                                // Always lay enemy trail (hide ramps while occupied); decay restores base tile later
-                                char trailChar = enemy.getTrailSymbol();
-                                grid[eRow][eCol] = trailChar;
-                                trailTimer[eRow][eCol] = globalStepCounter;
-                            }
-                        }
+                    processEnemyMove(enemy, readGrid, grid, trailTimer, nowNs, deadEnemies);
                     }
                 }
 
@@ -347,7 +194,8 @@ public class GameController implements KeyListener, Runnable {
         }
     }
 
-    private void moveDiscs(char[][] grid) {
+    // Discs stop and persist when hitting a player/enemy; enemy deaths are staged in deadEnemies
+    private void moveDiscs(char[][] grid, List<Character> deadEnemies) {
         for (int i = activeDiscs.size() - 1; i >= 0; i--) {
             Disc disc = activeDiscs.get(i);
 
@@ -360,6 +208,7 @@ public class GameController implements KeyListener, Runnable {
 
             // Check if disc has already traveled max distance BEFORE moving again
             boolean stopFlying = disc.distanceTraveled >= DISC_THROW_DISTANCE;
+            boolean collided = false;
 
             if (!stopFlying) {
                 int nextR = disc.r;
@@ -373,27 +222,175 @@ public class GameController implements KeyListener, Runnable {
                     case WEST  -> nextC--;
                 }
 
-                // Check for boundaries and obstacles
+                // Bounds / walls
                 if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
                     stopFlying = true;
                 } else if (grid[nextR][nextC] == '#' || grid[nextR][nextC] == 'O') {
                     stopFlying = true;
                 } else {
-                    // Safe to move: update position and distance
-                    disc.r = nextR;
-                    disc.c = nextC;
-                    disc.distanceTraveled++;
+                    // Body collision check (player or enemy bodies are tracked in cycles, not grid)
+                    Character hit = null;
+                    for (Character c : cycles) {
+                        if (c.getRow() == nextR && c.getCol() == nextC) { hit = c; break; }
+                    }
+                    if (hit != null) {
+                        long now = System.nanoTime();
+                        if (hit.isPlayer) {
+                            if (disc.owner != null && !disc.owner.isPlayer && now >= playerInvulnerableUntilNs) {
+                                playerCycle.changeLives(-1.0);
+                                playerCycle.setStunned(true);
+                                playerInvulnerableUntilNs = now + PLAYER_IFRAME_NS;
+                            }
+                        } else if (hit instanceof Enemy enemyHit) {
+                            if (disc.owner != null && disc.owner.isPlayer) {
+                                enemyHit.changeLives(-1.0);
+                                if (enemyHit.getLives() <= 0) {
+                                    deadEnemies.add(enemyHit);
+                                    restoreBaseTile(grid, enemyHit.getRow(), enemyHit.getCol());
+                                }
+                            }
+                        }
 
-                    // Remember what tile is at this cell
-                    char tileHere = grid[nextR][nextC];
-                    disc.setOriginalTile(tileHere);
+                        // Land the disc on the collision cell and freeze further movement
+                        collided = true;
+                        stopFlying = true;
+                        disc.r = nextR;
+                        disc.c = nextC;
+                        disc.setOriginalTile(grid[nextR][nextC]);
+                        disc.distanceTraveled = DISC_THROW_DISTANCE; // cap so it won't advance again
+                    } else {
+                        // No collision: move forward
+                        disc.r = nextR;
+                        disc.c = nextC;
+                        disc.distanceTraveled++;
+                        disc.setOriginalTile(grid[nextR][nextC]);
+                    }
                 }
             }
 
-            // Always show disc as 'D' (player) or 'E' (enemy) while it's active (whether flying or stopped)
+            // Keep disc visible as 'D' (player) or 'E' (enemy) while active
             char discChar = (disc.owner != null && !disc.owner.isPlayer) ? 'E' : 'D';
             grid[disc.r][disc.c] = discChar;
         }
+    }
+
+    private void processEnemyMove(Enemy enemy, char[][] readGrid, char[][] grid, int[][] trailTimer,
+                                  long nowNs, List<Character> deadEnemies) {
+        // Time-based scheduling per enemy
+        final long defaultEnemyDelay = 250_000_000L; // 250 ms
+        long configuredDelay = enemy.getMoveDelayNs() > 0 ? enemy.getMoveDelayNs() : defaultEnemyDelay;
+        if (!isOutOfBounds(enemy.getRow(), enemy.getCol()) && readGrid[enemy.getRow()][enemy.getCol()] == 'S') {
+            configuredDelay = FAST_DELAY; // speed ramp boost
+        }
+
+        if (enemy.getLastMoveNs() == 0L) {
+            enemy.setLastMoveNs(nowNs);
+            return; // initialize and skip this tick
+        }
+        if ((nowNs - enemy.getLastMoveNs()) < configuredDelay) return;
+
+        Direction nextMove = enemy.decideMove();
+        int nextR = enemy.getRow();
+        int nextC = enemy.getCol();
+        switch (nextMove) { case NORTH -> nextR--; case SOUTH -> nextR++; case EAST -> nextC++; case WEST -> nextC--; }
+
+        boolean wallHit = false;
+        boolean hitDisc = false;
+        boolean blockedByOtherEnemy = false;
+        Disc discAtTarget = null;
+
+        if (isOutOfBounds(nextR, nextC)) {
+            // Out-of-bounds => instant death (mirror player behavior)
+            enemy.changeLives(-enemy.getLives());
+            deadEnemies.add(enemy);
+            if (!isOutOfBounds(enemy.getRow(), enemy.getCol())) restoreBaseTile(grid, enemy.getRow(), enemy.getCol());
+            return;
+        } else {
+            // Occupied by another enemy
+            for (Character other : cycles) {
+                if (other == enemy) continue;
+                if (other instanceof Enemy && other.getRow() == nextR && other.getCol() == nextC) {
+                    blockedByOtherEnemy = true;
+                    wallHit = true;
+                    break;
+                }
+            }
+
+            if (!blockedByOtherEnemy) {
+                char tile = readGrid[nextR][nextC];
+                if (tile == 'D' || tile == 'E') discAtTarget = findDiscAt(nextR, nextC);
+
+                if ((tile == 'D' || tile == 'E') && discAtTarget != null && discAtTarget.owner != null && discAtTarget.owner.isPlayer) {
+                    wallHit = true;
+                    hitDisc = true;
+                }
+
+                // Enemy steps into player
+                if (tile == playerCycle.getSymbol() && playerCycle.getRow() == nextR && playerCycle.getCol() == nextC) {
+                    long now = System.nanoTime();
+                    if (now >= playerInvulnerableUntilNs) {
+                        playerCycle.changeLives(-0.5);
+                        playerInvulnerableUntilNs = now + PLAYER_IFRAME_NS;
+                        playerCycle.isStunned = true;
+                    }
+                    enemy.changeLives(-0.5);
+                    if (enemy.getLives() <= 0) {
+                        deadEnemies.add(enemy);
+                        if (!isOutOfBounds(enemy.getRow(), enemy.getCol())) restoreBaseTile(grid, enemy.getRow(), enemy.getCol());
+                    } else {
+                        enemy.setOppositeDirection();
+                    }
+                    return; // handled collision
+                }
+
+                // Trails and walls
+                if (tile != '.' && tile != 'S' && tile != 'D' && tile != 'E') {
+                    char ownTrail = enemy.getTrailSymbol();
+                    if (tile == ownTrail) {
+                        // allow own trail
+                    } else if (isEnemyTrail(tile)) {
+                        blockedByOtherEnemy = true;
+                        wallHit = true;
+                    } else {
+                        wallHit = true;
+                    }
+                }
+
+                if (!wallHit && (tile == 'D' || tile == 'E') && discAtTarget != null && discAtTarget.owner != null && !discAtTarget.owner.isPlayer) {
+                    pickupDiscForEnemy(enemy, discAtTarget, grid);
+                }
+            }
+        }
+
+        if (wallHit) {
+            if (blockedByOtherEnemy) {
+                enemy.setOppositeDirection();
+            } else {
+                double dmg = hitDisc ? -1.0 : -0.5;
+                enemy.changeLives(dmg);
+                if (enemy.getLives() <= 0) {
+                    deadEnemies.add(enemy);
+                    if (!isOutOfBounds(enemy.getRow(), enemy.getCol())) {
+                        restoreBaseTile(grid, enemy.getRow(), enemy.getCol());
+                        System.out.println(String.format("[GameController] Restored base tile after enemy death at (%d,%d): %s", enemy.getRow(), enemy.getCol(), enemy.getName()));
+                    }
+                } else {
+                    enemy.setOppositeDirection();
+                }
+            }
+            final long bounceNs = 80_000_000L; // 80 ms
+            enemy.setLastMoveNs(nowNs - configuredDelay + bounceNs);
+            return;
+        }
+
+        // Successful move
+        enemy.currentDirection = nextMove;
+        enemy.advancePosition(grid);
+        enemy.setLastMoveNs(nowNs);
+        if (!isOutOfBounds(enemy.getRow(), enemy.getCol()) && grid[enemy.getRow()][enemy.getCol()] == 'S') {
+            ArenaLoader.appendGameplayLog("Enemy " + enemy.getName() + " hit speed ramp");
+        }
+        placeEnemyTrail(enemy, grid, trailTimer);
     }
 
 
@@ -633,6 +630,37 @@ public class GameController implements KeyListener, Runnable {
 
     private void throwDiscAction() {
         attemptThrowDisc(this.playerCycle);
+    }
+
+    // --- Small helpers to keep the main loop readable ---
+    private boolean isOutOfBounds(int r, int c) {
+        return (r < 0 || r >= 40 || c < 0 || c >= 40);
+    }
+
+    private boolean isEnemyTrail(char tile) {
+        return tile == 'M' || tile == 'C' || tile == 'Y' || tile == 'G' || tile == 'R';
+    }
+
+    private void restoreBaseTile(char[][] grid, int r, int c) {
+        char base = arena.getBaseTile(r, c);
+        grid[r][c] = (base != '.' && base != '\0') ? base : '.';
+    }
+
+    private void placeEnemyTrail(Enemy enemy, char[][] grid, int[][] trailTimer) {
+        int r = enemy.getRow();
+        int c = enemy.getCol();
+        if (isOutOfBounds(r, c)) return;
+        char trailChar = enemy.getTrailSymbol();
+        grid[r][c] = trailChar;
+        trailTimer[r][c] = globalStepCounter;
+    }
+
+    private char[][] copyGrid(char[][] src) {
+        char[][] copy = new char[src.length][src[0].length];
+        for (int r = 0; r < src.length; r++) {
+            System.arraycopy(src[r], 0, copy[r], 0, src[r].length);
+        }
+        return copy;
     }
 
     @Override public void keyTyped(KeyEvent e) {}
