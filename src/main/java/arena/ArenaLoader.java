@@ -140,35 +140,6 @@ public class ArenaLoader {
         return null;
     }
 
-    // Reconcile saved level/XP to avoid showing underflowed XP and push fixes back to DB asynchronously
-    private static void reconcileSavedProgress(UI.DatabaseManager db, String user, String name, Character persistent) {
-        if (db == null || user == null || user.isBlank() || persistent == null) return;
-
-        int savedLevel = "Tron".equalsIgnoreCase(name) ? db.getTronLevel(user) : db.getKevinLevel(user);
-        long savedXp = "Tron".equalsIgnoreCase(name) ? db.getTronXp(user) : db.getKevinXp(user);
-
-        if (savedLevel > 0) {
-            long minXp = XPSystem.TronRules.getTotalXpForLevel(savedLevel);
-            long originalXp = savedXp;
-            if (savedXp < minXp) savedXp = minXp; // clamp to level floor
-            persistent.setXp(savedXp);
-            if (originalXp < savedXp) {
-                final long newXp = savedXp;
-                final long oldXp = originalXp;
-                new Thread(() -> {
-                    try {
-                        if ("Tron".equalsIgnoreCase(name)) db.setTronXp(user, newXp); else db.setKevinXp(user, newXp);
-                        System.out.println("[DB FIX] Fixed " + name.toUpperCase() + "_XP for user=" + user + ": " + oldXp + " -> " + newXp);
-                    } catch (Exception e) {
-                        System.out.println("[DB FIX] Failed to fix " + name.toUpperCase() + "_XP for user=" + user + ": " + e.getMessage());
-                    }
-                }, "DBFix-" + name + "Xp").start();
-            }
-        } else if (savedXp > 0) {
-            persistent.setXp(savedXp);
-        }
-    }
-
     /**
      * Set the currently selected player by name ("Tron" or "Kevin"). This
      * ensures persistent instances are created and used for the session.
@@ -177,17 +148,6 @@ public class ArenaLoader {
         persistentPlayer = "Kevin".equalsIgnoreCase(name)
             ? loadOrInitPersistent("Kevin")
             : loadOrInitPersistent("Tron");
-
-        // If a user is already logged in, reconcile immediately so HUD shows correct XP/level
-        try {
-            if (mainFrame instanceof UI.MainFrame) {
-                String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
-                if (user != null && !user.trim().isEmpty()) {
-                    UI.DatabaseManager db = new UI.DatabaseManager();
-                    reconcileSavedProgress(db, user, persistentPlayer.name, persistentPlayer);
-                }
-            }
-        } catch (Exception ignored) {}
     }
 
     // --- HELPER METHODS (Images) ---
@@ -938,9 +898,6 @@ public class ArenaLoader {
                         persistentTron = (Tron) loadOrInitPersistent("Tron");
                         persistentKevin = (Kevin) loadOrInitPersistent("Kevin");
 
-                        reconcileSavedProgress(db, user, "Tron", persistentTron);
-                        reconcileSavedProgress(db, user, "Kevin", persistentKevin);
-
                         // --- PERSIST LAST PLAYED STAGE FOR RESUME FEATURE ---
                         try {
                             final int ch = currentChapter;
@@ -1375,15 +1332,5 @@ public class ArenaLoader {
                 }).start();
             }
         }
-    }
-
-    public static void main(String[] args) {
-        mainFrame = new JFrame("Tron Legacy: Grid Arena");
-        mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        mainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
-        mainFrame.setLayout(new BorderLayout());
-        StartGameMenu.showMenu(mainFrame);
-        mainFrame.setVisible(true);
-        startLevel();
     }
 }
