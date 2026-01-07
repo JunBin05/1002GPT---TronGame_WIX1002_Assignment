@@ -7,12 +7,9 @@ import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
 import java.util.List;
  
-public class ImagePanel_StoryMode extends JPanel {
-
-    private Image backgroundImage;
+public class ImagePanel_StoryMode extends BaseImagePanel {
     private MainFrame mainFrameRef;
     private String username;
-    private BackButton backButton;
     private RightButton rightButton;
     private LeftButton leftButton;
 
@@ -37,16 +34,14 @@ public class ImagePanel_StoryMode extends JPanel {
         this.highestChapterUnlocked = dbManager.getHighestChapter(username);
         if (this.highestChapterUnlocked == 0) this.highestChapterUnlocked = 1; 
 
-        this.backgroundImage = new ImageIcon(imagePath).getImage();
+        setBackgroundImage(imagePath);
 
         // 2. Create Back Button
-        backButton = new BackButton("images/back_button.png");
-        backButton.addActionListener(e -> {
+        setupBackButton(() -> {
             if (mainFrameRef != null) {
                 mainFrameRef.changeToGameMode(); 
             }
         });
-        add(backButton);
 
         // 3. Load UNLOCKED Images (Index 0-4)
         chapterImages = new ArrayList<>();
@@ -124,9 +119,7 @@ public class ImagePanel_StoryMode extends JPanel {
         if (w == 0 || h == 0) return;
 
         // 1. Back Button
-        int backSize = (int) (h * 0.18);
-        backButton.setBounds(30, 30, backSize, backSize);
-        backButton.resizeIcon(backSize);
+        positionBackButton(h);
 
         // 2. Chapter Image Logic
         int imgW = (int) (w * 0.50);
@@ -191,11 +184,5 @@ public class ImagePanel_StoryMode extends JPanel {
         leftButton.resizeIcon(leftSize);
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        if (backgroundImage != null) {
-            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
-        }
-    }
+    // Background painting handled by BaseImagePanel
 }

@@ -12,6 +12,8 @@ public class Enemy extends Character {
     protected char[][] arenaGrid; 
     protected Random rand = new Random();
 
+    private char trailSymbol = 'M';
+
     // Stats loaded from enemies.txt (legacy descriptor fields removed)
     // numeric defaults (populated from EnemyLoader) are used instead
 
@@ -35,6 +37,7 @@ public class Enemy extends Character {
 
         // 3. Overwrite the placeholder color with the real one from the file
         this.color = stats.color;
+        this.trailSymbol = stats.getTrailSymbol();
 
         // 4. Initialize per-instance numeric attributes from stats: use defaults here; LevelManager applies per-tier values when spawning.
         
@@ -119,6 +122,9 @@ public class Enemy extends Character {
     public double getAggression() { return this.aggression; }
     public void setAggression(double a) { this.aggression = Math.max(0.0, Math.min(1.0, a)); }
 
+    public char getTrailSymbol() { return this.trailSymbol; }
+    public void setTrailSymbol(char symbol) { this.trailSymbol = symbol; }
+
     // --- NEW: Time-based scheduling fields for per-enemy delays (Option B) ---
     // moveDelayMs: desired delay between moves in milliseconds
     private long moveDelayNs = 0L; // stored internally as nanoseconds
@@ -148,6 +154,11 @@ public class Enemy extends Character {
         int[] lCoords = getNextCoords(left);
         if (isBossSafe(lCoords[0], lCoords[1])) return left;
 
+        // Last resort: turn back if it's the only safe exit
+        Direction back = getOpposite(currentDirection);
+        int[] backCoords = getNextCoords(back);
+        if (isBossSafe(backCoords[0], backCoords[1])) return back;
+
         return currentDirection; 
     }
 
@@ -173,7 +184,12 @@ public class Enemy extends Character {
         if (!validMoves.isEmpty()) {
             return validMoves.get(rand.nextInt(validMoves.size()));
         }
-        
+
+        // Dead-end: allow reverse if it's at least not a wall/obstacle
+        Direction back = getOpposite(currentDirection);
+        int[] backCoords = getNextCoords(back);
+        if (isMinionSafe(backCoords[0], backCoords[1])) return back;
+
         return currentDirection;
     }
 
@@ -197,7 +213,7 @@ public class Enemy extends Character {
         if (r < 0 || r >= arenaGrid.length || c < 0 || c >= arenaGrid[0].length) return false; 
         char cell = arenaGrid[r][c];
         // Minion walks into Player Tails ('T') but avoids walls
-        if (cell == '#' || cell == 'O' || cell == 'D' || cell == 'M') {
+        if (cell == '#' || cell == 'O' || cell == 'M') {
             return false;
         }
         return true; 

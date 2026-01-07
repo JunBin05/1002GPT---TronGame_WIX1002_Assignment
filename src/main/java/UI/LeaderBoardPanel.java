@@ -7,7 +7,7 @@ import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.util.List;
 
-public class LeaderBoardPanel extends JPanel {
+public class LeaderBoardPanel extends BaseImagePanel {
 
     private MainFrame mainFrame; 
     private String currentUsername;
@@ -16,7 +16,6 @@ public class LeaderBoardPanel extends JPanel {
     private JTable table; 
     private BackButton backBtn;
     private DatabaseManager dbManager; 
-    private Image backgroundImage; 
 
     public LeaderBoardPanel(MainFrame mainFrame, String currentUsername) {
         this.mainFrame = mainFrame;
@@ -24,7 +23,7 @@ public class LeaderBoardPanel extends JPanel {
         this.dbManager = new DatabaseManager(); 
 
         // 1. Load Background Image
-        this.backgroundImage = new ImageIcon("images/leaderboard_bg.png").getImage();
+        setBackgroundImage("images/leaderboard_bg.png");
 
         setLayout(new BorderLayout());
         
@@ -155,7 +154,7 @@ public class LeaderBoardPanel extends JPanel {
         if (backgroundImage != null) {
             g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         } else {
-            g.setColor(new Color(10, 10, 20)); 
+            g.setColor(new Color(10, 10, 20));
             g.fillRect(0, 0, getWidth(), getHeight());
         }
     }

@@ -3,30 +3,18 @@ package UI;
 import javax.swing.*;
 import java.awt.*;
 
-public class ProfilePictureButton extends JButton {
+public class ProfilePictureButton extends IconButton {
 
-    private Image originalImage;
-    private int currentSize = 0;
-    
-    // --- NEW FIELDS ---
-    private String currentUsername;
-    private DatabaseManager dbManager;
+    private final String currentUsername;
+    private final DatabaseManager dbManager;
 
-    // --- UPDATED CONSTRUCTOR ---
     public ProfilePictureButton(String initialImagePath, String username, DatabaseManager db) {
+        super(initialImagePath);
         this.currentUsername = username;
         this.dbManager = db;
 
-        // 1. Load the image
+        // Ensure the initial image is loaded via base class
         updateInternalImage(initialImagePath);
-
-        // 2. Make the button transparent
-        setBorderPainted(false);
-        setContentAreaFilled(false);
-        setFocusPainted(false);
-        setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // 3. Click action
         addActionListener(e -> showGenderSelection());
     }
 
@@ -56,19 +44,9 @@ public class ProfilePictureButton extends JButton {
     private void updateInternalImage(String path) {
         ImageIcon newIcon = new ImageIcon(path);
         if (newIcon.getImageLoadStatus() == MediaTracker.ERRORED) {
-            // Fallback if image missing
             newIcon = new ImageIcon("images/default_profile.png"); 
         }
-        this.originalImage = newIcon.getImage();
-        if (currentSize > 0) resizeIcon(currentSize); // Refresh size
+        setBaseImage(newIcon.getImage());
         repaint();
-    }
-
-    public void resizeIcon(int size) {
-        this.currentSize = size;
-        if (size > 0 && originalImage != null) {
-            Image scaled = originalImage.getScaledInstance(size, size, Image.SCALE_SMOOTH);
-            setIcon(new ImageIcon(scaled));
-        }
     }
 }

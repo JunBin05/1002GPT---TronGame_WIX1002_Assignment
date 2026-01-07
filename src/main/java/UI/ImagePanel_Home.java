@@ -1,13 +1,10 @@
 package UI;
 
-import javax.swing.*;
-import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
-public class ImagePanel_Home extends JPanel {
+public class ImagePanel_Home extends BaseImagePanel {
 
-    private Image backgroundImage;
     private String username;
     
     // Define the buttons
@@ -29,7 +26,7 @@ public class ImagePanel_Home extends JPanel {
         DatabaseManager dbManager = new DatabaseManager();
         setLayout(null); // Absolute positioning
 
-        this.backgroundImage = new ImageIcon(imagePath).getImage();
+        setBackgroundImage(imagePath);
 
         // 1. Create Sound Button
         soundButton = new SoundButton("images/sound_button.png", "audio/sound_background.wav");
@@ -172,11 +169,5 @@ public class ImagePanel_Home extends JPanel {
     }
 
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        if (backgroundImage != null) {
-            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
-        }
-    }
+    // Background painting handled by BaseImagePanel
 } 

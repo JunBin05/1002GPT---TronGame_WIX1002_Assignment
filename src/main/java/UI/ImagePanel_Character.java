@@ -7,10 +7,7 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;   
 
-public class ImagePanel_Character extends JPanel {
-
-    private Image backgroundImage;
-    private BackButton backButton; 
+public class ImagePanel_Character extends BaseImagePanel {
     private MainFrame mainFrame;   
     private JLabel chapterTitleLabel; 
     private KevinButton kevinButton;
@@ -22,14 +19,12 @@ public class ImagePanel_Character extends JPanel {
     public ImagePanel_Character(MainFrame mainFrame, String username, int chapterNumber) {
         this.mainFrame = mainFrame;
         this.username = username;
-        this.backgroundImage = new ImageIcon("images/character_bg.png").getImage();
+        setBackgroundImage("images/character_bg.png");
         this.currentChapter = chapterNumber;
         setLayout(null); 
 
         // 1. Back Button
-        backButton = new BackButton("images/back_button.png");
-        backButton.addActionListener(e -> mainFrame.changeToStoryMode());
-        add(backButton);
+        setupBackButton(() -> mainFrame.changeToStoryMode());
 
         // 2. Dynamic Chapter Title
         String titlePath = "images/c" + chapterNumber + "_image.png";
@@ -127,8 +122,8 @@ public class ImagePanel_Character extends JPanel {
                 // Start the game loop so GIFs / animations will animate during the cutscene
                 gamePanel.startGameThread(mainFrame);
 
-                // Show the pre-stage cutscene for the selected chapter/stage (no NEXT_FILE chaining)
-                arena.CutsceneUtil.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", mainFrame, gamePanel, false);
+                // Show the pre-stage cutscene for the selected chapter/stage (no NEXT_FILE chaining) in fullscreen dialog
+                UI.CutsceneManager.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", mainFrame, null, false);
                 // Record that we've shown the pre-stage cutscene so ArenaLoader won't show it again.
                 arena.ArenaLoader.markPreCutsceneShown(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage);
 
@@ -165,15 +160,13 @@ public class ImagePanel_Character extends JPanel {
         if (w == 0 || h == 0) return;
 
         // A. Back Button
-        int btnSize = (int) (h * 0.18); 
-        backButton.setBounds(30, 30, btnSize, btnSize);
-        backButton.resizeIcon(btnSize);
+        positionBackButton(h);
 
         // B. Chapter Image
-        int imgW = (int) (w * 0.40); 
+        int imgW = (int) (w * 0.28); // slightly smaller so it doesn't overlap character cards
         int imgH = (int) (imgW * 0.60); 
         int imgX = (w / 2) - (imgW / 2); 
-        int imgY = -15; 
+        int imgY = 10; // drop a bit lower for nicer spacing
         chapterTitleLabel.setBounds(imgX, imgY, imgW, imgH);
         
         String titlePath = "images/c" + currentChapter + "_image.png";
@@ -206,16 +199,5 @@ public class ImagePanel_Character extends JPanel {
         int playArenaY = h - playArenaSize - 30;    
         playArenaButton.setBounds(playArenaX, playArenaY, playArenaSize, playArenaSize);
         playArenaButton.resizeIcon(playArenaSize);
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        if (backgroundImage != null) {
-            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
-        } else {
-            g.setColor(Color.BLACK);
-            g.fillRect(0, 0, getWidth(), getHeight());
-        }
     }
 }

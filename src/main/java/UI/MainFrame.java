@@ -2,6 +2,7 @@ package UI;
 
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
+import javax.swing.JComponent;
 import java.awt.BorderLayout;
 
 public class MainFrame extends JFrame {
@@ -14,8 +15,6 @@ public class MainFrame extends JFrame {
         setLayout(new BorderLayout());
         // Start in maximized state so the main menu fills the entire screen like the arena
         setExtendedState(JFrame.MAXIMIZED_BOTH);
-        // Optionally set undecorated for a true fullscreen look (commented out to preserve window chrome during development)
-        // setUndecorated(true);
 
         ImagePanel backgroundPanel = new ImagePanel("images/tron_2.png");
         // Ensure the initial panel fills available space immediately
@@ -25,78 +24,54 @@ public class MainFrame extends JFrame {
         add(backgroundPanel, BorderLayout.CENTER); 
     }
 
-    /**
-     This replaces the Login content with the Home content instantly, without closing the window.
-     */
     public void changeToHome(String username) {
         // Create the Home Panel (Just the image, no buttons)
         this.currentUsername = username;
 
         ImagePanel_Home homePanel = new ImagePanel_Home("images/tron_2.png", username, this);
+        // Ensure background music is running on home
+        AudioManager.playMusic("audio/sound_background.wav");
 
-        // Replace the current content (ImagePanel) with the new one (ImagePanel_Home)
-        setContentPane(homePanel);
-
-        // Refresh the screen
-        revalidate();
-        repaint();
+        setView(homePanel);
     }
 
  
 
     public void changeToGameMode() {
         ImagePanel_GameMode gameModePanel = new ImagePanel_GameMode("images/tron_3.png", this, currentUsername);
-    
-        setContentPane(gameModePanel);
-        revalidate();
-        repaint();
+        setView(gameModePanel);
     }
 
 
     public void changeToStoryMode() {
         // 1. Create the Story Mode Panel
-        // We pass 'this' (MainFrame) so the back button works
-        // We pass 'currentUsername' so we don't lose the user data
         ImagePanel_StoryMode storyPanel = new ImagePanel_StoryMode("images/tron_4.png", this, currentUsername);
-        
-        // 2. Switch the view
-        setContentPane(storyPanel);
-        revalidate();
-        repaint();
+        // Ensure background music resumes when returning from arena
+        AudioManager.playMusic("audio/sound_background.wav");
+        setView(storyPanel);
     }
 
 
     public void changeToLeaderboard(String username) {
         LeaderBoardPanel leaderboard = new LeaderBoardPanel(this, username);
-        setContentPane(leaderboard);
-        revalidate();
-        repaint();
+        setView(leaderboard);
     }
 
     public void changeToCharacterSelect(String username, int chapterNumber) {
         // Create the new panel, PASSING the chapterNumber
         ImagePanel_Character charPanel = new ImagePanel_Character(this, username, chapterNumber);
-        
-        setContentPane(charPanel);
-        revalidate();
-        repaint();
+        setView(charPanel);
     }
 
     public void changeToAchievement() {
         // Create the achievement panel
         ImagePanel_Ac acPanel = new ImagePanel_Ac(this);
-        
-        // Switch the screen content
-        setContentPane(acPanel);
-        revalidate();
-        repaint();
+        setView(acPanel);
     }
     
     public void changeToGameRule() {
         ImagePanel_GameRule gameRulePanel = new ImagePanel_GameRule(this);
-        setContentPane(gameRulePanel);
-        revalidate();
-        repaint();
+        setView(gameRulePanel);
     }
 
     public static void main(String[] args) {
@@ -104,6 +79,12 @@ public class MainFrame extends JFrame {
             MainFrame gui = new MainFrame();
             gui.setVisible(true);
         });
+    }
+
+    private void setView(JComponent panel) {
+        setContentPane(panel);
+        revalidate();
+        repaint();
     }
 
     public String getCurrentUsername() {

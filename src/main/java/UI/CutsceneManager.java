@@ -5,8 +5,9 @@ import java.awt.image.ImageObserver;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import javax.sound.sampled.*; 
 import javax.swing.ImageIcon;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
 public class CutsceneManager {
@@ -35,8 +36,7 @@ public class CutsceneManager {
     private boolean allowChaining = true;
     private Component repaintTarget = null;
     
-    // AUDIO
-    private Clip musicClip; 
+    // AUDIO handled by AudioManager
 
     // IMAGES
     private Image pKevin, pKevinReal, pTron, pClu, pQuorra, pQuorraEvil, pSark, pSam;
@@ -136,7 +136,7 @@ public class CutsceneManager {
             return;
         }
         if (current.imagePath.equalsIgnoreCase("STOP_MUSIC")) {
-            stopMusic();
+            // Ignored: no explicit stop, music continues
             advance();
             return;
         }
@@ -170,12 +170,10 @@ public class CutsceneManager {
                 if (allowChaining) {
                     startScene(lastLine.name);
                 } else {
-                    stopMusic();
                     System.out.println("[CUTSCENE] Scene finished. Starting fade-out...");
                     startFadeOut();
                 }
             } else {
-                stopMusic();
                 System.out.println("[CUTSCENE] Scene finished. Starting fade-out...");
                 startFadeOut();
             }
@@ -230,42 +228,148 @@ public class CutsceneManager {
         return isActive;
     }
 
-    public void playMusic(String filename) {
-        try {
-            File soundFile = new File("cutscene/sounds/" + filename);
-            if (!soundFile.exists()) {
-                System.out.println("Sound not found: " + soundFile.getAbsolutePath());
-                return;
-            }
-
-            AudioInputStream audioInput = AudioSystem.getAudioInputStream(soundFile);
-            
-            if (musicClip != null && musicClip.isRunning()) {
-                musicClip.stop();
-            }
-
-            musicClip = AudioSystem.getClip();
-            musicClip.open(audioInput);
-
-            // VOLUME CONTROL (-10dB)
-            try {
-                FloatControl gainControl = (FloatControl) musicClip.getControl(FloatControl.Type.MASTER_GAIN);
-                gainControl.setValue(-10.0f); 
-            } catch (Exception e) {}
-
-            musicClip.start();
-            musicClip.loop(Clip.LOOP_CONTINUOUSLY);
-
-        } catch (Exception e) {
-            System.out.println("Error playing sound: " + e.getMessage());
+    /**
+     * Utility: check if a cutscene file exists for chapter/stage/suffix. Skips any path containing "random".
+     */
+    public static boolean cutsceneExists(int chapter, int stage, String suffix) {
+        String[] candidates = {
+            String.format("cutscene/c%dlevel%d%s.txt", chapter, stage, suffix),
+            String.format("cutscene/c%dlevel%d.txt", chapter, stage)
+        };
+        for (String path : candidates) {
+            if (path.contains("random")) continue;
+            File file = new File(path);
+            if (file.exists() && file.length() > 0) return true;
         }
+        return false;
     }
 
-    public void stopMusic() {
-        if (musicClip != null) {
-            musicClip.stop();
-            musicClip.close();
+    /**
+     * Dialog-based fullscreen playback that mirrors the old CutsceneUtil behavior.
+     * Creates an undecorated, modal dialog sized to the parent frame so the sidebar and chrome are hidden.
+     */
+    public static boolean showCutsceneIfExists(int chapter, int stage, String suffix, JFrame parent, UI.GamePanel unusedPanel, boolean allowChain) {
+        String[] candidates = {
+            String.format("c%dlevel%d%s.txt", chapter, stage, suffix),
+            String.format("c%dlevel%d.txt", chapter, stage)
+        };
+        for (String path : candidates) {
+            if (path.contains("random")) continue;
+            File file = new File("cutscene/" + path);
+            if (file.exists() && file.length() > 0) {
+                // Build a borderless modal dialog that matches the parent size
+                JDialog dlg = new JDialog(parent, "Cutscene", Dialog.ModalityType.APPLICATION_MODAL);
+                dlg.setUndecorated(true);
+                Rectangle bounds;
+                if (parent != null) {
+                    bounds = parent.getBounds();
+                } else {
+                    Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+                    bounds = new Rectangle(0, 0, screen.width, screen.height);
+                }
+                dlg.setBounds(bounds);
+
+                // Use a dedicated GamePanel for the cutscene so we don't disturb the live game container
+                UI.GamePanel cutscenePanel = new UI.GamePanel();
+                cutscenePanel.setPreferredSize(new Dimension(bounds.width, bounds.height));
+                dlg.setContentPane(cutscenePanel);
+                dlg.pack();
+                dlg.setLocation(bounds.x, bounds.y);
+
+                // Ensure key events are received
+                cutscenePanel.setFocusable(true);
+                SwingUtilities.invokeLater(() -> cutscenePanel.requestFocusInWindow());
+                cutscenePanel.startGameThread(parent);
+
+                // Start the requested scene
+                cutscenePanel.startCutscene(path, allowChain);
+
+                // Wait in background for cutscene to finish, then close the dialog on the EDT
+                Thread waiter = new Thread(() -> {
+                    try {
+                        while (cutscenePanel.cutscene.isActive() || cutscenePanel.cutscene.isFadingOut()) {
+                            Thread.sleep(50);
+                        }
+                    } catch (InterruptedException ignored) {}
+                    SwingUtilities.invokeLater(() -> {
+                        try { cutscenePanel.cutscene.forceStop(); } catch (Exception ignored) {}
+                        try { cutscenePanel.stopGameThread(); } catch (Exception ignored) {}
+                        dlg.dispose();
+                    });
+                }, "Cutscene-Waiter");
+                waiter.setDaemon(true);
+                waiter.start();
+
+                dlg.setVisible(true); // modal; blocks until cutscene finishes
+                return true;
+            }
         }
+        return false;
+    }
+
+    /**
+     * Play a specific cutscene file (relative to cutscene/). Useful for explicit endings.
+     */
+    public static boolean playCutsceneFile(String relativePath, JFrame parent, boolean allowChain) {
+        File file = new File("cutscene/" + relativePath);
+        if (!file.exists() || file.length() <= 0) return false;
+
+        // Build a borderless modal dialog that matches the parent size
+        JDialog dlg = new JDialog(parent, "Cutscene", Dialog.ModalityType.APPLICATION_MODAL);
+        dlg.setUndecorated(true);
+        Rectangle bounds;
+        if (parent != null) {
+            bounds = parent.getBounds();
+        } else {
+            Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+            bounds = new Rectangle(0, 0, screen.width, screen.height);
+        }
+        dlg.setBounds(bounds);
+
+        // Use a dedicated GamePanel for the cutscene so we don't disturb the live game container
+        UI.GamePanel cutscenePanel = new UI.GamePanel();
+        cutscenePanel.setPreferredSize(new Dimension(bounds.width, bounds.height));
+        dlg.setContentPane(cutscenePanel);
+        dlg.pack();
+        dlg.setLocation(bounds.x, bounds.y);
+
+        // Ensure key events are received
+        cutscenePanel.setFocusable(true);
+        SwingUtilities.invokeLater(() -> cutscenePanel.requestFocusInWindow());
+        cutscenePanel.startGameThread(parent);
+
+        // Start the requested scene
+        cutscenePanel.startCutscene(relativePath, allowChain);
+
+        // Wait in background for cutscene to finish, then close the dialog on the EDT
+        Thread waiter = new Thread(() -> {
+            try {
+                while (cutscenePanel.cutscene.isActive() || cutscenePanel.cutscene.isFadingOut()) {
+                    Thread.sleep(50);
+                }
+            } catch (InterruptedException ignored) {}
+            SwingUtilities.invokeLater(() -> {
+                try { cutscenePanel.cutscene.forceStop(); } catch (Exception ignored) {}
+                try { cutscenePanel.stopGameThread(); } catch (Exception ignored) {}
+                dlg.dispose();
+            });
+        }, "Cutscene-Waiter");
+        waiter.setDaemon(true);
+        waiter.start();
+
+        dlg.setVisible(true); // modal; blocks until cutscene finishes
+        return true;
+    }
+
+    public void playMusic(String filename) {
+        String path = "cutscene/sounds/" + filename;
+        File soundFile = new File(path);
+        if (!soundFile.exists()) {
+            System.out.println("Sound not found: " + soundFile.getAbsolutePath());
+            return;
+        }
+        // Delegate playback to AudioManager so it can handle switching tracks globally
+        UI.AudioManager.playMusic(path);
     }
 
     /**
@@ -277,8 +381,8 @@ public class CutsceneManager {
     }
 
     public void draw(Graphics g, int screenWidth, int screenHeight, ImageObserver observer) {
-        // If nothing to draw, exit early
-        if (lines.isEmpty() || currentImage == null) return;
+        // If no lines, nothing to show
+        if (lines.isEmpty()) return;
 
         // remember repaint target so fade thread can trigger repaints
         if (observer instanceof Component) repaintTarget = (Component) observer;

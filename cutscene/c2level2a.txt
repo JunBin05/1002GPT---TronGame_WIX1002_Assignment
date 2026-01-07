@@ -1,0 +1,13 @@
+MUSIC | clu_entrance.wav | dummy
+c2ISOcity.jpg     | SYSTEM | *View of ISO City*
+c2progress.png    | SYSTEM | *CLU's Spaceship...*
+c2spaceship.jpg   | CLU |Chaos. Unregulated algorithms. It ends today.
+SAME       | CLU | Sark. Send the minions. Corrupt it all.
+c2kuora.jpg    | KUORA | HEY SARK! You have no authority here!
+SAME                | K  | Turn back!
+c2sarkattack.gif        | SARK | Authority is taken, not given.
+SAME      | SYSTEM | *Sark attacks*
+c2arriveISO.jpg    | KEVIN  | Look at the city... they’ve turned everyone.
+c2corrupted.jpg | KEVIN  | They are corrupted.
+SAME                | TRON   | What do we do now, Kevin?
+SAME                | KEVIN  | We take them down.
