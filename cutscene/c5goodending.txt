@@ -1,0 +1,15 @@
+MUSIC | final.wav | dummy
+clupunched.png       | KEVIN | How bout you go to sleep for a sec?
+cludown.jpg        | KEVIN | You caused a lot of mess!
+SAME  | KEVIN | Alright gotta be quick.
+c5kevinrun.jpg      | SYSTEM | *Kevin runs to CLU's spaceship*
+c5shard.jpg         | SYSTEM | *Inputting the code into the incubator...*
+c5progress.jpg  | KEVIN | There's still time.
+c5return.jpg     | SYSTEM  | *Kevin rushes back to the control room*
+c5gridsafe.jpg      | SYSTEM | GRID SECURED
+c5portal.jpg     | SYSTEM | *Kevin enters the portal*
+c5home.jpg| KEVIN | *sigh*
+c5sam.jpg       | SAM    | Dad?
+SAME                 | SAM    | You were gone just now...
+SAME | KEVIN  | Yeah... yeah, I was, kiddo. But I'm back. Come, Let's go get some ice cream.
+c5end.png | SYSTEM  | CHAPTER 5: THE CREATOR END

@@ -1,0 +1,4 @@
+MUSIC | soft_main.wav | dummy
+clukneel.png   | CLU  | You...are a failure...Kevin.
+SAME  | CLU  | And...you'll always...will be...
+SAME  | CLU  | It's too late. Kill me and not...nothings gonna change.

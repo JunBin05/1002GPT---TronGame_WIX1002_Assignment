@@ -1,0 +1,7 @@
+MUSIC | soft_main.wav | dummy
+open1.png  | SYSTEM | CHAPTER 3: THE FALLEN
+c3tronteam.jpg  | TRON | Stay in formation! CLU’s signal is dead ahead.
+SAME    | RESISTANCE | I’m picking up massive energy spikes. It’s... everywhere.
+SAME       | TRON | It’s a trap. Break formation!
+c3CLUteam.jpg | RESISTANCE | There’s too many of them!
+SAME  | TRON | Prepare for combat!
