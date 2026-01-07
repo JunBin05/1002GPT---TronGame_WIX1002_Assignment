@@ -119,54 +119,75 @@ public class ArenaLoader {
     // Convenience reference to whichever character the player selected
     private static Character persistentPlayer;
 
-    /**
-     * Set the currently selected player by name ("Tron" or "Kevin"). This
-     * ensures persistent instances are created and used for the session.
-     */
-    public static void setSelectedPlayer(String name) {
+    // Ensure the requested persistent character exists and has base stats loaded once
+    private static Character loadOrInitPersistent(String name) {
+        if ("Tron".equalsIgnoreCase(name)) {
+            if (persistentTron == null) {
+                persistentTron = new Tron();
+                CharacterData data = CharacterLoader.loadCharacterData("Tron");
+                if (data != null) persistentTron.loadInitialAttributes(data);
+            }
+            return persistentTron;
+        }
         if ("Kevin".equalsIgnoreCase(name)) {
             if (persistentKevin == null) {
                 persistentKevin = new Kevin();
                 CharacterData data = CharacterLoader.loadCharacterData("Kevin");
                 if (data != null) persistentKevin.loadInitialAttributes(data);
-                // Try to load saved XP for Kevin if user logged in
-                try {
-                    if (mainFrame instanceof UI.MainFrame) {
-                        String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
-                        if (user != null && !user.trim().isEmpty()) {
-                            UI.DatabaseManager db = new UI.DatabaseManager();
-                            long savedXp = db.getKevinXp(user);
-                            if (savedXp > 0) {
-                                persistentKevin.setXp(savedXp);
-                                System.out.println("Loaded saved Kevin XP for " + user + ": " + savedXp);
-                            }
-                        }
-                    }
-                } catch (Exception ignored) {}
             }
-            persistentPlayer = persistentKevin;
-        } else {
-            if (persistentTron == null) {
-                persistentTron = new Tron();
-                CharacterData data = CharacterLoader.loadCharacterData("Tron");
-                if (data != null) persistentTron.loadInitialAttributes(data);
-                // Try to load saved XP for Tron if user logged in
-                try {
-                    if (mainFrame instanceof UI.MainFrame) {
-                        String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
-                        if (user != null && !user.trim().isEmpty()) {
-                            UI.DatabaseManager db = new UI.DatabaseManager();
-                            long savedXp = db.getTronXp(user);
-                            if (savedXp > 0) {
-                                persistentTron.setXp(savedXp);
-                                System.out.println("Loaded saved Tron XP for " + user + ": " + savedXp);
-                            }
-                        }
-                    }
-                } catch (Exception ignored) {}
-            }
-            persistentPlayer = persistentTron;
+            return persistentKevin;
         }
+        return null;
+    }
+
+    // Reconcile saved level/XP to avoid showing underflowed XP and push fixes back to DB asynchronously
+    private static void reconcileSavedProgress(UI.DatabaseManager db, String user, String name, Character persistent) {
+        if (db == null || user == null || user.isBlank() || persistent == null) return;
+
+        int savedLevel = "Tron".equalsIgnoreCase(name) ? db.getTronLevel(user) : db.getKevinLevel(user);
+        long savedXp = "Tron".equalsIgnoreCase(name) ? db.getTronXp(user) : db.getKevinXp(user);
+
+        if (savedLevel > 0) {
+            long minXp = XPSystem.TronRules.getTotalXpForLevel(savedLevel);
+            long originalXp = savedXp;
+            if (savedXp < minXp) savedXp = minXp; // clamp to level floor
+            persistent.setXp(savedXp);
+            if (originalXp < savedXp) {
+                final long newXp = savedXp;
+                final long oldXp = originalXp;
+                new Thread(() -> {
+                    try {
+                        if ("Tron".equalsIgnoreCase(name)) db.setTronXp(user, newXp); else db.setKevinXp(user, newXp);
+                        System.out.println("[DB FIX] Fixed " + name.toUpperCase() + "_XP for user=" + user + ": " + oldXp + " -> " + newXp);
+                    } catch (Exception e) {
+                        System.out.println("[DB FIX] Failed to fix " + name.toUpperCase() + "_XP for user=" + user + ": " + e.getMessage());
+                    }
+                }, "DBFix-" + name + "Xp").start();
+            }
+        } else if (savedXp > 0) {
+            persistent.setXp(savedXp);
+        }
+    }
+
+    /**
+     * Set the currently selected player by name ("Tron" or "Kevin"). This
+     * ensures persistent instances are created and used for the session.
+     */
+    public static void setSelectedPlayer(String name) {
+        persistentPlayer = "Kevin".equalsIgnoreCase(name)
+            ? loadOrInitPersistent("Kevin")
+            : loadOrInitPersistent("Tron");
+
+        // If a user is already logged in, reconcile immediately so HUD shows correct XP/level
+        try {
+            if (mainFrame instanceof UI.MainFrame) {
+                String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
+                if (user != null && !user.trim().isEmpty()) {
+                    UI.DatabaseManager db = new UI.DatabaseManager();
+                    reconcileSavedProgress(db, user, persistentPlayer.name, persistentPlayer);
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     // --- HELPER METHODS (Images) ---
@@ -912,69 +933,24 @@ public class ArenaLoader {
                     String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
                     if (user != null && !user.trim().isEmpty()) {
                         UI.DatabaseManager db = new UI.DatabaseManager();
-                        // Load and reconcile saved level and XP so we don't show mismatched state
-                        int savedTronLevel = db.getTronLevel(user);
-                        long savedTronXp = db.getTronXp(user);
-                        if (savedTronLevel > 0) {
-                            // Ensure saved XP is at least the min total XP for that saved level
-                            long minXpForLevel = XPSystem.TronRules.getTotalXpForLevel(savedTronLevel);
-                            long originalXp = savedTronXp;
-                            if (savedTronXp < minXpForLevel) savedTronXp = minXpForLevel;
-                            if (persistentTron != null) { persistentTron.setXp(savedTronXp); System.out.println("[ArenaLoader] Reconciled and loaded Tron level/XP for " + user + ": L" + savedTronLevel + ", XP=" + savedTronXp); }
-                            if (originalXp < savedTronXp) {
-                                final long newXp = savedTronXp;
-                                final long oldXp = originalXp;
-                                new Thread(() -> {
-                                    try {
-                                        db.setTronXp(user, newXp);
-                                        System.out.println("[DB FIX] Fixed TRON_XP for user=" + user + ": " + oldXp + " -> " + newXp);
-                                    } catch (Exception e) {
-                                        System.out.println("[DB FIX] Failed to fix TRON_XP for user=" + user + ": " + e.getMessage());
-                                    }
-                                }, "DBFix-TronXp").start();
-                            }
-                        } else {
-                            long saved = db.getTronXp(user);
-                            if (saved > 0 && persistentTron != null) { persistentTron.setXp(saved); System.out.println("[ArenaLoader] Loaded Tron XP for " + user + ": " + saved); }
-                        }
 
-                        int savedKevinLevel = db.getKevinLevel(user);
-                        long savedKevinXp = db.getKevinXp(user);
-                        if (savedKevinLevel > 0) {
-                            long minXpForLevel = XPSystem.TronRules.getTotalXpForLevel(savedKevinLevel);
-                            long originalKevinXp = savedKevinXp;
-                            if (savedKevinXp < minXpForLevel) savedKevinXp = minXpForLevel;
-                            if (persistentKevin != null) { persistentKevin.setXp(savedKevinXp); System.out.println("[ArenaLoader] Reconciled and loaded Kevin level/XP for " + user + ": L" + savedKevinLevel + ", XP=" + savedKevinXp); }
-                            if (originalKevinXp < savedKevinXp) {
-                                final long newXp = savedKevinXp;
-                                final long oldXp = originalKevinXp;
-                                new Thread(() -> {
-                                    try {
-                                        db.setKevinXp(user, newXp);
-                                        System.out.println("[DB FIX] Fixed KEVIN_XP for user=" + user + ": " + oldXp + " -> " + newXp);
-                                    } catch (Exception e) {
-                                        System.out.println("[DB FIX] Failed to fix KEVIN_XP for user=" + user + ": " + e.getMessage());
-                                    }
-                                }, "DBFix-KevinXp").start();
-                            }
-                        } else {
-                            long saved = db.getKevinXp(user);
-                            if (saved > 0 && persistentKevin != null) { persistentKevin.setXp(saved); System.out.println("[ArenaLoader] Loaded Kevin XP for " + user + ": " + saved); }
-                        }
+                        // Ensure both persistents exist before reconciling
+                        persistentTron = (Tron) loadOrInitPersistent("Tron");
+                        persistentKevin = (Kevin) loadOrInitPersistent("Kevin");
+
+                        reconcileSavedProgress(db, user, "Tron", persistentTron);
+                        reconcileSavedProgress(db, user, "Kevin", persistentKevin);
 
                         // --- PERSIST LAST PLAYED STAGE FOR RESUME FEATURE ---
                         try {
-                            String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
-                            if (username != null && !username.trim().isEmpty()) {
-                                final int ch = currentChapter;
-                                final int st = currentStage;
-                                new Thread(() -> {
-                                    try {
-                                        UI.DatabaseManager db2 = new UI.DatabaseManager();
-                                        db2.setChapterStage(username, ch, st);
-                                    } catch (Exception e) { e.printStackTrace(); }
-                                }).start();
-                            }
+                            final int ch = currentChapter;
+                            final int st = currentStage;
+                            new Thread(() -> {
+                                try {
+                                    UI.DatabaseManager db2 = new UI.DatabaseManager();
+                                    db2.setChapterStage(user, ch, st);
+                                } catch (Exception e) { e.printStackTrace(); }
+                            }).start();
                         } catch (Exception ignored) {}
                     }
                 }
