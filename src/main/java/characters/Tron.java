@@ -3,9 +3,8 @@ package characters;
 public class Tron extends Character {
 
     public Tron() {
-        super("Tron", "Blue"); 
-        this.symbol = 'T';
-        this.imageBaseName = "tron"; 
+        super();
+        CharacterLoader.loadInto(this, "Tron");
     }
 
     @Override

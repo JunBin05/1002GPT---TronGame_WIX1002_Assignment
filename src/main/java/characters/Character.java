@@ -68,10 +68,11 @@ public abstract class Character {
         return false;
     }
 
-    public Character(String name, String color) {
-        this.name = name;
-        this.color = color;
-        this.currentDirection = Direction.NORTH; 
+    public Character() {
+        this.name = "";
+        this.color = "";
+        this.imageBaseName = "";
+        this.currentDirection = Direction.NORTH;
     }
 
     // --- MISSING METHOD ADDED HERE ---
@@ -81,20 +82,6 @@ public abstract class Character {
     }
     // ---------------------------------
 
-    public void loadInitialAttributes(CharacterData data) {
-        this.speed = data.speed;
-        this.handling = data.handling;
-        this.lives = data.lives;
-        this.maxLives = data.lives;
-        
-        // Initial Capacity Check
-        this.discCapacity = data.discsOwned + (this.level / 15);
-        this.discsOwned=data.discsOwned;
-        this.currentDiscCount = this.discCapacity; 
-        
-        this.experiencePoints = data.experiencePoints; 
-    }
-    
     // --- FORCE REFILL ---
     // Called by GameController Constructor to ensure Stage 2 starts fresh
     public void prepareForNextStage() {
@@ -268,6 +255,8 @@ public abstract class Character {
     public double getSpeed() { return this.speed; }
     public double getHandling() { return this.handling; }
     public int getDiscCapacity() { return this.discCapacity; }
+    public void setSpeed(double speed) { this.speed = speed; }
+    public void setHandling(double handling) { this.handling = handling; }
     public void setDiscCapacity(int cap) {
         this.discCapacity = Math.max(0, cap);
         if (this.currentDiscCount > this.discCapacity) this.currentDiscCount = this.discCapacity;

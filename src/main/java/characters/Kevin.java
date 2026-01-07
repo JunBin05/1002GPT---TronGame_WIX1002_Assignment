@@ -3,9 +3,8 @@ package characters;
 public class Kevin extends Character {
 
     public Kevin() {
-        super("Kevin", "Orange"); 
-        this.symbol = 'K';
-        this.imageBaseName = "kevin"; 
+        super();
+        CharacterLoader.loadInto(this, "Kevin");
     }
 
     @Override

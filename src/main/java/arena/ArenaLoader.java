@@ -16,8 +16,6 @@ import java.awt.geom.AffineTransform;
 import characters.Character;
 import characters.Tron;
 import characters.Kevin;
-import characters.CharacterLoader;
-import characters.CharacterData;
 import characters.Direction;
 import controller.GameController;
 import UI.StartGameMenu;
@@ -124,16 +122,12 @@ public class ArenaLoader {
         if ("Tron".equalsIgnoreCase(name)) {
             if (persistentTron == null) {
                 persistentTron = new Tron();
-                CharacterData data = CharacterLoader.loadCharacterData("Tron");
-                if (data != null) persistentTron.loadInitialAttributes(data);
             }
             return persistentTron;
         }
         if ("Kevin".equalsIgnoreCase(name)) {
             if (persistentKevin == null) {
                 persistentKevin = new Kevin();
-                CharacterData data = CharacterLoader.loadCharacterData("Kevin");
-                if (data != null) persistentKevin.loadInitialAttributes(data);
             }
             return persistentKevin;
         }
