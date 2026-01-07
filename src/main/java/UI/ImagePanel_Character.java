@@ -122,8 +122,8 @@ public class ImagePanel_Character extends BaseImagePanel {
                 // Start the game loop so GIFs / animations will animate during the cutscene
                 gamePanel.startGameThread(mainFrame);
 
-                // Show the pre-stage cutscene for the selected chapter/stage (no NEXT_FILE chaining)
-                UI.CutsceneManager.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", gamePanel, false);
+                // Show the pre-stage cutscene for the selected chapter/stage (no NEXT_FILE chaining) in fullscreen dialog
+                UI.CutsceneManager.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", mainFrame, null, false);
                 // Record that we've shown the pre-stage cutscene so ArenaLoader won't show it again.
                 arena.ArenaLoader.markPreCutsceneShown(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage);
 

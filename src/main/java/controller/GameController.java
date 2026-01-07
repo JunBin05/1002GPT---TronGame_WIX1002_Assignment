@@ -215,7 +215,6 @@ public class GameController implements KeyListener, Runnable {
                             if (blockedByOtherEnemy) {
                                 // Other enemy occupies the cell: avoid damaging either side, just turn around
                                 enemy.setOppositeDirection();
-                                // Do not call revertPosition here because the enemy has not moved yet
                             } else {
                                 double dmg = hitDisc ? -1.0 : -0.5;
                                 enemy.changeLives(dmg);
@@ -494,19 +493,8 @@ public class GameController implements KeyListener, Runnable {
             } else {
                 this.playerCycle.changeLives(-0.5);
                 if (this.playerCycle.getLives() > 0.0) {
-                    // Provide the base tile of the current cell when reverting so it can be restored if needed
-                    char currentBase = arena.getBaseTile(this.playerCycle.r, this.playerCycle.c);
-                    this.playerCycle.revertPosition(grid, trailTimer, currentBase);
-                    // After revert, ensure the reverted cell also respects base tiles (e.g., speed ramps)
-                    char postBase = arena.getBaseTile(this.playerCycle.r, this.playerCycle.c);
-                    if (postBase != '\0' && postBase != '.') {
-                        grid[this.playerCycle.r][this.playerCycle.c] = postBase;
-                        onSpeedRamp = (postBase == 'S');
-                        if (onSpeedRamp) {
-                            if (playerCycle.isPlayer) ArenaLoader.appendGameplayLog("Entered speed ramp (SPD: " + String.format("%.2f", playerCycle.getSpeed()) + ")");
-                        }
-                    }
                     this.playerCycle.setOppositeDirection();
+                    this.playerCycle.isStunned=true;
                 }
             }
         } else {

@@ -361,46 +361,6 @@ public abstract class Character {
         };
     }
 
-    public void revertPosition(char grid[][], int [][] trailTimer, char currentBaseTile) {
-        // Compute the cell behind the player depending on attempted direction
-        int backR = this.r; int backC = this.c;
-        switch (this.currentDirection) {
-            case NORTH -> backR = this.r + 1;
-            case SOUTH -> backR = this.r - 1;
-            case EAST  -> backC = this.c - 1;
-            case WEST  -> backC = this.c + 1;
-        }
-
-        // Bounds check
-        if (backR < 0 || backR >= 40 || backC < 0 || backC >= 40) {
-            // Cannot move back; just stun in place and do not alter the map
-            this.isStunned = true;
-            return;
-        }
-
-        char behind = grid[backR][backC];
-        // Only move back if the tile behind is empty or a speed-ramp (do NOT overwrite walls/obstacles)
-        if (behind == '.' || behind == 'S') {
-            // Clear current cell only if it still contains this player's symbol (don't clear walls)
-            if (grid[this.r][this.c] == this.getSymbol()) {
-                // Restore design-time tile under the current cell if present, otherwise clear
-                grid[this.r][this.c] = (currentBaseTile != '\0' && currentBaseTile != '.') ? currentBaseTile : '.';
-                trailTimer[this.r][this.c] = 0;
-            }
-            // Move player back and mark the tile as the player's symbol
-            this.r = backR; this.c = backC;
-            grid[this.r][this.c] = this.getSymbol();
-            // Do not set trailTimer here because GameController manages placement times
-        } else {
-            // Tile behind is blocked (wall, obstacle, disc, enemy, etc.) — do not change the map
-            // Just stun the player in place
-            this.isStunned = true;
-            return;
-        }
-
-        this.isStunned = true;
-    }
-    
     public void advancePosition(char[][] grid) {
         if (this.isStunned) { this.isStunned = false; return; }
         switch (this.currentDirection) { case NORTH -> r--; case SOUTH -> r++; case WEST -> c--; case EAST -> c++; }

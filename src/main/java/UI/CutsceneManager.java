@@ -6,6 +6,8 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import javax.swing.ImageIcon;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
 public class CutsceneManager {
@@ -244,10 +246,10 @@ public class CutsceneManager {
     }
 
     /**
-     * Utility: if a cutscene file exists, start it on the provided GamePanel overlay.
+     * Dialog-based fullscreen playback that mirrors the old CutsceneUtil behavior.
+     * Creates an undecorated, modal dialog sized to the parent frame so the sidebar and chrome are hidden.
      */
-    public static boolean showCutsceneIfExists(int chapter, int stage, String suffix, UI.GamePanel panel, boolean allowChain) {
-        if (panel == null) return false;
+    public static boolean showCutsceneIfExists(int chapter, int stage, String suffix, JFrame parent, UI.GamePanel unusedPanel, boolean allowChain) {
         String[] candidates = {
             String.format("c%dlevel%d%s.txt", chapter, stage, suffix),
             String.format("c%dlevel%d.txt", chapter, stage)
@@ -256,7 +258,50 @@ public class CutsceneManager {
             if (path.contains("random")) continue;
             File file = new File("cutscene/" + path);
             if (file.exists() && file.length() > 0) {
-                panel.startCutscene(path, allowChain);
+                // Build a borderless modal dialog that matches the parent size
+                JDialog dlg = new JDialog(parent, "Cutscene", Dialog.ModalityType.APPLICATION_MODAL);
+                dlg.setUndecorated(true);
+                Rectangle bounds;
+                if (parent != null) {
+                    bounds = parent.getBounds();
+                } else {
+                    Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+                    bounds = new Rectangle(0, 0, screen.width, screen.height);
+                }
+                dlg.setBounds(bounds);
+
+                // Use a dedicated GamePanel for the cutscene so we don't disturb the live game container
+                UI.GamePanel cutscenePanel = new UI.GamePanel();
+                cutscenePanel.setPreferredSize(new Dimension(bounds.width, bounds.height));
+                dlg.setContentPane(cutscenePanel);
+                dlg.pack();
+                dlg.setLocation(bounds.x, bounds.y);
+
+                // Ensure key events are received
+                cutscenePanel.setFocusable(true);
+                SwingUtilities.invokeLater(() -> cutscenePanel.requestFocusInWindow());
+                cutscenePanel.startGameThread(parent);
+
+                // Start the requested scene
+                cutscenePanel.startCutscene(path, allowChain);
+
+                // Wait in background for cutscene to finish, then close the dialog on the EDT
+                Thread waiter = new Thread(() -> {
+                    try {
+                        while (cutscenePanel.cutscene.isActive() || cutscenePanel.cutscene.isFadingOut()) {
+                            Thread.sleep(50);
+                        }
+                    } catch (InterruptedException ignored) {}
+                    SwingUtilities.invokeLater(() -> {
+                        try { cutscenePanel.cutscene.forceStop(); } catch (Exception ignored) {}
+                        try { cutscenePanel.stopGameThread(); } catch (Exception ignored) {}
+                        dlg.dispose();
+                    });
+                }, "Cutscene-Waiter");
+                waiter.setDaemon(true);
+                waiter.start();
+
+                dlg.setVisible(true); // modal; blocks until cutscene finishes
                 return true;
             }
         }

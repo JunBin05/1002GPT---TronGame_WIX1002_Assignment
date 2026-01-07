@@ -1045,7 +1045,7 @@ public class ArenaLoader {
             // Avoid showing it again if it was already shown earlier (e.g., after character selection)
             if (!(lastPreCutsceneChapter == currentChapter && lastPreCutsceneStage == currentStage)) {
                 // Play the per-stage pre-cutscene WITHOUT following NEXT_FILE links so it doesn't chain to other stages
-                UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "a", gamePanel, false);
+                UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "a", mainFrame, null, false);
                 // Record that we showed it
                 lastPreCutsceneChapter = currentChapter;
                 lastPreCutsceneStage = currentStage;
@@ -1060,12 +1060,8 @@ public class ArenaLoader {
                         Thread.sleep(50);
                     }
 
-                    // Now show the start dialog and initialize the active controller on the EDT
+                    // Now initialize the arena view on the EDT, then show the start dialog centered over it
                     SwingUtilities.invokeLater(() -> {
-                        JOptionPane.showMessageDialog(mainFrame, "Press OK to start simulation!\nUse arrow keys to move.", "Start Simulation", JOptionPane.INFORMATION_MESSAGE);
-                        // Ensure frame is focused for keyboard input
-                        mainFrame.requestFocusInWindow();
-
                         // --- SANITIZE GRID: remove stray 'D' markers so discs are visible on new stage ---
                         // Ensure any lingering cutscene overlay is force-stopped so arena renders cleanly
                         try { gamePanel.cutscene.forceStop(); } catch (Exception ignored) {}
@@ -1085,6 +1081,10 @@ public class ArenaLoader {
                         // Populate arena and refresh UI
                         redrawArena(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
                         mainFrame.revalidate(); mainFrame.repaint();
+
+                        // Show the start dialog centered on the current frame, with the arena visible behind it
+                        JOptionPane.showMessageDialog(mainFrame, "Press OK to start simulation!\nUse arrow keys to move.", "Start Simulation", JOptionPane.INFORMATION_MESSAGE);
+                        mainFrame.requestFocusInWindow();
 
                         // Start the active controller (game loop)
                         activeController = new GameController(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
@@ -1140,16 +1140,8 @@ public class ArenaLoader {
 
     public static void showLevelCompleteDialog() {
         // Show post-stage cutscene (suffix "b") if available, reuse the active GamePanel overlay.
-        if (UI.CutsceneManager.cutsceneExists(currentChapter, currentStage, "b") && activeGamePanel != null) {
-            UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "b", activeGamePanel, false);
-            // wait in background for overlay to finish before continuing
-            Thread waiter = new Thread(() -> {
-                try {
-                    while (activeGamePanel.cutscene.isActive() || activeGamePanel.cutscene.isFadingOut()) Thread.sleep(50);
-                } catch (InterruptedException ignored) {}
-            });
-            waiter.setDaemon(true);
-            waiter.start();
+        if (UI.CutsceneManager.cutsceneExists(currentChapter, currentStage, "b")) {
+            UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "b", mainFrame, null, false);
         }
 
         long xpReward = 0;
