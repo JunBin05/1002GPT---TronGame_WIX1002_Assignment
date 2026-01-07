@@ -20,7 +20,7 @@ public class Enemy extends Character {
 
     // --- CONSTRUCTOR ---
     public Enemy(String name, boolean isBoss) {
-        super(name, "Gray");
+        super();
 
         // 1. Look up stats from the Database/Text File
         EnemyLoader.EnemyStats stats = EnemyLoader.getStats(name, isBoss);

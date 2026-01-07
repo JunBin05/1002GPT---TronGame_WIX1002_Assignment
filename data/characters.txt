@@ -1,4 +1,4 @@
-# Character, Speed, Handling, Lives, DiscsOwned, ExperiencePoints
+# Character, Speed, Handling, Lives, DiscsOwned, ExperiencePoints, Symbol, Color, ImageBase
 # Tweaked defaults for better early-game balance; stronger scaling happens at high levels (80+)
-Tron, 0.50, 0.45, 3, 1, 0
-Kevin, 0.20, 0.70, 3, 2, 0
+Tron, 0.50, 0.45, 3, 1, 0, T, Cyan, tron
+Kevin, 0.20, 0.70, 3, 2, 0, K, Orange, kevin
