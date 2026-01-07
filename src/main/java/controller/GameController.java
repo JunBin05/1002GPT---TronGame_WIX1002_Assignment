@@ -27,6 +27,10 @@ public class GameController implements KeyListener, Runnable {
     private final JPanel hudPanel;
     private final Character playerCycle;
 
+    // Player invulnerability window after collision to prevent rapid repeat hits
+    private static final long PLAYER_IFRAME_NS = 900_000_000L; // 900 ms
+    private long playerInvulnerableUntilNs = 0L;
+
     // changed to CopyOnWriteArrayList to avoid concurrent modification when adding discs from key events
     private List<Disc> activeDiscs = new CopyOnWriteArrayList<>();
     private volatile boolean isRunning = true;
@@ -116,7 +120,7 @@ public class GameController implements KeyListener, Runnable {
                         enemy.setLastMoveNs(nowNs);
                     } else if ((nowNs - enemy.getLastMoveNs()) >= configuredDelay) {
                         shouldMove = true;
-                        enemy.setLastMoveNs(nowNs);
+                        // Note: we now update lastMoveNs only on successful movement to avoid long stalls after blocked moves
                     }
 
                     if (!shouldMove) continue;
@@ -165,37 +169,37 @@ public class GameController implements KeyListener, Runnable {
                                 if (tile == playerCycle.getSymbol() && playerCycle.getRow() == nextR && playerCycle.getCol() == nextC) {
                                     System.out.println(String.format("[GameController] Enemy %s attempted to move onto player at (%d,%d)", enemy.getName(), nextR, nextC));
 
+                                    // Apply player i-frames to avoid rapid repeated damage
+                                    long now = System.nanoTime();
+                                    if (now >= playerInvulnerableUntilNs) {
+                                        this.playerCycle.changeLives(-0.5);
+                                        playerInvulnerableUntilNs = now + PLAYER_IFRAME_NS;
+                                        this.playerCycle.isStunned = true;
+                                    }
+
                                     // Minimal behavior change: enemy takes damage when attempting to move into the player
                                     enemy.changeLives(-0.5);
                                     if (enemy.getLives() <= 0) {
-                                        // Enemy died: award XP and mark for removal
                                         deadEnemies.add(enemy);
-
-                                        // Restore the design-time/base tile at enemy's position (if any)
                                         if (enemy.getRow()>=0 && enemy.getRow()<40 && enemy.getCol()>=0 && enemy.getCol()<40) {
                                             int er = enemy.getRow(); int ec = enemy.getCol();
                                             char base = arena.getBaseTile(er, ec);
-                                            if (base != '.' && base != '\0') {
-                                                grid[er][ec] = base;
-                                                System.out.println(String.format("[GameController] Restored base tile '%c' at (%d,%d) after enemy death: %s", base, er, ec, enemy.getName()));
-                                            } else {
-                                                grid[er][ec] = '.';
-                                            }
+                                            grid[er][ec] = (base != '.' && base != '\0') ? base : '.';
                                         }
                                     } else {
-                                        // Enemy survived: turn it around
                                         enemy.setOppositeDirection();
                                     }
 
-                                    // Skip the rest of the movement processing for this attempt
                                     continue;
                                 }
 
                                 // Treat Tron and Kevin tails as normal wall hits (no instant kill)
-                                // If this is an enemy trail char (M/C/Y/G/R) consider it occupied so
-                                // enemies will bounce instead of causing damage to each other.
+                                // Allow an enemy to move through its own trail, but block other enemy trails
                                 if (tile != '.' && tile != 'S' && tile != 'D' && tile != 'E') {
-                                    if (tile == 'M' || tile == 'C' || tile == 'Y' || tile == 'G' || tile == 'R') {
+                                    char ownTrail = enemy.getTrailSymbol();
+                                    if (tile == ownTrail) {
+                                        // Permit moving over own trail; treat as empty
+                                    } else if (tile == 'M' || tile == 'C' || tile == 'Y' || tile == 'G' || tile == 'R') {
                                         blockedByOtherEnemy = true;
                                         wallHit = true;
                                     } else {
@@ -236,10 +240,15 @@ public class GameController implements KeyListener, Runnable {
                                     enemy.setOppositeDirection();
                                 }
                             }
+                            // Bounce quickly after a blocked move: schedule next move soon instead of full delay
+                            final long bounceNs = 80_000_000L; // 80 ms
+                            enemy.setLastMoveNs(nowNs - configuredDelay + bounceNs);
                         } else {
                             // Movement allowed: commit the new direction and advance
                             enemy.currentDirection = nextMove;
                             enemy.advancePosition(grid);
+                            // Only here do we commit the movement timestamp to avoid long pauses after blocked attempts
+                            enemy.setLastMoveNs(nowNs);
                             int eRow = enemy.getRow();
                             int eCol = enemy.getCol();
                             if (eRow >= 0 && eRow < 40 && eCol >= 0 && eCol < 40) {
@@ -247,18 +256,10 @@ public class GameController implements KeyListener, Runnable {
                                 if (nowOnRamp) {
                                     ArenaLoader.appendGameplayLog("Enemy " + enemy.getName() + " hit speed ramp");
                                 }
-                                if (grid[eRow][eCol] == '.') {
-                                    char trailChar = 'M'; // Default minion trail
-                                    String name = enemy.getName();
-
-                                    if (name.contains("Clu"))        trailChar = 'C'; // Gold
-                                    else if (name.contains("Sark"))  trailChar = 'Y'; // Yellow
-                                    else if (name.contains("Koura")) trailChar = 'G'; // Green
-                                    else if (name.contains("Rinzler")) trailChar = 'R'; // Red
-                                    
-                                    grid[eRow][eCol] = trailChar;
-                                    trailTimer[eRow][eCol] = globalStepCounter;
-                                }
+                                // Always lay enemy trail (hide ramps while occupied); decay restores base tile later
+                                char trailChar = enemy.getTrailSymbol();
+                                grid[eRow][eCol] = trailChar;
+                                trailTimer[eRow][eCol] = globalStepCounter;
                             }
                         }
                     }
@@ -347,56 +348,53 @@ public class GameController implements KeyListener, Runnable {
     }
 
     private void moveDiscs(char[][] grid) {
-    for (int i = activeDiscs.size() - 1; i >= 0; i--) {
-        Disc disc = activeDiscs.get(i);
+        for (int i = activeDiscs.size() - 1; i >= 0; i--) {
+            Disc disc = activeDiscs.get(i);
 
-        // Restore the tile the disc was previously occupying
-        if (disc.r >= 0 && disc.r < 40 && disc.c >= 0 && disc.c < 40) {
-            if (grid[disc.r][disc.c] == 'D' || grid[disc.r][disc.c] == 'E') {
-                grid[disc.r][disc.c] = disc.getOriginalTile();
-            }
-        }
-
-        // Check if disc has already traveled max distance BEFORE moving again
-        boolean stopFlying = false;
-        if (disc.distanceTraveled >= DISC_THROW_DISTANCE) {
-            stopFlying = true;
-        }
-
-        if (!stopFlying) {
-            int nextR = disc.r;
-            int nextC = disc.c;
-
-            // Movement
-            switch (disc.dir) {
-                case NORTH -> nextR--;
-                case SOUTH -> nextR++;
-                case EAST  -> nextC++;
-                case WEST  -> nextC--;
+            // Restore the tile the disc was previously occupying
+            if (disc.r >= 0 && disc.r < 40 && disc.c >= 0 && disc.c < 40) {
+                if (grid[disc.r][disc.c] == 'D' || grid[disc.r][disc.c] == 'E') {
+                    grid[disc.r][disc.c] = disc.getOriginalTile();
+                }
             }
 
-            // Check for boundaries and obstacles
-            if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
-                stopFlying = true;
-            } else if (grid[nextR][nextC] == '#' || grid[nextR][nextC] == 'O') {
-                stopFlying = true;
-            } else {
-                // Safe to move: update position and distance
-                disc.r = nextR;
-                disc.c = nextC;
-                disc.distanceTraveled++;
+            // Check if disc has already traveled max distance BEFORE moving again
+            boolean stopFlying = disc.distanceTraveled >= DISC_THROW_DISTANCE;
 
-                // Remember what tile is at this cell
-                char tileHere = grid[nextR][nextC];
-                disc.setOriginalTile(tileHere);
+            if (!stopFlying) {
+                int nextR = disc.r;
+                int nextC = disc.c;
+
+                // Movement
+                switch (disc.dir) {
+                    case NORTH -> nextR--;
+                    case SOUTH -> nextR++;
+                    case EAST  -> nextC++;
+                    case WEST  -> nextC--;
+                }
+
+                // Check for boundaries and obstacles
+                if (nextR < 0 || nextR >= 40 || nextC < 0 || nextC >= 40) {
+                    stopFlying = true;
+                } else if (grid[nextR][nextC] == '#' || grid[nextR][nextC] == 'O') {
+                    stopFlying = true;
+                } else {
+                    // Safe to move: update position and distance
+                    disc.r = nextR;
+                    disc.c = nextC;
+                    disc.distanceTraveled++;
+
+                    // Remember what tile is at this cell
+                    char tileHere = grid[nextR][nextC];
+                    disc.setOriginalTile(tileHere);
+                }
             }
-        }
 
-        // Always show disc as 'D' (player) or 'E' (enemy) while it's active (whether flying or stopped)
-        char discChar = (disc.owner != null && !disc.owner.isPlayer) ? 'E' : 'D';
-        grid[disc.r][disc.c] = discChar;
+            // Always show disc as 'D' (player) or 'E' (enemy) while it's active (whether flying or stopped)
+            char discChar = (disc.owner != null && !disc.owner.isPlayer) ? 'E' : 'D';
+            grid[disc.r][disc.c] = discChar;
+        }
     }
-}
 
 
     private Disc findDiscAt(int r, int c) {
@@ -491,15 +489,23 @@ public class GameController implements KeyListener, Runnable {
                 // Already applied enemy disc damage; stop movement without extra penalty
                 this.playerCycle.setOppositeDirection();
             } else {
-                this.playerCycle.changeLives(-0.5);
-                if (this.playerCycle.getLives() > 0.0) {
+                long now = System.nanoTime();
+                    if (now >= playerInvulnerableUntilNs) {
+                        this.playerCycle.changeLives(-0.5);
+                        playerInvulnerableUntilNs = now + PLAYER_IFRAME_NS;
+                        if (this.playerCycle.getLives() > 0.0) {
+                            this.playerCycle.setOppositeDirection();
+                            this.playerCycle.isStunned = true;
+                        }
+                    } else {
+                        // Ignore damage during i-frames; still bounce direction to avoid sticking
                     this.playerCycle.setOppositeDirection();
-                    this.playerCycle.isStunned=true;
                 }
             }
         } else {
-            if (onSpeedRamp) grid[this.playerCycle.r][this.playerCycle.c] = 'S';
-            else { grid[this.playerCycle.r][this.playerCycle.c] = this.playerCycle.getSymbol(); trailTimer[this.playerCycle.r][this.playerCycle.c] = globalStepCounter; }
+            // Always lay trail (hide ramps while occupied); decay logic will restore base tile (including 'S') later
+            grid[this.playerCycle.r][this.playerCycle.c] = this.playerCycle.getSymbol();
+            trailTimer[this.playerCycle.r][this.playerCycle.c] = globalStepCounter;
             onSpeedRamp = (element == 'S');
             if (onSpeedRamp && playerCycle.isPlayer) {
                 ArenaLoader.appendGameplayLog("Entered speed ramp (SPD: " + String.format("%.2f", playerCycle.getSpeed()) + ")");
@@ -608,12 +614,7 @@ public class GameController implements KeyListener, Runnable {
                     for (Character cycle : cycles) {
                         if (!(cycle instanceof Enemy)) continue;
                         Enemy enemy = (Enemy) cycle;
-                        String name = enemy.getName();
-                        if ((currentElement == 'C' && name.contains("Clu")) ||
-                            (currentElement == 'Y' && name.contains("Sark")) ||
-                            (currentElement == 'G' && name.contains("Koura")) ||
-                            (currentElement == 'R' && name.contains("Rinzler")) ||
-                            (currentElement == 'M' && !enemy.isBoss())) {
+                        if (currentElement == enemy.getTrailSymbol()) {
                             trailDuration = enemy.getTrailDuration();
                             break;
                         }

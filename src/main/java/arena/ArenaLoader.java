@@ -2,7 +2,7 @@ package arena;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.SwingUtilities;
+
 import java.awt.*;
 import java.io.File;
 import java.util.Map;
@@ -1139,6 +1139,49 @@ public class ArenaLoader {
     }
 
     public static void showLevelCompleteDialog() {
+        // Special final-choice flow for Chapter 5 Stage 4: play option + branching endings
+        if (currentChapter == 5 && currentStage == 4) {
+            // Stop gameplay loop cleanly before showing narrative
+            try { if (activeController != null) activeController.stopGame(); } catch (Exception ignored) {}
+            try { if (gameThread != null && gameThread.isAlive()) gameThread.interrupt(); } catch (Exception ignored) {}
+
+            // Present the choice cutscene, then the branching endings
+            UI.CutsceneManager.playCutsceneFile("c5option.txt", mainFrame, false);
+
+            Object[] options = {"KILL CLU", "SPARE CLU"};
+            JLabel title = new JLabel("<html>" +
+                    "<div style='text-align:center; font-size:22px; font-weight:bold; color:#ff3b30; letter-spacing:1px;'>THE GRID HOLDS ITS BREATH</div>" +
+                    "<div style='text-align:center; font-size:15px; color:#d0d0d0; margin-top:10px;'>This choice echoes through the entire system.</div>" +
+                    "</html>", SwingConstants.CENTER);
+            title.setBorder(new EmptyBorder(16, 16, 10, 16));
+            title.setOpaque(true);
+            title.setBackground(new Color(20, 20, 25));
+            title.setForeground(new Color(255, 59, 48));
+            title.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(255, 59, 48), 2),
+                    new EmptyBorder(14, 14, 14, 14)));
+            int choice = JOptionPane.showOptionDialog(mainFrame, title, "FINAL DECISION",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+
+            if (choice == 0) {
+                UI.CutsceneManager.playCutsceneFile("c5badending.txt", mainFrame, false);
+            } else if (choice == 1) {
+                UI.CutsceneManager.playCutsceneFile("c5goodending.txt", mainFrame, false);
+            }
+
+            // Return to story mode after ending
+            if (mainFrame instanceof UI.MainFrame) {
+                JOptionPane.showMessageDialog(mainFrame,
+                        "CONGRATULATIONS! You cleared every stage of the Grid.",
+                        "MISSION COMPLETE",
+                        JOptionPane.INFORMATION_MESSAGE);
+                ((UI.MainFrame) mainFrame).changeToStoryMode();
+            } else {
+                JOptionPane.showMessageDialog(mainFrame, "Thanks for playing! Returning to title.");
+            }
+            return;
+        }
+
         // Show post-stage cutscene (suffix "b") if available, reuse the active GamePanel overlay.
         if (UI.CutsceneManager.cutsceneExists(currentChapter, currentStage, "b")) {
             UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "b", mainFrame, null, false);
@@ -1155,7 +1198,7 @@ public class ArenaLoader {
             currentLives = player.getLives();
             maxLives = player.getMaxLives();
 
-            if (currentLives >= maxLives) {
+            if (!player.tookDamage) {
                 unlockAchievement(2, "FLAWLESS VICTORY", "Complete a level without losing any life.");
             }
             unlockAchievement(6, "GAME CONQUEROR", "Complete the first game.");
@@ -1209,58 +1252,62 @@ public class ArenaLoader {
         );
 
         Object[] options = {"NEXT STAGE", "RETURN TO CHAPTER SELECT", "QUIT"};
-        int choice = JOptionPane.showOptionDialog(mainFrame, message, "SECTOR SECURE",
-            JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
-            options, options[0]);
+        Timer delayTimer = new Timer(2000, e -> {
+            int choice = JOptionPane.showOptionDialog(mainFrame, message, "SECTOR SECURE",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
+                options, options[0]);
 
-        if (choice == 0) { // NEXT STAGE
-            currentStage++;
+            if (choice == 0) { // NEXT STAGE
+                currentStage++;
 
-            // General progression: if we've advanced past the last stage of the chapter,
-            // move to the next chapter (if any) and show chapter complete dialog.
-            int maxStages = XPSystem.TronRules.getStagesForChapter(currentChapter);
-            if (currentStage > maxStages) {
-                int nextChapter = currentChapter + 1;
-                if (nextChapter <= 5) {
-                    System.out.println(String.format("[ArenaLoader] Chapter %d completed. Advancing to Chapter %d", currentChapter, nextChapter));
-                    currentChapter = nextChapter;
-                    currentStage = 1;
-                    showChapterClearDialog();
-                    return;
+                // General progression: if we've advanced past the last stage of the chapter,
+                // move to the next chapter (if any) and show chapter complete dialog.
+                int maxStages = XPSystem.TronRules.getStagesForChapter(currentChapter);
+                if (currentStage > maxStages) {
+                    int nextChapter = currentChapter + 1;
+                    if (nextChapter <= 5) {
+                        System.out.println(String.format("[ArenaLoader] Chapter %d completed. Advancing to Chapter %d", currentChapter, nextChapter));
+                        currentChapter = nextChapter;
+                        currentStage = 1;
+                        showChapterClearDialog();
+                        return;
+                    } else {
+                        // Player finished all chapters
+                        System.out.println("[ArenaLoader] All chapters completed. Returning to Chapter Select.");
+                        // Stop any running game thread safely, then return to story mode
+                        try { if (activeController != null) activeController.stopGame(); } catch (Exception ignored) {}
+                        try { if (gameThread != null && gameThread.isAlive()) gameThread.interrupt(); } catch (Exception ignored) {}
+                        if (mainFrame instanceof UI.MainFrame) ((UI.MainFrame) mainFrame).changeToStoryMode();
+                        else JOptionPane.showMessageDialog(mainFrame, "Congratulations — you completed all chapters!");
+                        return;
+                    }
+                }
+
+                startLevel();
+
+            } else if (choice == 1) { // RETURN TO CHAPTER SELECT
+                // Safely stop the active game and return to Story Mode
+                try {
+                    if (activeController != null) activeController.stopGame();
+                } catch (Exception ignored) {}
+                try {
+                    if (gameThread != null && gameThread.isAlive()) {
+                        gameThread.interrupt();
+                    }
+                } catch (Exception ignored) {}
+
+                if (mainFrame instanceof UI.MainFrame) {
+                    ((UI.MainFrame) mainFrame).changeToStoryMode();
                 } else {
-                    // Player finished all chapters
-                    System.out.println("[ArenaLoader] All chapters completed. Returning to Chapter Select.");
-                    // Stop any running game thread safely, then return to story mode
-                    try { if (activeController != null) activeController.stopGame(); } catch (Exception ignored) {}
-                    try { if (gameThread != null && gameThread.isAlive()) gameThread.interrupt(); } catch (Exception ignored) {}
-                    if (mainFrame instanceof UI.MainFrame) ((UI.MainFrame) mainFrame).changeToStoryMode();
-                    else JOptionPane.showMessageDialog(mainFrame, "Congratulations — you completed all chapters!");
-                    return;
+                    JOptionPane.showMessageDialog(mainFrame, "Returning to Chapter Selection.");
                 }
+
+            } else { // QUIT
+                System.exit(0);
             }
-
-            startLevel();
-
-        } else if (choice == 1) { // RETURN TO CHAPTER SELECT
-            // Safely stop the active game and return to Story Mode
-            try {
-                if (activeController != null) activeController.stopGame();
-            } catch (Exception ignored) {}
-            try {
-                if (gameThread != null && gameThread.isAlive()) {
-                    gameThread.interrupt();
-                }
-            } catch (Exception ignored) {}
-
-            if (mainFrame instanceof UI.MainFrame) {
-                ((UI.MainFrame) mainFrame).changeToStoryMode();
-            } else {
-                JOptionPane.showMessageDialog(mainFrame, "Returning to Chapter Selection.");
-            }
-
-        } else { // QUIT
-            System.exit(0);
-        }
+        });
+        delayTimer.setRepeats(false);
+        delayTimer.start();
     }
 
     private static void showChapterClearDialog() {

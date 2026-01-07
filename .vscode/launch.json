@@ -14,30 +14,9 @@
         },
         {
             "type": "java",
-            "name": "HomeFrame",
-            "request": "launch",
-            "mainClass": "UI.HomeFrame",
-            "projectName": "tron-game"
-        },
-        {
-            "type": "java",
             "name": "MainFrame",
             "request": "launch",
             "mainClass": "UI.MainFrame",
-            "projectName": "tron-game"
-        },
-        {
-            "type": "java",
-            "name": "Main",
-            "request": "launch",
-            "mainClass": "XPSystem.Main",
-            "projectName": "tron-game"
-        },
-        {
-            "type": "java",
-            "name": "TronFullStory",
-            "request": "launch",
-            "mainClass": "XPSystem.TronFullStory",
             "projectName": "tron-game"
         },
         {

@@ -41,7 +41,6 @@ public class CutsceneManager {
     // IMAGES
     private Image pKevin, pKevinReal, pTron, pClu, pQuorra, pQuorraEvil, pSark, pSam;
 
-
     // Auto-advance helper: for short (single-line) cutscenes, automatically advance after a short delay
     private volatile Thread autoAdvanceThread = null;
 
@@ -306,6 +305,60 @@ public class CutsceneManager {
             }
         }
         return false;
+    }
+
+    /**
+     * Play a specific cutscene file (relative to cutscene/). Useful for explicit endings.
+     */
+    public static boolean playCutsceneFile(String relativePath, JFrame parent, boolean allowChain) {
+        File file = new File("cutscene/" + relativePath);
+        if (!file.exists() || file.length() <= 0) return false;
+
+        // Build a borderless modal dialog that matches the parent size
+        JDialog dlg = new JDialog(parent, "Cutscene", Dialog.ModalityType.APPLICATION_MODAL);
+        dlg.setUndecorated(true);
+        Rectangle bounds;
+        if (parent != null) {
+            bounds = parent.getBounds();
+        } else {
+            Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+            bounds = new Rectangle(0, 0, screen.width, screen.height);
+        }
+        dlg.setBounds(bounds);
+
+        // Use a dedicated GamePanel for the cutscene so we don't disturb the live game container
+        UI.GamePanel cutscenePanel = new UI.GamePanel();
+        cutscenePanel.setPreferredSize(new Dimension(bounds.width, bounds.height));
+        dlg.setContentPane(cutscenePanel);
+        dlg.pack();
+        dlg.setLocation(bounds.x, bounds.y);
+
+        // Ensure key events are received
+        cutscenePanel.setFocusable(true);
+        SwingUtilities.invokeLater(() -> cutscenePanel.requestFocusInWindow());
+        cutscenePanel.startGameThread(parent);
+
+        // Start the requested scene
+        cutscenePanel.startCutscene(relativePath, allowChain);
+
+        // Wait in background for cutscene to finish, then close the dialog on the EDT
+        Thread waiter = new Thread(() -> {
+            try {
+                while (cutscenePanel.cutscene.isActive() || cutscenePanel.cutscene.isFadingOut()) {
+                    Thread.sleep(50);
+                }
+            } catch (InterruptedException ignored) {}
+            SwingUtilities.invokeLater(() -> {
+                try { cutscenePanel.cutscene.forceStop(); } catch (Exception ignored) {}
+                try { cutscenePanel.stopGameThread(); } catch (Exception ignored) {}
+                dlg.dispose();
+            });
+        }, "Cutscene-Waiter");
+        waiter.setDaemon(true);
+        waiter.start();
+
+        dlg.setVisible(true); // modal; blocks until cutscene finishes
+        return true;
     }
 
     public void playMusic(String filename) {

@@ -14,6 +14,7 @@ public class EnemyLoader {
         public String name;
         public String rank; // "Boss" or "Minion"
         public String color;
+        public char trailSymbol = 'M';
 
         // NOTE: No per-row base numeric fields; the loader uses explicit per-tier columns (T1/T2/T3) with defaults defined below.
 
@@ -40,6 +41,12 @@ public class EnemyLoader {
             this.name = getString(parts, idx, "Name", this.name);
             this.rank = getString(parts, idx, "Rank", this.rank);
             this.color = getString(parts, idx, "Color", this.color);
+            String trailStr = getString(parts, idx, "TrailSymbol", null);
+            if (trailStr != null && !trailStr.isEmpty()) {
+                this.trailSymbol = trailStr.trim().charAt(0);
+            } else if (this.color != null && !this.color.isEmpty()) {
+                this.trailSymbol = java.lang.Character.toUpperCase(this.color.trim().charAt(0));
+            }
 
             // No per-row base numeric columns expected — per-tier T1/T2/T3 columns are used instead (defaults set above).
 
@@ -79,6 +86,7 @@ public class EnemyLoader {
         public double getTierHandling(int tier) { return tierHandling[Math.max(0, Math.min(2, tier))]; }
         public double getTierAggression(int tier) { return tierAggression[Math.max(0, Math.min(2, tier))]; }
         public int getTierTrail(int tier) { return tierTrail[Math.max(0, Math.min(2, tier))]; }
+        public char getTrailSymbol() { return trailSymbol; }
     }
 
     // Stores data. Key = "Name_Rank" (e.g., "Clu_Minion")

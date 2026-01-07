@@ -25,6 +25,7 @@ public abstract class Character {
     public boolean isStunned = false;
     public boolean isBoss = false;
     public boolean isPlayer = false;
+    public boolean tookDamage = false;
 
     // Attributes
     protected int experiencePoints; 
@@ -103,6 +104,7 @@ public abstract class Character {
         this.currentDiscCount = this.discCapacity; // Refill Ammo
         this.lives = this.maxLives;                // Heal to Full
         this.isStunned = false;
+        this.tookDamage = false;
         
         System.out.println(name + " Ready for Stage. Discs: " + currentDiscCount + "/" + discCapacity + " HP: " + lives);
         if (this.isPlayer) {
@@ -283,6 +285,7 @@ public abstract class Character {
 
         // Append gameplay log for damage/heal
         if (amount < 0) {
+            this.tookDamage = true;
             arena.ArenaLoader.appendGameplayLog(this.name + " took " + String.format("%.1f", -amount) + " damage (HP: " + String.format("%.1f", this.lives) + "/" + String.format("%.1f", this.maxLives) + ")");
         } 
 
