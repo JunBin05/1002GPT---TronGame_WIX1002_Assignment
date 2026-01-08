@@ -453,16 +453,11 @@ public class GameController implements KeyListener, Runnable {
                 } else {
                     // Player disc or unknown disc: pick up
                     this.playerCycle.pickupDisc();
-                    if (picked != null) {
-                        grid[futureR][futureC] = picked.getOriginalTile();
-                        activeDiscs.remove(picked);
-                        element = grid[futureR][futureC];
-                    } else {
-                        // Restore base tile when a disc disappears without a tracked original
-                        char base = arena.getBaseTile(futureR, futureC);
-                        grid[futureR][futureC] = (base != '\0') ? base : '.';
-                        element = grid[futureR][futureC];
-                    }
+                    char base = arena.getBaseTile(futureR, futureC);
+                    char restore = (base != '\0') ? base : '.';
+                    grid[futureR][futureC] = restore;
+                    element = restore;
+                    if (picked != null) activeDiscs.remove(picked);
                 }
             }
 

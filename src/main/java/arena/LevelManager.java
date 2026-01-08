@@ -59,10 +59,6 @@ public class LevelManager {
                         double aggression = (stats != null) ? stats.getTierAggression(tier) : 0.20;
                         int trail = (stats != null) ? stats.getTierTrail(tier) : 7;
 
-                        // Compute move interval from speed (lower interval => faster)
-                        final int BASE_INTERVAL = 5; final double SPEED_FACTOR = 3.0;
-                        int moveInterval = Math.max(1, (int)Math.round(BASE_INTERVAL - (speed * SPEED_FACTOR)));
-
                         // --- Speed-driven delay (file-driven only) ---
                         // Delay is computed directly from the enemy's `speed` value in data/enemies.txt.
                         // This ensures the only variable that controls move frequency is the file value.
@@ -74,14 +70,11 @@ public class LevelManager {
                         enemy.setSpeed(speed);
                         enemy.setHandling(handling);
                         enemy.setAggression(aggression);
-                        enemy.setMoveInterval(moveInterval); // keep for compatibility
                         enemy.setMoveDelayMs(delayMs);       // new time-based scheduling
                         enemy.setTrailDuration(trail);
 
                         enemy.setArenaGrid(grid);
                         enemy.spawnRandom(40, 40);
-                        System.out.println(String.format("[LevelManager] Spawned MINION: %s (HP=%.1f, speed=%.2f, handling=%.2f, aggr=%.2f, move=%d, delay=%d, trail=%d) at (%d,%d)",
-                                enemy.getName(), enemy.getLives(), speed, handling, aggression, enemy.getMoveInterval(), enemy.getMoveDelayMs(), enemy.getTrailDuration(), enemy.getRow(), enemy.getCol()));
                         enemies.add(enemy);
                     }
                 }
@@ -105,9 +98,6 @@ public class LevelManager {
                     double aggression = (stats != null) ? stats.getTierAggression(tier) : 0.6;
                     int trail = (stats != null) ? stats.getTierTrail(tier) : 10;
 
-                    final int BASE_INTERVAL = 5; final double SPEED_FACTOR = 3.0;
-                    int moveInterval = Math.max(1, (int)Math.round(BASE_INTERVAL - (speed * SPEED_FACTOR)));
-
                     // --- Speed-driven delay (file-driven only) ---
                     // Delay is computed directly from the enemy's `speed` value in data/enemies.txt.
                     final int PLAYER_BASE_DELAY = 200; final int PLAYER_SPEED_MULTIPLIER = 100;
@@ -118,14 +108,11 @@ public class LevelManager {
                     boss.setSpeed(speed);
                     boss.setHandling(handling);
                     boss.setAggression(aggression);
-                    boss.setMoveInterval(moveInterval);
                     boss.setMoveDelayMs(delayMs);
                     boss.setTrailDuration(trail);
 
                     boss.setArenaGrid(grid);
                     boss.spawnRandom(40, 40);
-                    System.out.println(String.format("[LevelManager] Spawned BOSS: %s (HP=%.1f, speed=%.2f, handling=%.2f, aggr=%.2f, move=%d, delay=%d, trail=%d) at (%d,%d)",
-                            boss.getName(), boss.getLives(), speed, handling, aggression, boss.getMoveInterval(), boss.getMoveDelayMs(), boss.getTrailDuration(), boss.getRow(), boss.getCol()));
                     enemies.add(boss);
                 }
             }

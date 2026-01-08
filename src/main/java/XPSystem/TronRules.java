@@ -7,9 +7,6 @@ public class TronRules {
     public static final int MAX_LEVEL = 99;
     public static final int MAX_DISCS = 10;
 
-    // Toggle: when true, XP is only awarded on stage clear (no per-kill XP)
-    public static final boolean STAGE_ONLY_XP = true;
-
     // Stage-clear XP tuning (tweakable)
     private static final double BASE_STAGE_XP = 300.0; // base XP for stage clear (raised so C1S1 grants level)
     private static final double STAGE_MULTIPLIER_PER_STAGE = 0.12; // +12% per stage
@@ -20,15 +17,6 @@ public class TronRules {
     private static final boolean PROGRESSIVE_SCALING_ENABLED = true;
     private static final int PROGRESS_TARGET_LEVEL = 99;
     private static Double progressionScaleCache = null; // computed lazily to avoid startup cost
-
-    // 2. ENUMS
-    public enum EnemyType {
-        MINION, KOURA, SARK, RINZLER, CLU
-    }
-
-    public enum StageType {
-        TUTORIAL, NORMAL, BOSS_KILL, BOSS_SURVIVE, STORY_CLIMAX
-    }
 
     // 3. BASE XP CALCULATION
     public static long getTotalXpForLevel(int level) {
