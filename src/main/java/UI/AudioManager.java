@@ -9,9 +9,8 @@ public class AudioManager {
     private static boolean isMuted = false;
     private static String currentTrackPath = null;
 
-    /**
-     * Loads and plays music only if it isn't already playing.
-     */
+    // Loads and plays music only if it isn't already playing.
+
     public static void playMusic(String filepath) {
         // If the same track is already playing, do nothing
         if (backgroundMusic != null && backgroundMusic.isOpen() && filepath.equals(currentTrackPath)) {
@@ -28,7 +27,7 @@ public class AudioManager {
                 backgroundMusic = AudioSystem.getClip();
                 backgroundMusic.open(audioInput);
                 currentTrackPath = filepath;
-                
+
                 // Only start playing if we aren't muted
                 if (!isMuted) {
                     backgroundMusic.start();
@@ -40,9 +39,7 @@ public class AudioManager {
         }
     }
 
-    /**
-     * Toggles Play/Pause
-     */
+    // Toggles Play/Pause
     public static void toggleMute() {
         isMuted = !isMuted;
 
@@ -58,7 +55,8 @@ public class AudioManager {
 
     // Internal helper: fade out current clip then close
     private static void fadeOutAndClose(int durationMs) {
-        if (backgroundMusic == null) return;
+        if (backgroundMusic == null)
+            return;
 
         Clip clipRef = backgroundMusic;
         FloatControl gain = getGainControl(clipRef);

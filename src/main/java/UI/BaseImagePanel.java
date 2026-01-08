@@ -6,9 +6,8 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Image;
 
-/**
- * Shared panel base: background image handling + optional back button helpers.
- */
+//Shared panel base: background image handling + optional back button helpers.
+
 public abstract class BaseImagePanel extends JPanel {
 
     protected Image backgroundImage;
@@ -44,7 +43,8 @@ public abstract class BaseImagePanel extends JPanel {
     }
 
     protected void positionBackButton(int height) {
-        if (backButton == null) return;
+        if (backButton == null)
+            return;
         int size = (int) (height * 0.18);
         backButton.setBounds(30, 30, size, size);
         backButton.resizeIcon(size);

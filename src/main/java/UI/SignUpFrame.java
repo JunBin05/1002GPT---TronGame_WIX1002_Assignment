@@ -9,31 +9,29 @@ public class SignUpFrame extends JFrame {
 
     private static final String SIGN_IN_PANEL = "SIGN_IN";
     private static final String REGISTER_PANEL = "REGISTER";
-    private JPanel cards; 
+    private JPanel cards;
     private JTextField registerUserIdField;
     private JPasswordField registerPasswordField;
-    private JTextField signInUserIdField; 
-    private JPasswordField signInPasswordField; 
-    private DatabaseManager dbManager; 
+    private JTextField signInUserIdField;
+    private JPasswordField signInPasswordField;
+    private DatabaseManager dbManager;
 
-    // --- NEW FIELD ---
-    private MainFrame mainFrameRef; 
+    private MainFrame mainFrameRef;
 
-    // --- MODIFIED CONSTRUCTOR ---
-    public SignUpFrame(MainFrame mainFrame) { 
+    // Modified constructor
+    public SignUpFrame(MainFrame mainFrame) {
         super("Authentication");
-        
-        // Save the reference
+
         this.mainFrameRef = mainFrame;
-        
-        setSize(400, 200); 
+
+        setSize(400, 200);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setLocationRelativeTo(null); 
+        setLocationRelativeTo(null);
 
         dbManager = new DatabaseManager();
         cards = new JPanel(new CardLayout());
-        
-        JPanel signInPanel = createSignInPanel(); 
+
+        JPanel signInPanel = createSignInPanel();
         JPanel registerPanel = createRegisterPanel();
 
         cards.add(signInPanel, SIGN_IN_PANEL);
@@ -43,7 +41,7 @@ public class SignUpFrame extends JFrame {
         showCard(SIGN_IN_PANEL);
     }
 
-    // Default constructor for safety (optional)
+    // Default constructor for safety
     public SignUpFrame() {
         this(null);
     }
@@ -55,52 +53,49 @@ public class SignUpFrame extends JFrame {
         JPanel inputPanel = new JPanel(new GridLayout(2, 2, 10, 10));
         inputPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         inputPanel.add(new JLabel("User ID:"));
-        inputPanel.add(signInUserIdField); 
+        inputPanel.add(signInUserIdField);
         inputPanel.add(new JLabel("Password:"));
-        inputPanel.add(signInPasswordField); 
+        inputPanel.add(signInPasswordField);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         JButton signInButton = new JButton("Log In");
-        JButton registerSwitchButton = new JButton("Register"); 
+        JButton registerSwitchButton = new JButton("Register");
 
         signInButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (!dbManager.isReady()) {
                     JOptionPane.showMessageDialog(SignUpFrame.this, "System Error", "Error", JOptionPane.ERROR_MESSAGE);
-                    return; 
+                    return;
                 }
 
                 String userId = signInUserIdField.getText().trim();
                 String password = new String(signInPasswordField.getPassword());
 
-                
                 if (dbManager.checkLogin(userId, password)) {
                     JOptionPane.showMessageDialog(SignUpFrame.this,
-                        "Log In successful! Welcome, " + userId + ".",
-                        "Success", JOptionPane.INFORMATION_MESSAGE);
-                    
-                    // --- NEW LOGIC: SWITCH MAINFRAME TO HOME ---
+                            "Log In successful! Welcome, " + userId + ".",
+                            "Success", JOptionPane.INFORMATION_MESSAGE);
                     if (mainFrameRef != null) {
                         mainFrameRef.changeToHome(userId);
                     }
-                    // -------------------------------------------
 
                     // Close the popup window
                     SignUpFrame.this.dispose();
-                    
+
                 } else {
-                    JOptionPane.showMessageDialog(SignUpFrame.this, "Login failed.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(SignUpFrame.this, "Login failed.", "Error",
+                            JOptionPane.ERROR_MESSAGE);
                 }
-                signInPasswordField.setText(""); 
+                signInPasswordField.setText("");
             }
         });
 
         registerSwitchButton.addActionListener(e -> {
             showCard(REGISTER_PANEL);
-            setTitle("Create Account"); 
+            setTitle("Create Account");
         });
-        
+
         buttonPanel.add(signInButton);
         buttonPanel.add(registerSwitchButton);
 
@@ -116,41 +111,44 @@ public class SignUpFrame extends JFrame {
         JPanel inputPanel = new JPanel(new GridLayout(2, 2, 10, 10));
         inputPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         inputPanel.add(new JLabel("User ID:"));
-        inputPanel.add(registerUserIdField); 
+        inputPanel.add(registerUserIdField);
         inputPanel.add(new JLabel("Password:"));
-        inputPanel.add(registerPasswordField); 
+        inputPanel.add(registerPasswordField);
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         JButton signUpButton = new JButton("Sign Up");
-        JButton cancelSwitchButton = new JButton("Cancel"); 
+        JButton cancelSwitchButton = new JButton("Cancel");
         signUpButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (!dbManager.isReady()) return; 
+                if (!dbManager.isReady())
+                    return;
                 String userId = registerUserIdField.getText().trim();
-                String password = new String(registerPasswordField.getPassword()); 
+                String password = new String(registerPasswordField.getPassword());
 
                 if (userId.trim().isEmpty() || password.trim().isEmpty()) {
-                    JOptionPane.showMessageDialog(SignUpFrame.this, 
-                        "Username and Password cannot be empty!", 
-                        "Input Error", 
-                        JOptionPane.ERROR_MESSAGE);
-                    return; 
+                    JOptionPane.showMessageDialog(SignUpFrame.this,
+                            "Username and Password cannot be empty!",
+                            "Input Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
                 boolean success = dbManager.registerUser(userId, password);
                 if (success) {
-                    JOptionPane.showMessageDialog(SignUpFrame.this, "Registration successful!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(SignUpFrame.this, "Registration successful!", "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
                     registerUserIdField.setText("");
                     registerPasswordField.setText("");
                     showCard(SIGN_IN_PANEL);
                     setTitle("Authentication");
                 } else {
-                    JOptionPane.showMessageDialog(SignUpFrame.this, "Registration failed.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(SignUpFrame.this, "Registration failed.", "Error",
+                            JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
         cancelSwitchButton.addActionListener(e -> {
             showCard(SIGN_IN_PANEL);
-            setTitle("Authentication"); 
+            setTitle("Authentication");
         });
         buttonPanel.add(cancelSwitchButton);
         buttonPanel.add(signUpButton);

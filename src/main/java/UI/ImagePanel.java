@@ -10,7 +10,7 @@ public class ImagePanel extends JPanel {
     private Image gameIcon;
     private Rectangle gameIconBounds;
     private SignUpFrame currentSignUpWindow = null;
-    private MainFrame parentFrame; 
+    private MainFrame parentFrame;
 
     public void setParentFrame(MainFrame frame) {
         this.parentFrame = frame;
@@ -21,8 +21,6 @@ public class ImagePanel extends JPanel {
         this.gameIcon = new ImageIcon("images/game_icon.jpeg").getImage();
         this.gameIconBounds = new Rectangle();
 
-        // --- ANIMATION TIMER ---
-        // Refreshes the screen every 50ms to create the "vibe" effect
         new javax.swing.Timer(50, e -> repaint()).start();
 
         addMouseListener(new MouseAdapter() {
@@ -72,8 +70,8 @@ public class ImagePanel extends JPanel {
 
         // 2. Calculate Button Position
         int iconSize = (int) (panelHeight * 0.20); // Button is 20% of screen height
-        int iconX= (int) (panelWidth * 0.10);
-        int iconY = (int) (panelHeight * 0.55); 
+        int iconX = (int) (panelWidth * 0.10);
+        int iconY = (int) (panelHeight * 0.55);
 
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -83,33 +81,32 @@ public class ImagePanel extends JPanel {
             g2.drawImage(gameIcon, iconX, iconY, iconSize, iconSize, this);
             gameIconBounds.setBounds(iconX, iconY, iconSize, iconSize);
 
-        // 4. NEW: Draw Semi-Transparent Text Below Icon
-        String text = "click the icon to start";
-        int fontSize = (int) (panelHeight * 0.03); 
-        g2.setFont(new Font("Arial", Font.BOLD, fontSize));
+            // 4. Draw Semi-Transparent Text Below Icon
+            String text = "click the icon to start";
+            int fontSize = (int) (panelHeight * 0.03);
+            g2.setFont(new Font("Arial", Font.BOLD, fontSize));
 
-        // A. Calculate Pulse (0.0 to 1.0)
-        long currentTime = System.currentTimeMillis();
-        // Speed: 1000 = 1 second per cycle. Change to 2000 for slower vibe.
-        double angle = (currentTime % 1500) / 1500.0 * (2 * Math.PI); 
-        double pulse = (Math.sin(angle) + 1) / 2.0; 
-        
-        // B. Calculate Alpha (Opacity)
-        // Range: 128 (Half Visible) to 255 (Fully Visible)
-        int minAlpha = 128; 
-        int maxAlpha = 255;
-        int alpha = (int) (minAlpha + (pulse * (maxAlpha - minAlpha))); 
+            // A. Calculate Pulse (0.0 to 1.0)
+            long currentTime = System.currentTimeMillis();
+            // Speed: 1000 = 1 second per cycle
+            double angle = (currentTime % 1500) / 1500.0 * (2 * Math.PI);
+            double pulse = (Math.sin(angle) + 1) / 2.0;
 
-        // C. Set Color
-        g2.setColor(new Color(255, 255, 255, alpha)); 
+            // B. Calculate Alpha (Opacity)
+            int minAlpha = 128;
+            int maxAlpha = 255;
+            int alpha = (int) (minAlpha + (pulse * (maxAlpha - minAlpha)));
 
-        // D. Center Text Below Icon
-        FontMetrics fm = g2.getFontMetrics();
-        int textWidth = fm.stringWidth(text);
-        int textX = iconX + (iconSize / 2) - (textWidth / 2);
-        int textY = iconY + iconSize + fontSize + 5; 
+            // C. Set Color
+            g2.setColor(new Color(255, 255, 255, alpha));
 
-        g2.drawString(text, textX, textY);
+            // D. Center Text Below Icon
+            FontMetrics fm = g2.getFontMetrics();
+            int textWidth = fm.stringWidth(text);
+            int textX = iconX + (iconSize / 2) - (textWidth / 2);
+            int textY = iconY + iconSize + fontSize + 5;
+
+            g2.drawString(text, textX, textY);
         }
     }
 }
