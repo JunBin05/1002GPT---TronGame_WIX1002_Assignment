@@ -74,20 +74,11 @@ public abstract class Character {
         this.imageBaseName = "";
         this.currentDirection = Direction.NORTH;
     }
-
-    // --- MISSING METHOD ADDED HERE ---
-    public void setStartPosition(int r, int c) {
-        this.r = r;
-        this.c = c;
-    }
-    // ---------------------------------
-
+    
     // --- FORCE REFILL ---
     // Called by GameController Constructor to ensure Stage 2 starts fresh
     public void prepareForNextStage() {
-        // Recalculate capacity just in case
-        this.discCapacity = this.discsOwned + (this.level / 15);
-        
+        recalcDiscCapacity();
         this.currentDiscCount = this.discCapacity; // Refill Ammo
         this.lives = this.maxLives;                // Heal to Full
         this.isStunned = false;
@@ -189,10 +180,7 @@ public abstract class Character {
 
     public void levelUp() {
         level++;
-        
-        // --- NEW RULE: 1 Disc + 1 extra every 15 levels ---
-        this.discCapacity = this.discsOwned + (this.level / 15);
-        
+        recalcDiscCapacity();
         // Refill immediately on level up
         this.currentDiscCount = this.discCapacity; 
 
@@ -257,8 +245,16 @@ public abstract class Character {
     public int getDiscCapacity() { return this.discCapacity; }
     public void setSpeed(double speed) { this.speed = speed; }
     public void setHandling(double handling) { this.handling = handling; }
+    public void setDiscsOwned(int owned) { this.discsOwned = Math.max(0, owned); }
     public void setDiscCapacity(int cap) {
         this.discCapacity = Math.max(0, cap);
+        if (this.currentDiscCount > this.discCapacity) this.currentDiscCount = this.discCapacity;
+    }
+    protected int computeDiscBonus() { 
+        return this.level / 15;
+    }
+    public void recalcDiscCapacity() {
+        this.discCapacity = Math.min(TronRules.MAX_DISCS, this.discsOwned + computeDiscBonus());
         if (this.currentDiscCount > this.discCapacity) this.currentDiscCount = this.discCapacity;
     }
     public long getNextDiscReadyNs() { return this.nextDiscReadyNs; }

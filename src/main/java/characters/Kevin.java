@@ -15,12 +15,10 @@ public class Kevin extends Character {
         // Handling increment unchanged; speed increased to 0.007 per level per request
         handling = Math.min(1.0, handling + 0.00337);
         speed = Math.min(1.0, speed + 0.007);
+    }
 
-        // Kevin gets +1 disc capacity every 10 levels (in addition to base growth)
-        if (level % 10 == 0) {
-            this.discCapacity = Math.min(this.discCapacity + 1, XPSystem.TronRules.MAX_DISCS);
-            this.currentDiscCount = this.discCapacity;
-            System.out.println(">> Kevin bonus: disc capacity increased to " + this.discCapacity);
-        }
+    @Override
+    protected int computeDiscBonus() {
+        return super.computeDiscBonus() + (this.level / 10);
     }
 }

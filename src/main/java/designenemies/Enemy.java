@@ -36,6 +36,7 @@ public class Enemy extends Character {
         }
 
         // 3. Overwrite the placeholder color with the real one from the file
+        this.name = (stats != null && stats.name != null && !stats.name.isBlank())? stats.name: name;
         this.color = stats.color;
         this.trailSymbol = stats.getTrailSymbol();
 
@@ -47,7 +48,6 @@ public class Enemy extends Character {
         this.isBoss = isBoss; //Updates the Parent (Character.java)
         // Initialize role-based defaults he re because field initializers run before the constructor.
         // This prevents the earlier bug where `isEnemyBoss` was false during field initialization.
-        this.moveInterval = this.isEnemyBoss ? 2 : 3;
 
         if (isBoss) {
             this.lives = 3;
@@ -88,10 +88,6 @@ public class Enemy extends Character {
         }
     }
 
-    // Behavior tuning
-    private int moveInterval; // number of ticks between moves (lower => faster) - set in constructor
-
-    // New numeric attributes (per-instance)
     // Values are sourced from `EnemyLoader` at spawn time (per-tier). We leave them unset here
     // to avoid hardcoding and let `LevelManager` apply per-tier tuning; constructor sets safe fallbacks.
     private double speed;
@@ -108,10 +104,6 @@ public class Enemy extends Character {
             return decideMoveStupid();
         }
     }
-
-    // Move interval getter/setter (used by controller to determine move frequency)
-    public int getMoveInterval() { return this.moveInterval; }
-    public void setMoveInterval(int interval) { this.moveInterval = Math.max(1, interval); }
 
     public double getSpeed() { return this.speed; }
     public void setSpeed(double s) { this.speed = Math.max(0.0, s); }

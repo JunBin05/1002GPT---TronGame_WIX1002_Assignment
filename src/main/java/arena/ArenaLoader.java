@@ -18,7 +18,6 @@ import characters.Tron;
 import characters.Kevin;
 import characters.Direction;
 import controller.GameController;
-import UI.StartGameMenu;
 import UI.GamePanel;
 import XPSystem.TronRules; // Math for XP
 
@@ -891,6 +890,16 @@ public class ArenaLoader {
                         // Ensure both persistents exist before reconciling
                         persistentTron = (Tron) loadOrInitPersistent("Tron");
                         persistentKevin = (Kevin) loadOrInitPersistent("Kevin");
+
+                        // Hydrate XP/levels from database so players resume saved progress
+                        try {
+                            long tronXp = db.getTronXp(user);
+                            if (tronXp > 0 && persistentTron != null) persistentTron.setXp(tronXp);
+                        } catch (Exception e) { System.out.println("[WARN] Failed to load Tron XP: " + e.getMessage()); }
+                        try {
+                            long kevinXp = db.getKevinXp(user);
+                            if (kevinXp > 0 && persistentKevin != null) persistentKevin.setXp(kevinXp);
+                        } catch (Exception e) { System.out.println("[WARN] Failed to load Kevin XP: " + e.getMessage()); }
 
                         // --- PERSIST LAST PLAYED STAGE FOR RESUME FEATURE ---
                         try {

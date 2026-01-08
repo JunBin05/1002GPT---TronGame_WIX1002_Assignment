@@ -30,11 +30,12 @@ public class CharacterLoader {
                         target.setHandling(Double.parseDouble(p[2]));
                         target.setMaxLives(Double.parseDouble(p[3]));
                         target.setLives(target.getMaxLives());
-                        target.setDiscCapacity(Integer.parseInt(p[4]));
+                        target.setDiscsOwned(Integer.parseInt(p[4]));
                         target.setXp(Long.parseLong(p[5]));
                         if (p.length > 6 && !p[6].isEmpty()) target.symbol = p[6].charAt(0);
                         if (p.length > 7 && !p[7].isEmpty()) target.color = p[7];
                         if (p.length > 8 && !p[8].isEmpty()) target.imageBaseName = p[8];
+                        target.recalcDiscCapacity();
                         target.currentDiscCount = target.getDiscCapacity();
                     } catch (NumberFormatException ignored) {}
                     return;
