@@ -17,8 +17,7 @@ public class EnemyLoader {
         public char trailSymbol = 'M';
 
         // Per-tier values: index 0 => chapters 1-2, 1 => chapters 3-4, 2 => chapter 5
-        // Arrays are left empty and populated from file when available; getters provide
-        // safe defaults.
+        // Arrays are left empty and populated from file when available; getters provide safe defaults.
         public double[] tierHp = new double[3];
         public double[] tierSpeed = new double[3];
         public double[] tierHandling = new double[3];
@@ -46,9 +45,6 @@ public class EnemyLoader {
             } else if (this.color != null && !this.color.isEmpty()) {
                 this.trailSymbol = java.lang.Character.toUpperCase(this.color.trim().charAt(0));
             }
-
-            // No per-row base numeric columns expected — per-tier T1/T2/T3 columns are used
-            // instead (defaults set above).
 
             // Parse per-tier columns if present; otherwise keep defaults
             for (int t = 1; t <= 3; t++) {
@@ -95,8 +91,7 @@ public class EnemyLoader {
             }
         }
 
-        // Legacy descriptor helpers removed: loader now uses explicit per-tier numeric
-        // columns (header-aware).
+        // Legacy descriptor helpers removed: loader now uses explicit per-tier numeric columns (header-aware).
 
         // Accessors for tier-specific values (0=chapters1-2,1=3-4,2=5)
         public double getTierHp(int tier) {

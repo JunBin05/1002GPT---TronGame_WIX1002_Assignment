@@ -265,7 +265,7 @@ public class ArenaLoader {
         icons.put("heart_full", loadAndScale("images" + File.separator + "heart_full.png", HUD_ICON_SIZE));
         icons.put("heart_half", loadAndScale("images" + File.separator + "heart_half.png", HUD_ICON_SIZE));
         icons.put("heart_empty", loadAndScale("images" + File.separator + "heart_empty.png", HUD_ICON_SIZE));
-        icons.put("tron_profile", loadAndScale("images" + File.separator + "Tron.png", 120));
+        icons.put("tron_profile", loadAndScale("images" + File.separator + "Tron.png", 80));
         icons.put("kevin_profile", loadAndScale("images" + File.separator + "Kevin.png", 80));
 
         loadCharSet(icons, "tron", "Tron.png", TRUE_CELL_SIZE);

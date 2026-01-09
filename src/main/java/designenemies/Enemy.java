@@ -14,9 +14,6 @@ public class Enemy extends Character {
 
     private char trailSymbol = 'M';
 
-    // Stats loaded from enemies.txt (legacy descriptor fields removed)
-    // numeric defaults (populated from EnemyLoader) are used instead
-
     // CONSTRUCTOR
     public Enemy(String name, boolean isBoss) {
         super();
@@ -46,10 +43,8 @@ public class Enemy extends Character {
         this.isEnemyBoss = isBoss;
 
         this.isBoss = isBoss; // Updates the Parent (Character.java)
-        // Initialize role-based defaults he re because field initializers run before
-        // the constructor.
-        // This prevents the earlier bug where `isEnemyBoss` was false during field
-        // initialization.
+        // Initialize role-based default because field initializers run before the constructor.
+        // This prevents the earlier bug where `isEnemyBoss` was false during field initialization.
 
         if (isBoss) {
             this.lives = 3;
@@ -63,11 +58,7 @@ public class Enemy extends Character {
             this.setTrailDuration(7);
         }
 
-        // Safe fallbacks: initialize numeric attributes from stats (tier 0) so we don't
-        // hardcode
-        // concrete values inline in the class. LevelManager will typically override
-        // these with
-        // the appropriate tier values when spawning the enemy.
+        // Safe fallbacks: initialize numeric attributes from stats (tier 0) 
         int defaultTier = 0;
         if (stats != null) {
             this.speed = stats.getTierSpeed(defaultTier);
@@ -92,10 +83,8 @@ public class Enemy extends Character {
         }
     }
 
-    // Values are sourced from `EnemyLoader` at spawn time (per-tier). We leave them
-    // unset here
-    // to avoid hardcoding and let `LevelManager` apply per-tier tuning; constructor
-    // sets safe fallbacks.
+    // Values are sourced from `EnemyLoader` at spawn time (per-tier). We leave them unset here
+    // to avoid hardcoding and let `LevelManager` apply per-tier tuning; constructor sets safe fallbacks.
     private double speed;
     private double handling;
     private double aggression;
@@ -306,8 +295,7 @@ public class Enemy extends Character {
         return this.isEnemyBoss;
     }
 
-    // Enemy-specific XP (per-enemy xp field removed; XP is awarded according to
-    // TronRules)
+    // Enemy-specific XP (per-enemy xp field removed; XP is awarded according to TronRules)
 
     @Override
     public int getTrailDuration() {
