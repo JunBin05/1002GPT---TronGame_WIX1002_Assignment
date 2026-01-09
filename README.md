@@ -1,5 +1,3 @@
-# 1002GPT---TronGame_WIX1002_Assignment
-
 # 🏍️ FOP Tron: Light Cycle Arena
 
 ![Java](https://img.shields.io/badge/Language-Java-orange)
