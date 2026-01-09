@@ -17,14 +17,14 @@ public class IconButton extends JButton {
         setCursor(new Cursor(Cursor.HAND_CURSOR));
     }
 
-    /** Resize with square dimensions. */
+    // Resize with square dimensions.
     public void resizeIcon(int size) {
         if (size > 0) {
             resizeIcon(size, size);
         }
     }
 
-    /** Resize with custom width/height. */
+    // Resize with custom width/height.
     public void resizeIcon(int width, int height) {
         if (width > 0 && height > 0) {
             this.currentWidth = width;
@@ -34,7 +34,7 @@ public class IconButton extends JButton {
         }
     }
 
-    /** Allow subclasses to change the base image and keep sizing. */
+    // Allow subclasses to change the base image and keep sizing.
     protected void setBaseImage(Image image) {
         if (image != null) {
             this.baseImage = image;

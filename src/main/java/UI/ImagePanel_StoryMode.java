@@ -6,7 +6,7 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
 import java.util.List;
- 
+
 public class ImagePanel_StoryMode extends BaseImagePanel {
     private MainFrame mainFrameRef;
     private String username;
@@ -15,31 +15,30 @@ public class ImagePanel_StoryMode extends BaseImagePanel {
 
     private JLabel chapterImageLabel;
     private JLabel resumeLabel;
-    
-    // --- NEW: Database and Logic Variables ---
+
     private DatabaseManager dbManager;
-    private int highestChapterUnlocked; 
-    // ----------------------------------------
-    
-    private List<Image> chapterImages; 
-    private int currentIndex = 0; 
+    private int highestChapterUnlocked;
+
+    private List<Image> chapterImages;
+    private int currentIndex = 0;
 
     public ImagePanel_StoryMode(String imagePath, MainFrame mainFrame, String username) {
         this.mainFrameRef = mainFrame;
         this.username = username;
         this.dbManager = new DatabaseManager(); // Init DB
-        setLayout(null); 
+        setLayout(null);
 
         // 1. Fetch User Progress (Default to 1 if new)
         this.highestChapterUnlocked = dbManager.getHighestChapter(username);
-        if (this.highestChapterUnlocked == 0) this.highestChapterUnlocked = 1; 
+        if (this.highestChapterUnlocked == 0)
+            this.highestChapterUnlocked = 1;
 
         setBackgroundImage(imagePath);
 
         // 2. Create Back Button
         setupBackButton(() -> {
             if (mainFrameRef != null) {
-                mainFrameRef.changeToGameMode(); 
+                mainFrameRef.changeToGameMode();
             }
         });
 
@@ -55,42 +54,42 @@ public class ImagePanel_StoryMode extends BaseImagePanel {
         chapterImageLabel = new JLabel();
         chapterImageLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Small label to show resume hint (e.g., "Resume: Stage 3")
+        // Small label to show resume hint
         resumeLabel = new JLabel("");
         resumeLabel.setForeground(Color.WHITE);
         resumeLabel.setFont(resumeLabel.getFont().deriveFont(Font.BOLD, 16f));
         resumeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         add(resumeLabel);
 
-        // --- CLICK EVENT: CHECK LOCK STATUS ---
         chapterImageLabel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                
+
                 int selectedChapter = currentIndex + 1; // 1 to 5
-                
-                // --- LOGIC: Only allow if unlocked ---
+
                 if (selectedChapter <= highestChapterUnlocked) {
                     System.out.println("User selected Chapter " + selectedChapter);
                     if (mainFrameRef != null) {
                         mainFrameRef.changeToCharacterSelect(username, selectedChapter);
                     }
                 } else {
-                    System.out.println("Chapter " + selectedChapter + " is LOCKED! You must finish Chapter " + (selectedChapter - 1) + " first.");
+                    System.out.println("Chapter " + selectedChapter + " is LOCKED! You must finish Chapter "
+                            + (selectedChapter - 1) + " first.");
                     // Optional: Show a small popup message
-                    JOptionPane.showMessageDialog(null, "This chapter is locked! Complete the previous chapter to unlock it.");
+                    JOptionPane.showMessageDialog(null,
+                            "This chapter is locked! Complete the previous chapter to unlock it.");
                 }
             }
-         });
+        });
         add(chapterImageLabel);
 
         // 5. Create Navigation Buttons
         rightButton = new RightButton("images/right_button.png");
-        rightButton.addActionListener(e -> changeChapter(1)); 
+        rightButton.addActionListener(e -> changeChapter(1));
         add(rightButton);
 
         leftButton = new LeftButton("images/left_button.png");
-        leftButton.addActionListener(e -> changeChapter(-1)); 
+        leftButton.addActionListener(e -> changeChapter(-1));
         add(leftButton);
 
         addComponentListener(new ComponentAdapter() {
@@ -116,7 +115,8 @@ public class ImagePanel_StoryMode extends BaseImagePanel {
     private void updateLayout() {
         int w = getWidth();
         int h = getHeight();
-        if (w == 0 || h == 0) return;
+        if (w == 0 || h == 0)
+            return;
 
         // 1. Back Button
         positionBackButton(h);
@@ -128,18 +128,20 @@ public class ImagePanel_StoryMode extends BaseImagePanel {
         int imgY = (h / 2) - (imgH / 2) + 60;
         chapterImageLabel.setBounds(imgX, imgY, imgW, imgH);
 
-        // --- NEW LOGIC: DECIDE WHICH IMAGE TO SHOW ---
         int currentChapterNum = currentIndex + 1;
         Image displayImg;
 
         if (currentChapterNum <= highestChapterUnlocked) {
-            // UNLOCKED: Show the normal image from the list
+
             displayImg = chapterImages.get(currentIndex);
             chapterImageLabel.setCursor(new Cursor(Cursor.HAND_CURSOR)); // Hand cursor
 
             // Show resume hint if available
             int savedStage = 0;
-            try { savedStage = dbManager.getChapterStage(username, currentChapterNum); } catch (Exception ignored) {}
+            try {
+                savedStage = dbManager.getChapterStage(username, currentChapterNum);
+            } catch (Exception ignored) {
+            }
             if (savedStage > 1) {
                 resumeLabel.setText("Resume: Stage " + savedStage);
                 resumeLabel.setVisible(true);
@@ -149,17 +151,16 @@ public class ImagePanel_StoryMode extends BaseImagePanel {
             }
 
         } else {
-            // LOCKED: Load the specific lock image file
-            // Expecting files: chapter2_lock.jpg, chapter3_lock.jpg, etc.
+
             String lockPath = "images/chapter" + currentChapterNum + "_lock.png";
             displayImg = new ImageIcon(lockPath).getImage();
-            
-            // If the specific lock image doesn't exist, fallback to normal one (or a generic lock)
-            if (displayImg.getWidth(null) == -1) { 
-                 // Fallback if specific lock image missing
-                 displayImg = chapterImages.get(currentIndex); 
+
+            // If the specific lock image doesn't exist, fallback to normal one
+            if (displayImg.getWidth(null) == -1) {
+                // Fallback if specific lock image missing
+                displayImg = chapterImages.get(currentIndex);
             }
-            
+
             chapterImageLabel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR)); // Normal cursor (not clickable)
             resumeLabel.setText("");
             resumeLabel.setVisible(false);
@@ -170,7 +171,6 @@ public class ImagePanel_StoryMode extends BaseImagePanel {
             Image scaled = displayImg.getScaledInstance(imgW, imgH, Image.SCALE_SMOOTH);
             chapterImageLabel.setIcon(new ImageIcon(scaled));
         }
-        // ---------------------------------------------
 
         // 3. Navigation Buttons
         int rightSize = (int) (h * 0.18);

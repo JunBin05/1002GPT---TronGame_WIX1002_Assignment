@@ -13,10 +13,6 @@ import java.awt.Cursor; // For the hand cursor
 import java.awt.event.MouseAdapter; // For click events
 import java.awt.event.MouseEvent;
 
-/**
- * A custom component that groups an icon and text into a
- * single, clickable "button".
- */
 public class LoginButton extends JPanel {
 
     public LoginButton(String imagePath, String text) {
@@ -30,7 +26,7 @@ public class LoginButton extends JPanel {
         ImageIcon originalIcon = new ImageIcon(imagePath);
         Image originalImage = originalIcon.getImage();
         int newWidth = 100;
-        int newHeight = 100; 
+        int newHeight = 100;
         Image scaledImage = originalImage.getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH);
         ImageIcon scaledIcon = new ImageIcon(scaledImage);
         JLabel iconLabel = new JLabel(scaledIcon);
@@ -65,7 +61,6 @@ public class LoginButton extends JPanel {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                // --- THIS IS THE ACTION ---
                 // Create and show the SignUpFrame when clicked
                 SignUpFrame signUp = new SignUpFrame();
                 signUp.setVisible(true);

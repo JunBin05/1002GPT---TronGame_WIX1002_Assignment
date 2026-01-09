@@ -7,19 +7,18 @@ import javax.swing.JFrame;
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
 
-    // SCREEN SETTINGS
+    // Screen Settings
     Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
     final int screenWidth = (int) screenSize.getWidth();
     final int screenHeight = (int) screenSize.getHeight();
-    
-    // GAME LOOP
+
+    // Game Loop
     Thread gameThread;
     int FPS = 60;
 
-    // SYSTEM
+    // System
     public CutsceneManager cutscene = new CutsceneManager();
 
-    // Convenience API for other packages to start cutscenes without accessing the field
     public void startCutscene(String filename) {
         if (cutscene != null) {
             this.gameState = CUTSCENE_STATE;
@@ -27,21 +26,20 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         }
     }
 
-    // Overload that allows the caller to specify whether NEXT_FILE chaining is allowed.
     public void startCutscene(String filename, boolean allowChaining) {
         if (cutscene != null) {
             this.gameState = CUTSCENE_STATE;
             cutscene.startScene(filename, allowChaining);
         }
     }
-    
-    // STATES
+
+    // States
     public int gameState;
     public final int TITLE_STATE = 0;
     public final int PLAY_STATE = 1;
     public final int CUTSCENE_STATE = 2;
-    
-    // LEVEL PROGRESSION
+
+    // Level Progression
     public int currentLevel = 1;
     public boolean levelCompleteTriggered = false; // Helper for "Win" condition
 
@@ -54,9 +52,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     public void setupGame() {
-        // START WITH INTRO CUTSCENE
+        // Intro Scene
         gameState = CUTSCENE_STATE;
-        cutscene.startScene("c1level1.txt"); // <--- MAKE SURE THIS FILENAME IS CORRECT
+        cutscene.startScene("c1level1.txt");
     }
 
     public void startGameThread() {
@@ -64,8 +62,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         gameThread.start();
     }
 
-    // Overload that accepts a parent frame (e.g., MainFrame) so callers can pass
-    // the frame and the panel can attach a KeyListener to it as a fallback.
     public void startGameThread(JFrame parentFrame) {
         if (parentFrame != null) {
             parentFrame.addKeyListener(this);
@@ -73,14 +69,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         startGameThread();
     }
 
-    /**
-     * Stops the game thread cleanly. This causes the run loop to exit.
-     */
     public void stopGameThread() {
         if (gameThread != null) {
             Thread t = gameThread;
             gameThread = null; // run() loop will exit
-            try { t.interrupt(); } catch (Exception ignored) {}
+            try {
+                t.interrupt();
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -96,7 +92,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             try {
                 double remainingTime = nextDrawTime - System.nanoTime();
                 remainingTime = remainingTime / 1000000;
-                if (remainingTime < 0) remainingTime = 0;
+                if (remainingTime < 0)
+                    remainingTime = 0;
                 Thread.sleep((long) remainingTime);
                 nextDrawTime += drawInterval;
             } catch (InterruptedException e) {
@@ -106,7 +103,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     public void update() {
-        // --- 1. CUTSCENE MODE ---
+        // Cutscene mode
         if (gameState == CUTSCENE_STATE) {
             if (!cutscene.isActive) {
                 gameState = PLAY_STATE;
@@ -114,7 +111,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             }
             return;
         }
-    } 
+    }
 
     public boolean isLevelFinished() {
         return levelCompleteTriggered;
@@ -123,26 +120,26 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        // DRAW CUTSCENE (Pass 'this' so GIFs animate!)
+        // Draw cutscene
         if (gameState == CUTSCENE_STATE) {
             cutscene.draw(g, screenWidth, screenHeight, this);
             return;
         }
 
-        // DRAW GAME
+        // Draw game
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 20));
-        // Overlay text removed per request: no lines shown during PLAY_STATE
-        // If needed later, re-enable specific messages via config or a debug flag.
+
     }
 
     @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
 
-        if (key == KeyEvent.VK_ESCAPE) System.exit(0);
+        if (key == KeyEvent.VK_ESCAPE)
+            System.exit(0);
 
-        // CUTSCENE CONTROLS
+        // Cutscence control
         if (gameState == CUTSCENE_STATE) {
             if (key == KeyEvent.VK_SPACE) {
                 cutscene.advance();
@@ -152,7 +149,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     @Override
-    public void keyReleased(KeyEvent e) {}
+    public void keyReleased(KeyEvent e) {
+    }
+
     @Override
-    public void keyTyped(KeyEvent e) {}
+    public void keyTyped(KeyEvent e) {
+    }
 }

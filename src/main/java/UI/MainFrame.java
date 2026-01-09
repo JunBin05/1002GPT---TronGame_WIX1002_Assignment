@@ -13,15 +13,15 @@ public class MainFrame extends JFrame {
         super("Tron Game");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
-        // Start in maximized state so the main menu fills the entire screen like the arena
+        // Start in maximized state so the main menu fills the entire screen like the
+        // arena
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
         ImagePanel backgroundPanel = new ImagePanel("images/tron_2.png");
-        // Ensure the initial panel fills available space immediately
         backgroundPanel.setPreferredSize(getSize());
-        
-        backgroundPanel.setParentFrame(this); 
-        add(backgroundPanel, BorderLayout.CENTER); 
+
+        backgroundPanel.setParentFrame(this);
+        add(backgroundPanel, BorderLayout.CENTER);
     }
 
     public void changeToHome(String username) {
@@ -35,13 +35,10 @@ public class MainFrame extends JFrame {
         setView(homePanel);
     }
 
- 
-
     public void changeToGameMode() {
         ImagePanel_GameMode gameModePanel = new ImagePanel_GameMode("images/tron_3.png", this, currentUsername);
         setView(gameModePanel);
     }
-
 
     public void changeToStoryMode() {
         // 1. Create the Story Mode Panel
@@ -50,7 +47,6 @@ public class MainFrame extends JFrame {
         AudioManager.playMusic("audio/sound_background.wav");
         setView(storyPanel);
     }
-
 
     public void changeToLeaderboard(String username) {
         LeaderBoardPanel leaderboard = new LeaderBoardPanel(this, username);
@@ -68,7 +64,7 @@ public class MainFrame extends JFrame {
         ImagePanel_Ac acPanel = new ImagePanel_Ac(this);
         setView(acPanel);
     }
-    
+
     public void changeToGameRule() {
         ImagePanel_GameRule gameRulePanel = new ImagePanel_GameRule(this);
         setView(gameRulePanel);
@@ -90,5 +86,5 @@ public class MainFrame extends JFrame {
     public String getCurrentUsername() {
         return this.currentUsername;
     }
-    
+
 }

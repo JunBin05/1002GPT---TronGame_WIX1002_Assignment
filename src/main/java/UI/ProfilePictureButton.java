@@ -18,25 +18,24 @@ public class ProfilePictureButton extends IconButton {
         addActionListener(e -> showGenderSelection());
     }
 
-    private void showGenderSelection(){
-        Object[] options = {"Male", "Female"};
+    private void showGenderSelection() {
+        Object[] options = { "Male", "Female" };
         int choice = JOptionPane.showOptionDialog(this, "Choose your avatar:", "Select Gender",
-            JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);       
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
 
         String newPath = null;
-        if (choice == JOptionPane.YES_OPTION) { 
+        if (choice == JOptionPane.YES_OPTION) {
             newPath = "images/male_profile.png";
-        } 
-        else if (choice == JOptionPane.NO_OPTION) { 
+        } else if (choice == JOptionPane.NO_OPTION) {
             newPath = "images/female_profile.png";
         }
 
         // If user made a choice
         if (newPath != null) {
-            // A. Update the screen visually
+            // Update the screen visually
             updateInternalImage(newPath);
-            
-            // B. SAVE TO DATABASE
+
+            // Save to Database
             dbManager.setProfileImage(currentUsername, newPath);
         }
     }
@@ -44,7 +43,7 @@ public class ProfilePictureButton extends IconButton {
     private void updateInternalImage(String path) {
         ImageIcon newIcon = new ImageIcon(path);
         if (newIcon.getImageLoadStatus() == MediaTracker.ERRORED) {
-            newIcon = new ImageIcon("images/default_profile.png"); 
+            newIcon = new ImageIcon("images/default_profile.png");
         }
         setBaseImage(newIcon.getImage());
         repaint();

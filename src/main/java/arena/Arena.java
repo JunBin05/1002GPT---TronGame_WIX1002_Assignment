@@ -7,16 +7,19 @@ public abstract class Arena {
     final int COLS = 40;
 
     protected char[][] grid = new char[ROWS][COLS];
-    // baseGrid stores the immutable underlying tiles (walls, speed ramps) defined at design time
+    // baseGrid stores the immutable underlying tiles (walls, speed ramps) defined
+    // at design time
     protected char[][] baseGrid = new char[ROWS][COLS];
-    protected Random rand = new Random();   // <-- FIX: now always initialized
+    protected Random rand = new Random();
     protected int[][] trailTimer = new int[ROWS][COLS];
 
     public Arena() {
         generateEmptyGrid();
-        designArena(); // safe now
-        // copy the designed grid as the immutable base layout
-        for (int r = 0; r < ROWS; r++) for (int c = 0; c < COLS; c++) baseGrid[r][c] = grid[r][c];
+        designArena();
+
+        for (int r = 0; r < ROWS; r++)
+            for (int c = 0; c < COLS; c++)
+                baseGrid[r][c] = grid[r][c];
         initializeTrailTimer();
     }
 
@@ -52,7 +55,8 @@ public abstract class Arena {
      * removed (e.g., trail decay, enemy death).
      */
     public char getBaseTile(int r, int c) {
-        if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return '.';
+        if (r < 0 || r >= ROWS || c < 0 || c >= COLS)
+            return '.';
         return baseGrid[r][c];
     }
 }

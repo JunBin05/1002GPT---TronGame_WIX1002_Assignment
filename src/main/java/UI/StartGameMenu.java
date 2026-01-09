@@ -1,4 +1,4 @@
-package UI; 
+package UI;
 
 import javax.swing.*;
 import java.awt.*;
@@ -7,10 +7,6 @@ import java.awt.event.ActionListener;
 
 public class StartGameMenu {
 
-    /**
-     * Displays a modal menu that pauses execution until the "Play" button is clicked.
-     * @param parentFrame The main JFrame (the arena) that the menu should block.
-     */
     public static void showMenu(JFrame parentFrame) {
         // Define Tron-inspired colors
         Color NEON_PURPLE_BG = new Color(15, 0, 40); // Dark, deep purple
@@ -21,31 +17,31 @@ public class StartGameMenu {
         menuDialog.setSize(450, 350); // Slightly larger
         menuDialog.setLayout(new BorderLayout(20, 20));
         menuDialog.setLocationRelativeTo(parentFrame);
-        menuDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE); 
+        menuDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
         // --- Title Panel ---
         JLabel title = new JLabel("TRON ARENA", SwingConstants.CENTER);
         title.setFont(new Font("Monospaced", Font.BOLD, 40)); // Larger font
-        title.setForeground(NEON_CYAN_GLOW); 
+        title.setForeground(NEON_CYAN_GLOW);
         title.setBorder(BorderFactory.createEmptyBorder(30, 0, 10, 0));
 
-        // --- Instructions Label ---
+        // Instructions Label
         JLabel instructions = new JLabel("Prepare to enter the Grid...", SwingConstants.CENTER);
         instructions.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        instructions.setForeground(Color.LIGHT_GRAY); 
+        instructions.setForeground(Color.LIGHT_GRAY);
 
-        // --- Button Panel ---
+        // Button Panel
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout());
-        
+
         JButton playButton = new JButton("START SIMULATION");
         playButton.setFont(new Font("Monospaced", Font.BOLD, 18));
         playButton.setBackground(NEON_BLUE_BTN);
         playButton.setForeground(Color.WHITE);
-        playButton.setFocusPainted(false); 
+        playButton.setFocusPainted(false);
         playButton.setPreferredSize(new Dimension(300, 50)); // Larger button
-        
-        // --- Button Action Listener ---
+
+        // Button Action Listener
         playButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -55,20 +51,20 @@ public class StartGameMenu {
 
         buttonPanel.add(playButton);
 
-        // --- Final Assembly ---
+        // Final Assembly
         menuDialog.add(title, BorderLayout.NORTH);
-        
+
         JPanel centerPanel = new JPanel(new GridLayout(2, 1));
         centerPanel.setBackground(NEON_PURPLE_BG);
         centerPanel.add(instructions);
         centerPanel.add(buttonPanel);
-        
+
         menuDialog.add(centerPanel, BorderLayout.CENTER);
-        
+
         // Set the main background color
         menuDialog.getContentPane().setBackground(NEON_PURPLE_BG);
         buttonPanel.setBackground(NEON_PURPLE_BG);
-        
+
         menuDialog.setVisible(true);
     }
 }

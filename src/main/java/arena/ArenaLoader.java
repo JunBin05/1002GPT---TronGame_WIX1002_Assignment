@@ -45,27 +45,30 @@ public class ArenaLoader {
 
     public static void setLogArea(JTextArea area) {
         arenaLogArea = area;
-        if (logBgDefault == null && area != null) logBgDefault = area.getBackground();
+        if (logBgDefault == null && area != null)
+            logBgDefault = area.getBackground();
     }
 
     public static void setLogPanel(JPanel panel) {
         arenaLogPanel = panel;
-        if (logPanelBgDefault == null && panel != null) logPanelBgDefault = panel.getBackground();
+        if (logPanelBgDefault == null && panel != null)
+            logPanelBgDefault = panel.getBackground();
     }
 
     public static void appendGameplayLog(String msg) {
-        if (arenaLogArea == null) return;
+        if (arenaLogArea == null)
+            return;
         String line = String.format("[GAMEPLAY] %s", msg);
         SwingUtilities.invokeLater(() -> {
             // Clear previous timer if it exists
             if (logClearTimer != null && logClearTimer.isRunning()) {
                 logClearTimer.stop();
             }
-            
+
             // Set the new message (replace all text)
             arenaLogArea.setText(line);
             pulseLog(null); // subtle highlight on every log
-            
+
             // Schedule auto-clear after 5 seconds (5000 ms)
             logClearTimer = new javax.swing.Timer(5000, e -> {
                 arenaLogArea.setText("");
@@ -75,13 +78,18 @@ public class ArenaLoader {
         });
     }
 
-    // Briefly highlight the log area; if color is null, use a bright cyan pulse. Always restores defaults.
+    // Briefly highlight the log area; if color is null, use a bright cyan pulse.
+    // Always restores defaults.
     public static void pulseLog(Color color) {
-        if (arenaLogArea == null || arenaLogPanel == null) return;
-        if (logBgDefault == null) logBgDefault = arenaLogArea.getBackground();
-        if (logPanelBgDefault == null) logPanelBgDefault = arenaLogPanel.getBackground();
+        if (arenaLogArea == null || arenaLogPanel == null)
+            return;
+        if (logBgDefault == null)
+            logBgDefault = arenaLogArea.getBackground();
+        if (logPanelBgDefault == null)
+            logPanelBgDefault = arenaLogPanel.getBackground();
 
-        if (logPulseTimer != null && logPulseTimer.isRunning()) logPulseTimer.stop();
+        if (logPulseTimer != null && logPulseTimer.isRunning())
+            logPulseTimer.stop();
 
         Color pulse = (color != null) ? color : new Color(0, 130, 200);
         arenaLogArea.setBackground(pulse);
@@ -110,13 +118,14 @@ public class ArenaLoader {
     private static final Object startLock = new Object();
     private static boolean levelStarting = false;
 
-    // --- PERSISTENT CHARACTERS (So Level doesn't reset!) ---
+    // PERSISTENT CHARACTERS
     private static Tron persistentTron;
     private static Kevin persistentKevin;
     // Convenience reference to whichever character the player selected
     private static Character persistentPlayer;
 
-    // Ensure the requested persistent character exists and has base stats loaded once
+    // Ensure the requested persistent character exists and has base stats loaded
+    // once
     private static Character loadOrInitPersistent(String name) {
         if ("Tron".equalsIgnoreCase(name)) {
             if (persistentTron == null) {
@@ -139,35 +148,46 @@ public class ArenaLoader {
      */
     public static void setSelectedPlayer(String name) {
         persistentPlayer = "Kevin".equalsIgnoreCase(name)
-            ? loadOrInitPersistent("Kevin")
-            : loadOrInitPersistent("Tron");
+                ? loadOrInitPersistent("Kevin")
+                : loadOrInitPersistent("Tron");
     }
 
-    // --- HELPER METHODS (Images) ---
-    private static BufferedImage toBufferedImage(Image img) { if (img instanceof BufferedImage) return (BufferedImage) img; BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB); Graphics2D bGr = bimage.createGraphics(); bGr.drawImage(img, 0, 0, null); bGr.dispose(); return bimage; }
-    private static BufferedImage rotateImage(BufferedImage image, double angleRadians) { 
-        double sin = Math.abs(Math.sin(angleRadians)); 
-        double cos = Math.abs(Math.cos(angleRadians)); 
-        int width = image.getWidth(); 
-        int height = image.getHeight(); 
-        int newWidth = (int) Math.floor(width * cos + height * sin); 
-        int newHeight = (int) Math.floor(height * cos + width * sin); 
+    // HELPER METHODS (Images)
+    private static BufferedImage toBufferedImage(Image img) {
+        if (img instanceof BufferedImage)
+            return (BufferedImage) img;
+        BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D bGr = bimage.createGraphics();
+        bGr.drawImage(img, 0, 0, null);
+        bGr.dispose();
+        return bimage;
+    }
+
+    private static BufferedImage rotateImage(BufferedImage image, double angleRadians) {
+        double sin = Math.abs(Math.sin(angleRadians));
+        double cos = Math.abs(Math.cos(angleRadians));
+        int width = image.getWidth();
+        int height = image.getHeight();
+        int newWidth = (int) Math.floor(width * cos + height * sin);
+        int newHeight = (int) Math.floor(height * cos + width * sin);
         BufferedImage rotatedImage = new BufferedImage(newWidth, newHeight, image.getType());
-        Graphics2D g2d = rotatedImage.createGraphics(); 
-        AffineTransform at = new AffineTransform(); 
-        at.translate(newWidth / 2, newHeight / 2); 
-        at.rotate(angleRadians); 
-        at.translate(-width / 2, -height / 2); 
-        g2d.drawImage(image, at, null); 
-        g2d.dispose(); 
-        return rotatedImage; 
+        Graphics2D g2d = rotatedImage.createGraphics();
+        AffineTransform at = new AffineTransform();
+        at.translate(newWidth / 2, newHeight / 2);
+        at.rotate(angleRadians);
+        at.translate(-width / 2, -height / 2);
+        g2d.drawImage(image, at, null);
+        g2d.dispose();
+        return rotatedImage;
     }
 
-    private static ImageIcon loadAndScale(String relativePath, int size) { 
-        try { File imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath);
-            if (!imageFile.exists()) return null;
-            ImageIcon original = new ImageIcon(imageFile.getAbsolutePath()); 
-            if (original.getImageLoadStatus() == MediaTracker.COMPLETE) { 
+    private static ImageIcon loadAndScale(String relativePath, int size) {
+        try {
+            File imageFile = new File(System.getProperty("user.dir") + File.separator + relativePath);
+            if (!imageFile.exists())
+                return null;
+            ImageIcon original = new ImageIcon(imageFile.getAbsolutePath());
+            if (original.getImageLoadStatus() == MediaTracker.COMPLETE) {
                 Image srcImg = original.getImage();
                 int origW = srcImg.getWidth(null);
                 int origH = srcImg.getHeight(null);
@@ -183,7 +203,7 @@ public class ArenaLoader {
                 // Create a transparent square canvas and center the image
                 BufferedImage combined = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
                 Graphics2D g = combined.createGraphics();
-                
+
                 // High quality rendering hints
                 g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
                 g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
@@ -196,30 +216,43 @@ public class ArenaLoader {
 
                 return new ImageIcon(combined);
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
     public static Arena loadArena(int choice) {
         try {
             switch (currentChapter) {
-                case 1: return new ArenaOne();
-                case 2: return new ArenaTwo();
-                case 3: return new ArenaThree();
-                case 4: case 5: default: return new RandomArena();
+                case 1:
+                    return new ArenaOne();
+                case 2:
+                    return new ArenaTwo();
+                case 3:
+                    return new ArenaThree();
+                case 4:
+                case 5:
+                default:
+                    return new RandomArena();
             }
         } catch (Exception ex) {
-            System.err.println("[ArenaLoader] Failed to load arena for chapter " + currentChapter + ": " + ex.getMessage());
+            System.err.println(
+                    "[ArenaLoader] Failed to load arena for chapter " + currentChapter + ": " + ex.getMessage());
             ex.printStackTrace();
             // Fallback: return RandomArena to avoid crashing
-            try { return new RandomArena(); } catch (Exception e) { throw new RuntimeException("No arena available", e); }
+            try {
+                return new RandomArena();
+            } catch (Exception e) {
+                throw new RuntimeException("No arena available", e);
+            }
         }
     }
 
     private static Map<String, ImageIcon> loadAllIcons(JFrame frame) {
         Map<String, ImageIcon> icons = new HashMap<>();
         int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
-        int TRUE_CELL_SIZE = (int) ((screenHeight*2) / 40);
+        int TRUE_CELL_SIZE = (int) ((screenHeight * 2) / 40);
         int FACE_SIZE = (int) (screenHeight / 45);
         final int HUD_ICON_SIZE = 60;
         final int DISC_INVENTORY_SIZE = 50;
@@ -255,7 +288,7 @@ public class ArenaLoader {
         }
     }
 
-    // --- UPDATED SIDEBAR (4 Sections: Profile, Chapter/Stage, Hearts, Discs) ---
+    // UPDATED SIDEBAR (4 Sections: Profile, Chapter/Stage, Hearts, Discs)
     public static JPanel createSidebarPanel(Character player, Map<String, ImageIcon> icons) {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
@@ -264,7 +297,7 @@ public class ArenaLoader {
         sidebar.setBorder(BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(0, 255, 255)));
         sidebar.add(Box.createVerticalStrut(15)); // push profile a bit lower from the top
 
-        // ========== SECTION 1: PROFILE ==========
+        // SECTION 1: PROFILE
         JPanel profilePanel = new JPanel(new GridBagLayout());
         profilePanel.setOpaque(false);
         profilePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -274,7 +307,8 @@ public class ArenaLoader {
         profilePanel.setMinimumSize(profileSectionSize);
         profilePanel.setBorder(new EmptyBorder(15, 15, 15, 15));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
 
         // Icon: choose a profile icon based on the current player's name
         JLabel profilePic = new JLabel();
@@ -307,7 +341,7 @@ public class ArenaLoader {
         xpLabel.setForeground(Color.LIGHT_GRAY);
         xpLabel.setFont(new Font("Monospaced", Font.PLAIN, 14));
         profilePanel.add(xpLabel, gbc);
-        
+
         // Speed
         gbc.gridy = 4;
         JLabel speedLabel = new JLabel("SPD: " + String.format("%.2f", player.getSpeed()));
@@ -315,7 +349,7 @@ public class ArenaLoader {
         speedLabel.setForeground(new Color(0, 255, 100));
         speedLabel.setFont(new Font("Monospaced", Font.PLAIN, 14));
         profilePanel.add(speedLabel, gbc);
-        
+
         // Handling (Precision)
         gbc.gridy = 5;
         JLabel handlingLabel = new JLabel("PRE: " + String.format("%.2f", player.getHandling()));
@@ -323,11 +357,11 @@ public class ArenaLoader {
         handlingLabel.setForeground(new Color(100, 200, 255));
         handlingLabel.setFont(new Font("Monospaced", Font.PLAIN, 14));
         profilePanel.add(handlingLabel, gbc);
-        
+
         sidebar.add(profilePanel);
         sidebar.add(Box.createVerticalStrut(5));
 
-        // ========== SECTION 2: CHAPTER & STAGE ==========
+        // SECTION 2: CHAPTER & STAGE
         JPanel statsPanel = new JPanel();
         statsPanel.setOpaque(false);
         statsPanel.setLayout(new BoxLayout(statsPanel, BoxLayout.Y_AXIS));
@@ -351,11 +385,11 @@ public class ArenaLoader {
         statsPanel.add(chLabel);
         statsPanel.add(Box.createVerticalStrut(5));
         statsPanel.add(stgLabel);
-        
+
         sidebar.add(statsPanel);
         sidebar.add(Box.createVerticalStrut(5));
 
-        // ========== SECTION 3: LIFE POWER (HEARTS) ==========
+        // SECTION 3: LIFE POWER (HEARTS)
         JPanel heartsSection = new JPanel();
         heartsSection.setOpaque(false);
         heartsSection.setLayout(new BoxLayout(heartsSection, BoxLayout.Y_AXIS));
@@ -365,25 +399,25 @@ public class ArenaLoader {
         heartsSection.setMaximumSize(heartsSectionSize);
         heartsSection.setPreferredSize(heartsSectionSize);
         heartsSection.setMinimumSize(heartsSectionSize);
-        
+
         JLabel hpTitle = new JLabel("LIFE POWER");
         hpTitle.setForeground(new Color(255, 100, 100));
         hpTitle.setFont(new Font("Monospaced", Font.BOLD, 16));
         hpTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         JPanel hpContainer = new JPanel(new GridLayout(0, 6, 5, 5));
         hpContainer.setName("HPContainer");
         hpContainer.setOpaque(false);
         hpContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         heartsSection.add(hpTitle);
         heartsSection.add(Box.createVerticalStrut(8));
         heartsSection.add(hpContainer);
-        
+
         sidebar.add(heartsSection);
         sidebar.add(Box.createVerticalStrut(10));
 
-        // ========== SECTION 4: DISC INVENTORY ==========
+        // SECTION 4: DISC INVENTORY
         JPanel discsSection = new JPanel();
         discsSection.setOpaque(false);
         discsSection.setLayout(new BoxLayout(discsSection, BoxLayout.Y_AXIS));
@@ -393,12 +427,12 @@ public class ArenaLoader {
         discsSection.setMaximumSize(discsSectionSize);
         discsSection.setPreferredSize(discsSectionSize);
         discsSection.setMinimumSize(discsSectionSize);
-        
+
         JLabel discTitle = new JLabel("DISC INVENTORY");
         discTitle.setForeground(new Color(0, 200, 255));
         discTitle.setFont(new Font("Monospaced", Font.BOLD, 16));
         discTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         JPanel discSlotsContainer = new JPanel(new GridLayout(2, 5, 6, 6));
         discSlotsContainer.setName("DiscSlotsContainer");
         discSlotsContainer.setOpaque(false);
@@ -407,7 +441,7 @@ public class ArenaLoader {
         discSlotsContainer.setPreferredSize(discSlotsSize);
         discSlotsContainer.setMaximumSize(discSlotsSize);
         discSlotsContainer.setMinimumSize(discSlotsSize);
-        
+
         discsSection.add(discTitle);
         discsSection.add(Box.createVerticalStrut(8));
         discsSection.add(discSlotsContainer);
@@ -427,11 +461,11 @@ public class ArenaLoader {
         discCooldownBar.setAlignmentX(Component.LEFT_ALIGNMENT);
         discCooldownBar.setVisible(false);
         discsSection.add(discCooldownBar);
-        
+
         sidebar.add(discsSection);
         sidebar.add(Box.createVerticalStrut(2)); // minimal gap before log
 
-// ========== SECTION 5: SYSTEM LOG (Fixed Height) ==========
+        // SECTION 5: SYSTEM LOG (Fixed Height)
         JPanel logSection = new JPanel();
         logSection.setOpaque(false);
         logSection.setLayout(new BoxLayout(logSection, BoxLayout.Y_AXIS));
@@ -466,7 +500,7 @@ public class ArenaLoader {
         logArea.setPreferredSize(logAreaSize);
         logArea.setMaximumSize(logAreaSize);
         logArea.setMinimumSize(logAreaSize);
-        
+
         // Border to frame the log area
         JPanel logAreaPanel = new JPanel(new BorderLayout());
         logAreaPanel.setOpaque(true);
@@ -478,7 +512,7 @@ public class ArenaLoader {
         logAreaPanel.setMaximumSize(logAreaPanelSize);
         logAreaPanel.setMinimumSize(logAreaPanelSize);
         logAreaPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         // Register this area so gameplay events can be appended and highlighted
         setLogArea(logArea);
         setLogPanel(logAreaPanel);
@@ -492,7 +526,7 @@ public class ArenaLoader {
         return sidebar;
     }
 
-    // --- UPDATED HUD LOGIC ---
+    // UPDATED HUD LOGIC
     public static void updateHUD(JPanel sidebar, Character player, Map<String, ImageIcon> icons) {
         JPanel hpContainer = null;
         JPanel discSlotsContainer = null;
@@ -503,41 +537,54 @@ public class ArenaLoader {
         JLabel speedLabel = null;
         JLabel handlingLabel = null;
 
-        // Deep recursive search for components through all nested panels (3 levels deep)
+        // Deep recursive search for components through all nested panels (3 levels
+        // deep)
         for (Component row : sidebar.getComponents()) {
             if (row instanceof JPanel) {
                 JPanel p = (JPanel) row;
                 // Level 1: Check direct children
-                if ("HPContainer".equals(p.getName())) hpContainer = p;
-                if ("DiscSlotsContainer".equals(p.getName())) discSlotsContainer = p;
-                
+                if ("HPContainer".equals(p.getName()))
+                    hpContainer = p;
+                if ("DiscSlotsContainer".equals(p.getName()))
+                    discSlotsContainer = p;
+
                 // Level 2: Check nested children
                 for (Component sub : p.getComponents()) {
                     if (sub instanceof JPanel) {
                         JPanel subPanel = (JPanel) sub;
-                        if ("HPContainer".equals(subPanel.getName())) hpContainer = subPanel;
-                        if ("DiscSlotsContainer".equals(subPanel.getName())) discSlotsContainer = subPanel;
-                        
+                        if ("HPContainer".equals(subPanel.getName()))
+                            hpContainer = subPanel;
+                        if ("DiscSlotsContainer".equals(subPanel.getName()))
+                            discSlotsContainer = subPanel;
+
                         // Level 3: Check deeper nested children
                         for (Component subsub : subPanel.getComponents()) {
                             if (subsub instanceof JPanel) {
                                 JPanel subsubPanel = (JPanel) subsub;
-                                if ("HPContainer".equals(subsubPanel.getName())) hpContainer = subsubPanel;
-                                if ("DiscSlotsContainer".equals(subsubPanel.getName())) discSlotsContainer = subsubPanel;
+                                if ("HPContainer".equals(subsubPanel.getName()))
+                                    hpContainer = subsubPanel;
+                                if ("DiscSlotsContainer".equals(subsubPanel.getName()))
+                                    discSlotsContainer = subsubPanel;
                             }
                         }
                     }
                     if (sub instanceof JLabel) {
                         JLabel subLabel = (JLabel) sub;
-                        if ("LevelLabel".equals(subLabel.getName())) levelLabel = subLabel;
-                        if ("XPLabel".equals(subLabel.getName())) xpLabel = subLabel;
-                        if ("DiscLabel".equals(subLabel.getName())) discLabel = subLabel;
-                        if ("SpeedLabel".equals(subLabel.getName())) speedLabel = subLabel;
-                        if ("HandlingLabel".equals(subLabel.getName())) handlingLabel = subLabel;
+                        if ("LevelLabel".equals(subLabel.getName()))
+                            levelLabel = subLabel;
+                        if ("XPLabel".equals(subLabel.getName()))
+                            xpLabel = subLabel;
+                        if ("DiscLabel".equals(subLabel.getName()))
+                            discLabel = subLabel;
+                        if ("SpeedLabel".equals(subLabel.getName()))
+                            speedLabel = subLabel;
+                        if ("HandlingLabel".equals(subLabel.getName()))
+                            handlingLabel = subLabel;
                     }
                     if (sub instanceof JProgressBar) {
                         JProgressBar bar = (JProgressBar) sub;
-                        if ("DiscCooldownBar".equals(bar.getName())) discCooldownBar = bar;
+                        if ("DiscCooldownBar".equals(bar.getName()))
+                            discCooldownBar = bar;
                     }
                 }
             }
@@ -548,7 +595,7 @@ public class ArenaLoader {
             discSlotsContainer.removeAll();
             int maxDiscs = Math.max(player.getDiscCapacity(), 1); // Show at least 1 slot, based on actual disc capacity
             int currentDiscs = player.currentDiscCount; // Current discs available
-            
+
             for (int i = 0; i < maxDiscs; i++) {
                 JLabel slot = new JLabel();
                 slot.setHorizontalAlignment(JLabel.CENTER);
@@ -560,7 +607,7 @@ public class ArenaLoader {
                 slot.setMinimumSize(slotSize);
                 slot.setOpaque(true);
                 slot.setBackground(new Color(30, 30, 50));
-                
+
                 if (i < currentDiscs) {
                     // Filled slot - show disc icon
                     ImageIcon discIcon = icons.get("disc_inventory");
@@ -568,7 +615,7 @@ public class ArenaLoader {
                         slot.setIcon(discIcon);
                     } else {
                         // Fallback if no disc icon
-                        slot.setText("●"); 
+                        slot.setText("●");
                         slot.setFont(new Font("Arial", Font.BOLD, 24));
                         slot.setForeground(new Color(0, 200, 255));
                     }
@@ -582,7 +629,8 @@ public class ArenaLoader {
             discSlotsContainer.repaint();
         }
 
-        // 2. UPDATE HEARTS - Dynamic based on maxLives (Prefer saved max-level stats if user is logged-in)
+        // 2. UPDATE HEARTS - Dynamic based on maxLives (Prefer saved max-level stats if
+        // user is logged-in)
         double displayMaxLives = player.getMaxLives();
         double displayCurrentLives = player.getLives();
         int displayDiscCap = player.getDiscCapacity();
@@ -590,8 +638,10 @@ public class ArenaLoader {
         double displayHandling = player.getHandling();
         int displayLevel = player.getLevel();
 
-        // Use cached persistent character stats to avoid synchronous DB reads on the EDT.
-        // persistentTron / persistentKevin are loaded at arena start when the user is logged in.
+        // Use cached persistent character stats to avoid synchronous DB reads on the
+        // EDT.
+        // persistentTron / persistentKevin are loaded at arena start when the user is
+        // logged in.
         if (player.name.equals("Tron") && persistentTron != null) {
             int savedLevel = persistentTron.getLevel();
             displayLevel = Math.max(displayLevel, savedLevel);
@@ -599,7 +649,8 @@ public class ArenaLoader {
             displayHandling = persistentTron.getHandling();
             displayDiscCap = persistentTron.getDiscCapacity();
             displayMaxLives = persistentTron.getMaxLives();
-            if (displayCurrentLives > displayMaxLives) displayCurrentLives = displayMaxLives;
+            if (displayCurrentLives > displayMaxLives)
+                displayCurrentLives = displayMaxLives;
         } else if (player.name.equals("Kevin") && persistentKevin != null) {
             int savedLevel = persistentKevin.getLevel();
             displayLevel = Math.max(displayLevel, savedLevel);
@@ -607,7 +658,8 @@ public class ArenaLoader {
             displayHandling = persistentKevin.getHandling();
             displayDiscCap = persistentKevin.getDiscCapacity();
             displayMaxLives = persistentKevin.getMaxLives();
-            if (displayCurrentLives > displayMaxLives) displayCurrentLives = displayMaxLives;
+            if (displayCurrentLives > displayMaxLives)
+                displayCurrentLives = displayMaxLives;
         }
 
         if (hpContainer != null) {
@@ -617,14 +669,18 @@ public class ArenaLoader {
             int totalHalfUnits = (currentLives <= 0.001) ? 0 : (int) Math.round(currentLives * 2);
             int maxHalfUnits = (int) Math.round(maxLives * 2);
             int maxHearts = (maxHalfUnits + 1) / 2; // Round up: 2 half-units = 1 heart
-            
+
             for (int i = 0; i < maxHearts; i++) {
                 ImageIcon icon = null;
                 int currentSlotHalfUnits = totalHalfUnits - (i * 2);
-                if (currentSlotHalfUnits >= 2) icon = icons.get("heart_full");
-                else if (currentSlotHalfUnits == 1) icon = icons.get("heart_half");
-                else icon = icons.get("heart_empty");
-                if (icon != null) hpContainer.add(new JLabel(icon));
+                if (currentSlotHalfUnits >= 2)
+                    icon = icons.get("heart_full");
+                else if (currentSlotHalfUnits == 1)
+                    icon = icons.get("heart_half");
+                else
+                    icon = icons.get("heart_empty");
+                if (icon != null)
+                    hpContainer.add(new JLabel(icon));
             }
             hpContainer.revalidate();
             hpContainer.repaint();
@@ -639,7 +695,7 @@ public class ArenaLoader {
             long nextXP = TronRules.getTotalXpForLevel(displayLevel + 1);
             xpLabel.setText("XP: " + currentXP + " / " + nextXP);
         }
-        
+
         // 4. UPDATE SPEED & HANDLING
         if (speedLabel != null) {
             speedLabel.setText("SPD: " + String.format("%.2f", displaySpeed));
@@ -647,7 +703,7 @@ public class ArenaLoader {
         if (handlingLabel != null) {
             handlingLabel.setText("PRE: " + String.format("%.2f", displayHandling));
         }
-        
+
         // 5. UPDATE DISC LABEL
         if (discLabel != null) {
             discLabel.setText("DISCS: " + displayDiscCap);
@@ -683,47 +739,61 @@ public class ArenaLoader {
         }
     }
 
-    public static void redrawArena(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons, JPanel arenaPanel, JPanel sidebar) {
+    public static void redrawArena(JFrame frame, Arena arena, List<Character> cycles, Map<String, ImageIcon> icons,
+            JPanel arenaPanel, JPanel sidebar) {
         arenaPanel.removeAll();
         char[][] grid = arena.getGrid();
-        Color NEON_BG = new Color(10, 10, 20); Color GRID_LINE = new Color(30, 40, 60);
-        Color WALL_COLOR = new Color(0, 50, 80); Color WALL_BORDER = new Color(0, 200, 255);
-        
+        Color NEON_BG = new Color(10, 10, 20);
+        Color GRID_LINE = new Color(30, 40, 60);
+        Color WALL_COLOR = new Color(0, 50, 80);
+        Color WALL_BORDER = new Color(0, 200, 255);
+
         // Check if player is on speed ramp for booster effect
         int playerR = cycles.get(0).getRow();
         int playerC = cycles.get(0).getCol();
-        boolean playerBoosting = playerR >= 0 && playerR < 40 && playerC >= 0 && playerC < 40 && grid[playerR][playerC] == 'S';
+        boolean playerBoosting = playerR >= 0 && playerR < 40 && playerC >= 0 && playerC < 40
+                && grid[playerR][playerC] == 'S';
 
-        for (int r = 0; r < 40; r++) { 
+        for (int r = 0; r < 40; r++) {
             for (int c = 0; c < 40; c++) {
                 JPanel cellPanel = new JPanel(new BorderLayout());
-                cellPanel.setOpaque(true); cellPanel.setBackground(NEON_BG);
+                cellPanel.setOpaque(true);
+                cellPanel.setBackground(NEON_BG);
                 cellPanel.setBorder(BorderFactory.createLineBorder(GRID_LINE, 1));
                 JLabel iconLabel = new JLabel();
-                iconLabel.setHorizontalAlignment(JLabel.CENTER); iconLabel.setVerticalAlignment(JLabel.CENTER);
+                iconLabel.setHorizontalAlignment(JLabel.CENTER);
+                iconLabel.setVerticalAlignment(JLabel.CENTER);
                 cellPanel.add(iconLabel, BorderLayout.CENTER);
 
                 Character characterHere = null;
-                for (Character cycle : cycles) { if (cycle.getRow() == r && cycle.getCol() == c) { characterHere = cycle; break; } }
+                for (Character cycle : cycles) {
+                    if (cycle.getRow() == r && cycle.getCol() == c) {
+                        characterHere = cycle;
+                        break;
+                    }
+                }
 
                 if (characterHere != null) {
                     String iconKey = characterHere.imageBaseName + "_" + characterHere.currentDirection.toString();
-                    if (icons.containsKey(iconKey)) iconLabel.setIcon(icons.get(iconKey));
-                    else iconLabel.setText("?");
+                    if (icons.containsKey(iconKey))
+                        iconLabel.setIcon(icons.get(iconKey));
+                    else
+                        iconLabel.setText("?");
 
-                    if (characterHere.name.equals("Tron")) { 
-                        cellPanel.setBackground(new Color(0, 100, 180)); 
-                        cellPanel.setBorder(BorderFactory.createLineBorder(Color.CYAN, 2)); 
-                    }
-                    else { 
-                        cellPanel.setBackground(new Color(100, 40, 0)); 
-                        // Boss enemies get special visual indicator (bright red border + purple background)
+                    if (characterHere.name.equals("Tron")) {
+                        cellPanel.setBackground(new Color(0, 100, 180));
+                        cellPanel.setBorder(BorderFactory.createLineBorder(Color.CYAN, 2));
+                    } else {
+                        cellPanel.setBackground(new Color(100, 40, 0));
+                        // Boss enemies get special visual indicator (bright red border + purple
+                        // background)
                         if (characterHere instanceof designenemies.Enemy) {
                             designenemies.Enemy enemy = (designenemies.Enemy) characterHere;
                             if (enemy.isBoss()) {
                                 cellPanel.setBackground(new Color(150, 0, 50)); // Dark purple/red
-                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3)); // Thick magenta border
-                               
+                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 3)); // Thick magenta
+                                                                                                       // border
+
                             } else {
                                 cellPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
                             }
@@ -737,25 +807,62 @@ public class ArenaLoader {
                         double hpPercent = characterHere.getLives() / characterHere.getMaxLives();
                         hpPercent = Math.max(0, Math.min(1, hpPercent));
                         JProgressBar hpBar = new JProgressBar(0, 100);
-                        hpBar.setValue((int)(hpPercent * 100)); hpBar.setPreferredSize(new Dimension(0, 5));
-                        hpBar.setForeground(hpPercent > 0.5 ? Color.GREEN : Color.RED); hpBar.setBackground(Color.BLACK); hpBar.setBorderPainted(false);
+                        hpBar.setValue((int) (hpPercent * 100));
+                        hpBar.setPreferredSize(new Dimension(0, 5));
+                        hpBar.setForeground(hpPercent > 0.5 ? Color.GREEN : Color.RED);
+                        hpBar.setBackground(Color.BLACK);
+                        hpBar.setBorderPainted(false);
                         cellPanel.add(hpBar, BorderLayout.SOUTH);
                     }
                 } else {
                     switch (grid[r][c]) {
-                        case '#': cellPanel.setBackground(WALL_COLOR); cellPanel.setBorder(BorderFactory.createLineBorder(WALL_BORDER, 1)); break;
-                        case 'O': cellPanel.setBackground(NEON_BG); if (icons.get("obstacle") != null) iconLabel.setIcon(icons.get("obstacle")); else cellPanel.setBackground(new Color(255, 140, 0)); break;
-                        case 'S': cellPanel.setBackground(NEON_BG); if (icons.get("speed") != null) iconLabel.setIcon(icons.get("speed")); else cellPanel.setBackground(Color.CYAN); break;
-                        case 'D': cellPanel.setBackground(new Color(0, 30, 50)); if (icons.get("disc") != null) iconLabel.setIcon(icons.get("disc")); else { iconLabel.setText("O"); iconLabel.setForeground(Color.CYAN); } cellPanel.setBorder(BorderFactory.createLineBorder(Color.CYAN, 1)); break;
-                        case 'E': cellPanel.setBackground(new Color(30, 0, 20)); if (icons.get("disc_enemy") != null) iconLabel.setIcon(icons.get("disc_enemy")); else { iconLabel.setText("O"); iconLabel.setForeground(Color.RED); } cellPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 1)); break;
-                        case 'T': 
+                        case '#':
+                            cellPanel.setBackground(WALL_COLOR);
+                            cellPanel.setBorder(BorderFactory.createLineBorder(WALL_BORDER, 1));
+                            break;
+                        case 'O':
+                            cellPanel.setBackground(NEON_BG);
+                            if (icons.get("obstacle") != null)
+                                iconLabel.setIcon(icons.get("obstacle"));
+                            else
+                                cellPanel.setBackground(new Color(255, 140, 0));
+                            break;
+                        case 'S':
+                            cellPanel.setBackground(NEON_BG);
+                            if (icons.get("speed") != null)
+                                iconLabel.setIcon(icons.get("speed"));
+                            else
+                                cellPanel.setBackground(Color.CYAN);
+                            break;
+                        case 'D':
+                            cellPanel.setBackground(new Color(0, 30, 50));
+                            if (icons.get("disc") != null)
+                                iconLabel.setIcon(icons.get("disc"));
+                            else {
+                                iconLabel.setText("O");
+                                iconLabel.setForeground(Color.CYAN);
+                            }
+                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.CYAN, 1));
+                            break;
+                        case 'E':
+                            cellPanel.setBackground(new Color(30, 0, 20));
+                            if (icons.get("disc_enemy") != null)
+                                iconLabel.setIcon(icons.get("disc_enemy"));
+                            else {
+                                iconLabel.setText("O");
+                                iconLabel.setForeground(Color.RED);
+                            }
+                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 1));
+                            break;
+                        case 'T':
                             // BOOSTER EFFECT: Tron tail glows bright when boosting
                             if (playerBoosting) {
                                 cellPanel.setBackground(new Color(0, 255, 200)); // Bright neon cyan
-                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 2)); // Yellow glow border
+                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 2)); // Yellow glow
+                                                                                                      // border
                             } else {
-                                cellPanel.setBackground(new Color(0, 180, 255)); 
-                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1)); 
+                                cellPanel.setBackground(new Color(0, 180, 255));
+                                cellPanel.setBorder(BorderFactory.createLineBorder(Color.WHITE, 1));
                             }
                             break;
                         case 'K':
@@ -771,43 +878,54 @@ public class ArenaLoader {
                         // --- NEW COLORED TRAILS ---
                         case 'C': // Clu (orange for stronger contrast)
                             cellPanel.setBackground(new Color(255, 140, 0)); // bright orange
-                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(200, 100, 0), 2)); 
+                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(200, 100, 0), 2));
                             break;
                         case 'Y': // Sark (vivid yellow)
                             cellPanel.setBackground(new Color(255, 230, 0)); // vivid yellow
-                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1)); 
+                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
                             break;
                         case 'G': // Koura (Green)
-                            cellPanel.setBackground(new Color(50, 205, 50)); 
-                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(0, 100, 0), 1)); 
+                            cellPanel.setBackground(new Color(50, 205, 50));
+                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(0, 100, 0), 1));
                             break;
                         case 'R': // Rinzler (Red)
-                            cellPanel.setBackground(new Color(220, 20, 60)); 
-                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(100, 0, 0), 1)); 
+                            cellPanel.setBackground(new Color(220, 20, 60));
+                            cellPanel.setBorder(BorderFactory.createLineBorder(new Color(100, 0, 0), 1));
                             break;
-                        case 'M': cellPanel.setBackground(new Color(255, 50, 0)); cellPanel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 1)); break;
+                        case 'M':
+                            cellPanel.setBackground(new Color(255, 50, 0));
+                            cellPanel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 1));
+                            break;
                     }
                 }
                 arenaPanel.add(cellPanel);
-        }}
-        if (cycles.get(0).isStunned) sidebar.setBackground(new Color(150, 0, 0)); else sidebar.setBackground(new Color(5, 10, 20));
+            }
+        }
+        if (cycles.get(0).isStunned)
+            sidebar.setBackground(new Color(150, 0, 0));
+        else
+            sidebar.setBackground(new Color(5, 10, 20));
         updateHUD(sidebar, cycles.get(0), icons);
-        arenaPanel.revalidate(); arenaPanel.repaint();
+        arenaPanel.revalidate();
+        arenaPanel.repaint();
     }
 
     public static void showGameOverDialog(JFrame parentFrame) {
-        // Present a friendly choice to the player: try the level again, return to chapter select, or quit
+        // Present a friendly choice to the player: try the level again, return to
+        // chapter select, or quit
         JLabel title = new JLabel("::: DEREZZED :::", SwingConstants.CENTER);
         title.setFont(new Font("Monospaced", Font.BOLD, 42));
         title.setForeground(Color.RED);
         title.setBorder(new EmptyBorder(10, 0, 10, 0));
 
-        JLabel message = new JLabel("<html><div style='text-align:center;'>You have lost this stage.<br/>What would you like to do next?</div></html>", SwingConstants.CENTER);
+        JLabel message = new JLabel(
+                "<html><div style='text-align:center;'>You have lost this stage.<br/>What would you like to do next?</div></html>",
+                SwingConstants.CENTER);
         message.setFont(new Font("Monospaced", Font.PLAIN, 16));
         message.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        Object[] options = {"Try Again", "RETURN TO CHAPTER SELECT", "Quit"};
-        int choice = JOptionPane.showOptionDialog(parentFrame, new Object[]{title, message}, "Game Over",
+        Object[] options = { "Try Again", "RETURN TO CHAPTER SELECT", "Quit" };
+        int choice = JOptionPane.showOptionDialog(parentFrame, new Object[] { title, message }, "Game Over",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
 
         if (choice == 0) {
@@ -815,8 +933,16 @@ public class ArenaLoader {
             startLevel();
         } else if (choice == 1) {
             // Return to Story Mode (Chapter Selection). Stop any active game cleanly first.
-            try { if (activeController != null) activeController.stopGame(); } catch (Exception ignored) {}
-            try { if (gameThread != null && gameThread.isAlive()) gameThread.interrupt(); } catch (Exception ignored) {}
+            try {
+                if (activeController != null)
+                    activeController.stopGame();
+            } catch (Exception ignored) {
+            }
+            try {
+                if (gameThread != null && gameThread.isAlive())
+                    gameThread.interrupt();
+            } catch (Exception ignored) {
+            }
 
             if (mainFrame instanceof UI.MainFrame) {
                 ((UI.MainFrame) mainFrame).changeToStoryMode();
@@ -847,9 +973,10 @@ public class ArenaLoader {
                 }
             }
 
-            // Stop old thread if still running. DO NOT block the EDT — defer start until previous thread exits.
+            // Stop old thread if still running.
             if (gameThread != null && gameThread.isAlive()) {
-                System.out.println("[ArenaLoader] Previous game thread is still alive; requesting stop and will restart after it finishes.");
+                System.out.println(
+                        "[ArenaLoader] Previous game thread is still alive; requesting stop and will restart after it finishes.");
                 activeController.stopGame();
                 Thread stopper = new Thread(() -> {
                     try {
@@ -863,7 +990,9 @@ public class ArenaLoader {
                 stopper.setDaemon(true);
                 stopper.start();
                 // Allow future startLevel calls when the stopper re-invokes startLevel
-                synchronized (startLock) { levelStarting = false; }
+                synchronized (startLock) {
+                    levelStarting = false;
+                }
                 return;
             }
             activeController = null;
@@ -879,8 +1008,10 @@ public class ArenaLoader {
                 setSelectedPlayer("kevin");
             }
 
-            // If the user is logged-in, ensure we load saved XP (in case setSelectedPlayer was called
-            // before the mainFrame/username was available). We do this once per startLevel to be safe.
+            // If the user is logged-in, ensure we load saved XP (in case setSelectedPlayer
+            // was called
+            // before the mainFrame/username was available). We do this once per startLevel
+            // to be safe.
             try {
                 if (mainFrame instanceof UI.MainFrame) {
                     String user = ((UI.MainFrame) mainFrame).getCurrentUsername();
@@ -894,12 +1025,18 @@ public class ArenaLoader {
                         // Hydrate XP/levels from database so players resume saved progress
                         try {
                             long tronXp = db.getTronXp(user);
-                            if (tronXp > 0 && persistentTron != null) persistentTron.setXp(tronXp);
-                        } catch (Exception e) { System.out.println("[WARN] Failed to load Tron XP: " + e.getMessage()); }
+                            if (tronXp > 0 && persistentTron != null)
+                                persistentTron.setXp(tronXp);
+                        } catch (Exception e) {
+                            System.out.println("[WARN] Failed to load Tron XP: " + e.getMessage());
+                        }
                         try {
                             long kevinXp = db.getKevinXp(user);
-                            if (kevinXp > 0 && persistentKevin != null) persistentKevin.setXp(kevinXp);
-                        } catch (Exception e) { System.out.println("[WARN] Failed to load Kevin XP: " + e.getMessage()); }
+                            if (kevinXp > 0 && persistentKevin != null)
+                                persistentKevin.setXp(kevinXp);
+                        } catch (Exception e) {
+                            System.out.println("[WARN] Failed to load Kevin XP: " + e.getMessage());
+                        }
 
                         // --- PERSIST LAST PLAYED STAGE FOR RESUME FEATURE ---
                         try {
@@ -909,12 +1046,16 @@ public class ArenaLoader {
                                 try {
                                     UI.DatabaseManager db2 = new UI.DatabaseManager();
                                     db2.setChapterStage(user, ch, st);
-                                } catch (Exception e) { e.printStackTrace(); }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
                             }).start();
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
 
             // Reset Position for new level
             persistentPlayer.r = 20;
@@ -945,12 +1086,13 @@ public class ArenaLoader {
             if (bossWarning.length() > 0) {
                 // Show boss warning and FREEZE the game (blocking dialog)
                 JLabel msgLabel = new JLabel("<html><b style='color:red;font-size:16px;'>⚠ BOSS ENCOUNTER ⚠</b><br>" +
-                        bossWarning.toString().replace("\n", "<br>") + 
+                        bossWarning.toString().replace("\n", "<br>") +
                         "<br>Watch out for faster movement and longer trails!</html>");
                 JOptionPane.showMessageDialog(mainFrame, msgLabel, "BOSS WARNING", JOptionPane.WARNING_MESSAGE);
             }
 
-            System.out.println("Starting C" + currentChapter + ":S" + currentStage + " | Player Level: " + persistentPlayer.getLevel());
+            System.out.println("Starting C" + currentChapter + ":S" + currentStage + " | Player Level: "
+                    + persistentPlayer.getLevel());
 
             // --- CREATE GAME PANEL (for cutscene integration) ---
             UI.GamePanel gamePanel = new UI.GamePanel();
@@ -969,7 +1111,8 @@ public class ArenaLoader {
             mainFrame.revalidate();
             mainFrame.repaint();
 
-            // Ensure the GamePanel has keyboard focus and a running thread so it can receive
+            // Ensure the GamePanel has keyboard focus and a running thread so it can
+            // receive
             // Space (and other) key events while the pre-stage cutscene plays.
             gamePanel.setFocusable(true);
             // Request focus on the EDT to increase reliability
@@ -977,37 +1120,49 @@ public class ArenaLoader {
             // Start the internal game loop and attach KeyListener to the frame
             gamePanel.startGameThread(mainFrame);
 
-            // Show pre-stage cutscene (suffix "a") if available, using the real GamePanel overlay
-            // Avoid showing it again if it was already shown earlier (e.g., after character selection)
+            // Show pre-stage cutscene (suffix "a") if available, using the real GamePanel
+            // overlay
+            // Avoid showing it again if it was already shown earlier (e.g., after character
+            // selection)
             if (!(lastPreCutsceneChapter == currentChapter && lastPreCutsceneStage == currentStage)) {
-                // Play the per-stage pre-cutscene WITHOUT following NEXT_FILE links so it doesn't chain to other stages
+                // Play the per-stage pre-cutscene WITHOUT following NEXT_FILE links so it
+                // doesn't chain to other stages
                 UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "a", mainFrame, null, false);
                 // Record that we showed it
                 lastPreCutsceneChapter = currentChapter;
                 lastPreCutsceneStage = currentStage;
             }
 
-            // Wait for cutscene to finish before showing start simulation dialog.
-            // IMPORTANT: Do not block the EDT here (cutscene animations run on the GamePanel's thread),
-            // so spawn a background waiter thread and continue work on the EDT when ready.
+            // Wait for cutscene to finish before showing start simulation dialog so spawn a
+            // background waiter thread and continue work on the EDT when ready.
             Thread waiter = new Thread(() -> {
                 try {
                     while (gamePanel.cutscene.isActive()) {
                         Thread.sleep(50);
                     }
 
-                    // Now initialize the arena view on the EDT, then show the start dialog centered over it
+                    // Now initialize the arena view on the EDT, then show the start dialog centered
+                    // over it
                     SwingUtilities.invokeLater(() -> {
-                        // --- SANITIZE GRID: remove stray 'D' markers so discs are visible on new stage ---
-                        // Ensure any lingering cutscene overlay is force-stopped so arena renders cleanly
-                        try { gamePanel.cutscene.forceStop(); } catch (Exception ignored) {}
+                        // --- SANITIZE GRID: remove stray 'D' markers so discs are visible on new stage
+                        // ---
+                        // Ensure any lingering cutscene overlay is force-stopped so arena renders
+                        // cleanly
+                        try {
+                            gamePanel.cutscene.forceStop();
+                        } catch (Exception ignored) {
+                        }
                         sanitizeGrid(arena);
 
-                        // Replace the temporary GamePanel with the actual arena panel so the arena is visible
+                        // Replace the temporary GamePanel with the actual arena panel so the arena is
+                        // visible
                         Container content = mainFrame.getContentPane();
                         try {
                             // Stop the game panel thread before removing it to avoid stray repaints
-                            try { gamePanel.stopGameThread(); } catch (Exception ignored) {}
+                            try {
+                                gamePanel.stopGameThread();
+                            } catch (Exception ignored) {
+                            }
                             content.remove(gamePanel);
                             content.add(arenaPanel, BorderLayout.CENTER);
                         } catch (Exception e) {
@@ -1016,42 +1171,52 @@ public class ArenaLoader {
 
                         // Populate arena and refresh UI
                         redrawArena(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
-                        mainFrame.revalidate(); mainFrame.repaint();
+                        mainFrame.revalidate();
+                        mainFrame.repaint();
 
-                        // Show the start dialog centered on the current frame, with the arena visible behind it
-                        JOptionPane.showMessageDialog(mainFrame, "Press OK to start simulation!\nUse arrow keys to move.", "Start Simulation", JOptionPane.INFORMATION_MESSAGE);
+                        // Show the start dialog centered on the current frame, with the arena visible
+                        // behind it
+                        JOptionPane.showMessageDialog(mainFrame,
+                                "Press OK to start simulation!\nUse WASD keys to move.", "Start Simulation",
+                                JOptionPane.INFORMATION_MESSAGE);
                         mainFrame.requestFocusInWindow();
 
                         // Start the active controller (game loop)
-                        activeController = new GameController(mainFrame, arena, cycles, icons, arenaPanel, sidebarPanel);
+                        activeController = new GameController(mainFrame, arena, cycles, icons, arenaPanel,
+                                sidebarPanel);
                         gameThread = new Thread(activeController);
                         gameThread.start();
                         // Allow future startLevel calls after initialization completes
-                        synchronized (startLock) { levelStarting = false; }
+                        synchronized (startLock) {
+                            levelStarting = false;
+                        }
                     });
-                } catch (InterruptedException ignored) {}
+                } catch (InterruptedException ignored) {
+                }
             });
             waiter.setDaemon(true);
             waiter.start();
         } catch (Exception ex) {
             System.err.println("[ArenaLoader] Error during startLevel: " + ex.getMessage());
             ex.printStackTrace();
-            JOptionPane.showMessageDialog(mainFrame, "Failed to load the next chapter: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(mainFrame, "Failed to load the next chapter: " + ex.getMessage(), "Error",
+                    JOptionPane.ERROR_MESSAGE);
             // Return to chapter selection to let user choose again
-            if (mainFrame instanceof UI.MainFrame) ((UI.MainFrame) mainFrame).changeToStoryMode();
-            synchronized (startLock) { levelStarting = false; }
+            if (mainFrame instanceof UI.MainFrame)
+                ((UI.MainFrame) mainFrame).changeToStoryMode();
+            synchronized (startLock) {
+                levelStarting = false;
+            }
         }
-        // Note: the rest of the initialization (sanitizing grid, swapping panels, and starting
-        // the GameController) is handled in the background waiter thread above. We purposely
-        // avoid duplicating that logic here to prevent double-initialization when startLevel
-        // is called multiple times during chapter transitions.
 
-        // levelStarting will be reset by the waiter thread once initialization completes.
+        // levelStarting will be reset by the waiter thread once initialization
+        // completes.
     }
 
     /**
      * Minimal, non-invasive fix:
-    * Clear any leftover 'D' or 'E' characters from the grid so new discs spawned in the new stage
+     * Clear any leftover 'D' or 'E' characters from the grid so new discs spawned
+     * in the new stage
      * are not immediately considered "occupi.
      *
      * We intentionally only touch 'D' here to avoid changing any trail/wall logic.
@@ -1059,7 +1224,8 @@ public class ArenaLoader {
     private static void sanitizeGrid(Arena arena) {
         try {
             char[][] grid = arena.getGrid();
-            if (grid == null) return;
+            if (grid == null)
+                return;
             for (int r = 0; r < grid.length; r++) {
                 for (int c = 0; c < grid[r].length; c++) {
                     if (grid[r][c] == 'D' || grid[r][c] == 'E') {
@@ -1075,19 +1241,30 @@ public class ArenaLoader {
     }
 
     public static void showLevelCompleteDialog() {
-        // Special final-choice flow for Chapter 5 Stage 4: play option + branching endings
+        // Special final-choice flow for Chapter 5 Stage 4: play option + branching
+        // endings
         if (currentChapter == 5 && currentStage == 4) {
             // Stop gameplay loop cleanly before showing narrative
-            try { if (activeController != null) activeController.stopGame(); } catch (Exception ignored) {}
-            try { if (gameThread != null && gameThread.isAlive()) gameThread.interrupt(); } catch (Exception ignored) {}
+            try {
+                if (activeController != null)
+                    activeController.stopGame();
+            } catch (Exception ignored) {
+            }
+            try {
+                if (gameThread != null && gameThread.isAlive())
+                    gameThread.interrupt();
+            } catch (Exception ignored) {
+            }
 
             // Present the choice cutscene, then the branching endings
             UI.CutsceneManager.playCutsceneFile("c5option.txt", mainFrame, false);
 
-            Object[] options = {"KILL CLU", "SPARE CLU"};
+            Object[] options = { "KILL CLU", "SPARE CLU" };
             JLabel title = new JLabel("<html>" +
-                    "<div style='text-align:center; font-size:22px; font-weight:bold; color:#ff3b30; letter-spacing:1px;'>THE GRID HOLDS ITS BREATH</div>" +
-                    "<div style='text-align:center; font-size:15px; color:#d0d0d0; margin-top:10px;'>This choice echoes through the entire system.</div>" +
+                    "<div style='text-align:center; font-size:22px; font-weight:bold; color:#ff3b30; letter-spacing:1px;'>THE GRID HOLDS ITS BREATH</div>"
+                    +
+                    "<div style='text-align:center; font-size:15px; color:#d0d0d0; margin-top:10px;'>This choice echoes through the entire system.</div>"
+                    +
                     "</html>", SwingConstants.CENTER);
             title.setBorder(new EmptyBorder(16, 16, 10, 16));
             title.setOpaque(true);
@@ -1118,7 +1295,8 @@ public class ArenaLoader {
             return;
         }
 
-        // Show post-stage cutscene (suffix "b") if available, reuse the active GamePanel overlay.
+        // Show post-stage cutscene (suffix "b") if available, reuse the active
+        // GamePanel overlay.
         if (UI.CutsceneManager.cutsceneExists(currentChapter, currentStage, "b")) {
             UI.CutsceneManager.showCutsceneIfExists(currentChapter, currentStage, "b", mainFrame, null, false);
         }
@@ -1129,7 +1307,8 @@ public class ArenaLoader {
 
         if (activeController != null) {
             Character player = activeController.getPlayer();
-            // Use stage-clear-only XP (no per-kill farming). The award is applied in GameController
+            // Use stage-clear-only XP (no per-kill farming). The award is applied in
+            // GameController
             xpReward = TronRules.calculateStageClearXp(currentChapter, currentStage);
             currentLives = player.getLives();
             maxLives = player.getMaxLives();
@@ -1154,44 +1333,53 @@ public class ArenaLoader {
                             db.updateCompletion(username, chapterToSave, totalXp, timeNow, tronLvl, kevinLvl);
                             // Persist precise XP as well so level and XP stay consistent after restart
                             if (persistentPlayer != null) {
-                                if ("Tron".equalsIgnoreCase(persistentPlayer.name)) db.setTronXp(username, totalXp);
-                                else if ("Kevin".equalsIgnoreCase(persistentPlayer.name)) db.setKevinXp(username, totalXp);
+                                if ("Tron".equalsIgnoreCase(persistentPlayer.name))
+                                    db.setTronXp(username, totalXp);
+                                else if ("Kevin".equalsIgnoreCase(persistentPlayer.name))
+                                    db.setKevinXp(username, totalXp);
                             }
 
-                            // --- IMPORTANT: Save next stage progress so returning to chapter goes to the next stage ---
+                            // --- IMPORTANT: Save next stage progress so returning to chapter goes to the
+                            // next stage ---
                             try {
                                 int nextStage = currentStage + 1;
                                 int max = XPSystem.TronRules.getStagesForChapter(currentChapter);
                                 if (nextStage <= max) {
                                     // Only update if it advances the saved stage
                                     int prev = db.getChapterStage(username, currentChapter);
-                                    if (nextStage > prev) db.setChapterStage(username, currentChapter, nextStage);
+                                    if (nextStage > prev)
+                                        db.setChapterStage(username, currentChapter, nextStage);
                                 } else {
-                                    // Completed final stage -> ensure next chapter is unlocked and set its stage to 1
+                                    // Completed final stage -> ensure next chapter is unlocked and set its stage to
+                                    // 1
                                     int nextChapter = currentChapter + 1;
                                     if (nextChapter <= 5) {
                                         int prev = db.getChapterStage(username, nextChapter);
-                                        if (1 > prev) db.setChapterStage(username, nextChapter, 1);
+                                        if (1 > prev)
+                                            db.setChapterStage(username, nextChapter, 1);
                                     }
                                 }
-                            } catch (Exception e) { System.out.println("[WARN] Failed to persist next-stage progress: " + e.getMessage()); }
+                            } catch (Exception e) {
+                                System.out.println("[WARN] Failed to persist next-stage progress: " + e.getMessage());
+                            }
 
-                        } catch (Exception e) { e.printStackTrace(); }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }).start();
                 }
             }
         }
 
         String message = String.format(
-            "STAGE CLEARED!\n\nXP Earned: %d\nCurrent Lives: %.1f / %.1f\n\nWhat would you like to do next?",
-            xpReward, currentLives, maxLives
-        );
+                "STAGE CLEARED!\n\nXP Earned: %d\nCurrent Lives: %.1f / %.1f\n\nWhat would you like to do next?",
+                xpReward, currentLives, maxLives);
 
-        Object[] options = {"NEXT STAGE", "RETURN TO CHAPTER SELECT", "QUIT"};
+        Object[] options = { "NEXT STAGE", "RETURN TO CHAPTER SELECT", "QUIT" };
         Timer delayTimer = new Timer(2000, e -> {
             int choice = JOptionPane.showOptionDialog(mainFrame, message, "SECTOR SECURE",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
-                options, options[0]);
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
+                    options, options[0]);
 
             if (choice == 0) { // NEXT STAGE
                 currentStage++;
@@ -1202,7 +1390,8 @@ public class ArenaLoader {
                 if (currentStage > maxStages) {
                     int nextChapter = currentChapter + 1;
                     if (nextChapter <= 5) {
-                        System.out.println(String.format("[ArenaLoader] Chapter %d completed. Advancing to Chapter %d", currentChapter, nextChapter));
+                        System.out.println(String.format("[ArenaLoader] Chapter %d completed. Advancing to Chapter %d",
+                                currentChapter, nextChapter));
                         currentChapter = nextChapter;
                         currentStage = 1;
                         showChapterClearDialog();
@@ -1211,10 +1400,20 @@ public class ArenaLoader {
                         // Player finished all chapters
                         System.out.println("[ArenaLoader] All chapters completed. Returning to Chapter Select.");
                         // Stop any running game thread safely, then return to story mode
-                        try { if (activeController != null) activeController.stopGame(); } catch (Exception ignored) {}
-                        try { if (gameThread != null && gameThread.isAlive()) gameThread.interrupt(); } catch (Exception ignored) {}
-                        if (mainFrame instanceof UI.MainFrame) ((UI.MainFrame) mainFrame).changeToStoryMode();
-                        else JOptionPane.showMessageDialog(mainFrame, "Congratulations — you completed all chapters!");
+                        try {
+                            if (activeController != null)
+                                activeController.stopGame();
+                        } catch (Exception ignored) {
+                        }
+                        try {
+                            if (gameThread != null && gameThread.isAlive())
+                                gameThread.interrupt();
+                        } catch (Exception ignored) {
+                        }
+                        if (mainFrame instanceof UI.MainFrame)
+                            ((UI.MainFrame) mainFrame).changeToStoryMode();
+                        else
+                            JOptionPane.showMessageDialog(mainFrame, "Congratulations — you completed all chapters!");
                         return;
                     }
                 }
@@ -1224,13 +1423,16 @@ public class ArenaLoader {
             } else if (choice == 1) { // RETURN TO CHAPTER SELECT
                 // Safely stop the active game and return to Story Mode
                 try {
-                    if (activeController != null) activeController.stopGame();
-                } catch (Exception ignored) {}
+                    if (activeController != null)
+                        activeController.stopGame();
+                } catch (Exception ignored) {
+                }
                 try {
                     if (gameThread != null && gameThread.isAlive()) {
                         gameThread.interrupt();
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
 
                 if (mainFrame instanceof UI.MainFrame) {
                     ((UI.MainFrame) mainFrame).changeToStoryMode();
@@ -1247,7 +1449,7 @@ public class ArenaLoader {
     }
 
     private static void showChapterClearDialog() {
-        Object[] options = {"Next Chapter", "Chapter Select", "Exit"};
+        Object[] options = { "Next Chapter", "Chapter Select", "Exit" };
         int choice = JOptionPane.showOptionDialog(mainFrame,
                 "CHAPTER COMPLETE!\nWhat would you like to do next?",
                 "CHAPTER COMPLETE",
@@ -1272,10 +1474,14 @@ public class ArenaLoader {
                             UI.DatabaseManager db = new UI.DatabaseManager();
                             db.updateCompletion(username, chapterToSave, totalXp, timeNow, tronLvl, kevinLvl);
                             if (persistentPlayer != null) {
-                                if ("Tron".equalsIgnoreCase(persistentPlayer.name)) db.setTronXp(username, totalXp);
-                                else if ("Kevin".equalsIgnoreCase(persistentPlayer.name)) db.setKevinXp(username, totalXp);
+                                if ("Tron".equalsIgnoreCase(persistentPlayer.name))
+                                    db.setTronXp(username, totalXp);
+                                else if ("Kevin".equalsIgnoreCase(persistentPlayer.name))
+                                    db.setKevinXp(username, totalXp);
                             }
-                        } catch (Exception e) { e.printStackTrace(); }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }).start();
                 }
             }
@@ -1295,25 +1501,25 @@ public class ArenaLoader {
         } else {
             // Exit the game
             System.exit(0);
-        }  
+        }
     }
 
     public static void unlockAchievement(int achIndex, String title, String desc) {
         // 1. Check if we have a valid main frame reference
         if (mainFrame instanceof UI.MainFrame) {
-            
+
             // 2. Get the current logged-in user
             String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
-            
+
             if (username != null && !username.trim().isEmpty()) {
-                
+
                 // 3. Run database operations in a background thread (so game doesn't lag)
                 new Thread(() -> {
                     UI.DatabaseManager db = new UI.DatabaseManager();
-                    
+
                     // 4. Get list of achievements (True/False)
                     java.util.List<Boolean> achievements = db.getAchievements(username);
-                    
+
                     // 5. Check if this specific one is already unlocked
                     // Note: achIndex is 1-6, but list is 0-5. So we use (achIndex - 1)
                     int listIndex = achIndex - 1;
@@ -1321,10 +1527,10 @@ public class ArenaLoader {
                     if (listIndex >= 0 && listIndex < achievements.size()) {
                         if (!achievements.get(listIndex)) {
                             // It is currently LOCKED (False). So we unlock it!
-                            
+
                             // A. Update Database
                             db.unlockAchievement(username, achIndex);
-                            
+
                             // B. Show the Neon Popup on the main screen
                             SwingUtilities.invokeLater(() -> {
                                 UI.AchievementPopup.show(mainFrame, title, desc);

@@ -7,7 +7,6 @@ public class SoundButton extends IconButton {
     public SoundButton(String imagePath, String musicPath) {
         super(imagePath);
 
-        // START MUSIC VIA MANAGER (AudioManager handles deduping)
         AudioManager.playMusic(musicPath);
 
         addActionListener(e -> {

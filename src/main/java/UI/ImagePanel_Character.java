@@ -2,14 +2,14 @@ package UI;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ComponentAdapter; 
+import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;   
+import java.awt.event.MouseEvent;
 
 public class ImagePanel_Character extends BaseImagePanel {
-    private MainFrame mainFrame;   
-    private JLabel chapterTitleLabel; 
+    private MainFrame mainFrame;
+    private JLabel chapterTitleLabel;
     private KevinButton kevinButton;
     private TronButton tronButton;
     private PlayArenaButton playArenaButton;
@@ -21,28 +21,28 @@ public class ImagePanel_Character extends BaseImagePanel {
         this.username = username;
         setBackgroundImage("images/character_bg.png");
         this.currentChapter = chapterNumber;
-        setLayout(null); 
+        setLayout(null);
 
         // 1. Back Button
         setupBackButton(() -> mainFrame.changeToStoryMode());
 
         // 2. Dynamic Chapter Title
         String titlePath = "images/c" + chapterNumber + "_image.png";
-        
-        ImageIcon chapterIcon = new ImageIcon(titlePath); 
-        
+
+        ImageIcon chapterIcon = new ImageIcon(titlePath);
+
         // Safety Check: If image doesn't exist, default back to Chapter 1
         if (chapterIcon.getIconWidth() == -1) {
             System.out.println("Warning: Image " + titlePath + " not found. Defaulting to c1_image.png");
             chapterIcon = new ImageIcon("images/c1_image.png");
         }
-        
+
         chapterTitleLabel = new JLabel(chapterIcon);
         add(chapterTitleLabel);
 
         // 3. Create Kevin Button
         kevinButton = new KevinButton("images/kevin_c.png", "images/kevin_selected.png");
-        // --- LOGIC: If Kevin clicked, turn OFF Tron ---
+        // If Kevin clicked, turn OFF Tron
         kevinButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -55,7 +55,7 @@ public class ImagePanel_Character extends BaseImagePanel {
 
         // 4. Create Tron Button
         tronButton = new TronButton("images/tron_c.png", "images/tron_selected.png");
-        // --- LOGIC: If Tron clicked, turn OFF Kevin ---
+        // If Tron clicked, turn OFF Kevin
         tronButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -78,7 +78,7 @@ public class ImagePanel_Character extends BaseImagePanel {
             else if (!kevinButton.isSelected() && !tronButton.isSelected()) {
                 JOptionPane.showMessageDialog(null, "Please select a character to start!");
             }
-            // START GAME
+            // Start game
             else {
                 String selectedChar = kevinButton.isSelected() ? "Kevin" : "Tron";
                 System.out.println("Starting game with: " + selectedChar);
@@ -87,11 +87,13 @@ public class ImagePanel_Character extends BaseImagePanel {
                 // Set the current chapter
                 arena.ArenaLoader.currentChapter = currentChapter;
 
-                // --- RESUME PROMPT: If the user has a saved stage for this chapter, offer to resume ---
+                // If the user has a saved stage for this chapter, offer to resume
                 UI.DatabaseManager db = new UI.DatabaseManager();
                 int savedStage = db.getChapterStage(username, currentChapter);
                 if (savedStage > 1) {
-                    int opt = JOptionPane.showConfirmDialog(null, "You last played up to Stage " + savedStage + " in this chapter. Resume from that stage?", "Resume Progress", JOptionPane.YES_NO_OPTION);
+                    int opt = JOptionPane.showConfirmDialog(null,
+                            "You last played up to Stage " + savedStage + " in this chapter. Resume from that stage?",
+                            "Resume Progress", JOptionPane.YES_NO_OPTION);
                     if (opt == JOptionPane.YES_OPTION) {
                         arena.ArenaLoader.currentStage = savedStage;
                     } else {
@@ -122,10 +124,14 @@ public class ImagePanel_Character extends BaseImagePanel {
                 // Start the game loop so GIFs / animations will animate during the cutscene
                 gamePanel.startGameThread(mainFrame);
 
-                // Show the pre-stage cutscene for the selected chapter/stage (no NEXT_FILE chaining) in fullscreen dialog
-                UI.CutsceneManager.showCutsceneIfExists(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage, "a", mainFrame, null, false);
-                // Record that we've shown the pre-stage cutscene so ArenaLoader won't show it again.
-                arena.ArenaLoader.markPreCutsceneShown(arena.ArenaLoader.currentChapter, arena.ArenaLoader.currentStage);
+                // Show the pre-stage cutscene for the selected chapter/stage (no NEXT_FILE
+                // chaining) in fullscreen dialog
+                UI.CutsceneManager.showCutsceneIfExists(arena.ArenaLoader.currentChapter,
+                        arena.ArenaLoader.currentStage, "a", mainFrame, null, false);
+                // Record that we've shown the pre-stage cutscene so ArenaLoader won't show it
+                // again.
+                arena.ArenaLoader.markPreCutsceneShown(arena.ArenaLoader.currentChapter,
+                        arena.ArenaLoader.currentStage);
 
                 // Wait for cutscene to finish on a background thread (do not block the EDT)
                 Thread waitThread = new Thread(() -> {
@@ -133,12 +139,14 @@ public class ImagePanel_Character extends BaseImagePanel {
                         while (gamePanel.cutscene.isActive()) {
                             Thread.sleep(50);
                         }
-                        // When cutscene finishes, show the Start Simulation menu on the EDT and then start the level
+                        // When cutscene finishes, show the Start Simulation menu on the EDT and then
+                        // start the level
                         SwingUtilities.invokeLater(() -> {
                             UI.StartGameMenu.showMenu(mainFrame);
                             arena.ArenaLoader.startLevel();
                         });
-                    } catch (InterruptedException ignored) {}
+                    } catch (InterruptedException ignored) {
+                    }
                 });
                 waitThread.setDaemon(true);
                 waitThread.start();
@@ -157,18 +165,19 @@ public class ImagePanel_Character extends BaseImagePanel {
     private void updateLayout() {
         int w = getWidth();
         int h = getHeight();
-        if (w == 0 || h == 0) return;
+        if (w == 0 || h == 0)
+            return;
 
         // A. Back Button
         positionBackButton(h);
 
         // B. Chapter Image
         int imgW = (int) (w * 0.28); // slightly smaller so it doesn't overlap character cards
-        int imgH = (int) (imgW * 0.60); 
-        int imgX = (w / 2) - (imgW / 2); 
+        int imgH = (int) (imgW * 0.60);
+        int imgX = (w / 2) - (imgW / 2);
         int imgY = 10; // drop a bit lower for nicer spacing
         chapterTitleLabel.setBounds(imgX, imgY, imgW, imgH);
-        
+
         String titlePath = "images/c" + currentChapter + "_image.png";
         ImageIcon originalIcon = new ImageIcon(titlePath);
         if (originalIcon.getIconWidth() == -1) {
@@ -180,9 +189,9 @@ public class ImagePanel_Character extends BaseImagePanel {
         }
 
         // C. Character Buttons
-        int charWidth = (int) (w * 0.40);  
-        int charHeight = (int) (charWidth * 0.70); 
-        int spacing = (int) (w * 0.10); 
+        int charWidth = (int) (w * 0.40);
+        int charHeight = (int) (charWidth * 0.70);
+        int spacing = (int) (w * 0.10);
         int charY = (h / 2) - (charHeight / 2) + 40;
         int kevinX = (w / 2) - charWidth - (spacing / 2);
         int tronX = (w / 2) + (spacing / 2);
@@ -194,9 +203,9 @@ public class ImagePanel_Character extends BaseImagePanel {
         tronButton.resizeIcon(charWidth, charHeight);
 
         // D. Play Arena Button
-        int playArenaSize = (int) (h * 0.18); 
+        int playArenaSize = (int) (h * 0.18);
         int playArenaX = (w / 2) - (playArenaSize / 2);
-        int playArenaY = h - playArenaSize - 30;    
+        int playArenaY = h - playArenaSize - 30;
         playArenaButton.setBounds(playArenaX, playArenaY, playArenaSize, playArenaSize);
         playArenaButton.resizeIcon(playArenaSize);
     }

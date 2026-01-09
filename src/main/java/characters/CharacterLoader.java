@@ -4,10 +4,8 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 
-/**
- * Handles the mandatory File I/O for character initialization.
- * Populates Character instances directly; no intermediary data class.
- */
+//Handles the mandatory File I/O for character initialization
+
 public class CharacterLoader {
 
     private static final String FILE_PATH = "data\\characters.txt";
@@ -17,11 +15,13 @@ public class CharacterLoader {
      * Expected CSV: name,speed,handling,lives,discsOwned,xp,symbol,color,imageBase
      */
     public static void loadInto(Character target, String characterName) {
-        if (target == null || characterName == null) return;
+        if (target == null || characterName == null)
+            return;
         try (BufferedReader reader = new BufferedReader(new FileReader(FILE_PATH))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.startsWith("#") || line.isBlank()) continue;
+                if (line.startsWith("#") || line.isBlank())
+                    continue;
                 String[] p = line.split(",\\s*");
                 if (p.length >= 6 && p[0].equalsIgnoreCase(characterName)) {
                     try {
@@ -32,12 +32,16 @@ public class CharacterLoader {
                         target.setLives(target.getMaxLives());
                         target.setDiscsOwned(Integer.parseInt(p[4]));
                         target.setXp(Long.parseLong(p[5]));
-                        if (p.length > 6 && !p[6].isEmpty()) target.symbol = p[6].charAt(0);
-                        if (p.length > 7 && !p[7].isEmpty()) target.color = p[7];
-                        if (p.length > 8 && !p[8].isEmpty()) target.imageBaseName = p[8];
+                        if (p.length > 6 && !p[6].isEmpty())
+                            target.symbol = p[6].charAt(0);
+                        if (p.length > 7 && !p[7].isEmpty())
+                            target.color = p[7];
+                        if (p.length > 8 && !p[8].isEmpty())
+                            target.imageBaseName = p[8];
                         target.recalcDiscCapacity();
                         target.currentDiscCount = target.getDiscCapacity();
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                    }
                     return;
                 }
             }
