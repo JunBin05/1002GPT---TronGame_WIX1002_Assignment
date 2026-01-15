@@ -1323,7 +1323,7 @@ public class ArenaLoader {
                 String username = ((UI.MainFrame) mainFrame).getCurrentUsername();
                 if (username != null && !username.trim().isEmpty()) {
                     long totalXp = player.getXp();
-                    int chapterToSave = currentChapter; // save current unlocked chapter
+                    int chapterToSave = currentChapter; // default: current chapter clears
                     int tronLvl = (persistentTron != null) ? persistentTron.getLevel() : 0;
                     int kevinLvl = (persistentKevin != null) ? persistentKevin.getLevel() : 0;
                     String timeNow = java.time.Instant.now().toString();
@@ -1350,13 +1350,14 @@ public class ArenaLoader {
                                     if (nextStage > prev)
                                         db.setChapterStage(username, currentChapter, nextStage);
                                 } else {
-                                    // Completed final stage -> ensure next chapter is unlocked and set its stage to
-                                    // 1
+                                    // Completed final stage -> ensure next chapter is unlocked and set its stage to 1
                                     int nextChapter = currentChapter + 1;
                                     if (nextChapter <= 5) {
                                         int prev = db.getChapterStage(username, nextChapter);
                                         if (1 > prev)
                                             db.setChapterStage(username, nextChapter, 1);
+                                        // Also raise highest chapter so chapter select shows it unlocked
+                                        db.updateCompletion(username, nextChapter, totalXp, timeNow, tronLvl, kevinLvl);
                                     }
                                 }
                             } catch (Exception e) {
