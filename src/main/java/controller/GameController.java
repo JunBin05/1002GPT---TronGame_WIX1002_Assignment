@@ -355,8 +355,8 @@ public class GameController implements KeyListener, Runnable {
                     hitDisc = true;
                 }
 
-                // Enemy steps into player
-                if (tile == playerCycle.getSymbol() && playerCycle.getRow() == nextR && playerCycle.getCol() == nextC) {
+                // Enemy steps into player (player head not stored in grid)
+                if (playerCycle.getRow() == nextR && playerCycle.getCol() == nextC) {
                     long now = System.nanoTime();
                     if (now >= playerInvulnerableUntilNs) {
                         playerCycle.changeLives(-0.5);
@@ -482,10 +482,23 @@ public class GameController implements KeyListener, Runnable {
         char element = ' ';
         boolean collided = false;
         boolean hitEnemyDisc = false;
+        Enemy collidedEnemy = null;
         if (futureR < 0 || futureR >= 40 || futureC < 0 || futureC >= 40) {
             this.playerCycle.changeLives(-this.playerCycle.getLives());
             collided = true;
         } else {
+            // Body collision: enemy already occupying the destination cell (player heads are
+            // tracked by coordinates, not written into the grid)
+            for (Character other : cycles) {
+                if (other == playerCycle)
+                    continue;
+                if (other.getRow() == futureR && other.getCol() == futureC) {
+                    collided = true;
+                    if (other instanceof Enemy enemyAtTarget)
+                        collidedEnemy = enemyAtTarget;
+                    break;
+                }
+            }
             element = grid[futureR][futureC];
             if (element == 'D' || element == 'E') {
                 Disc picked = findDiscAt(futureR, futureC);
@@ -506,20 +519,6 @@ public class GameController implements KeyListener, Runnable {
                     element = restore;
                     if (picked != null)
                         activeDiscs.remove(picked);
-                }
-            }
-
-            // Special case: when the destination is a speed ramp 'S' it may still be
-            // occupied by an enemy (enemies do not overwrite 'S' with their trail). Detect
-            // occupancy.
-            if (element == 'S') {
-                for (Character other : cycles) {
-                    if (other == playerCycle)
-                        continue;
-                    if (other.getRow() == futureR && other.getCol() == futureC) {
-                        collided = true;
-                        break;
-                    }
                 }
             }
 
@@ -544,6 +543,14 @@ public class GameController implements KeyListener, Runnable {
                 } else {
                     // Ignore damage during i-frames; still bounce direction to avoid sticking
                     this.playerCycle.setOppositeDirection();
+                }
+                // Apply reciprocal damage to the enemy the player walked into
+                if (collidedEnemy != null) {
+                    collidedEnemy.changeLives(-0.5);
+                    if (collidedEnemy.getLives() <= 0) {
+                        restoreBaseTile(grid, collidedEnemy.getRow(), collidedEnemy.getCol());
+                        cycles.remove(collidedEnemy);
+                    }
                 }
             }
         } else {
